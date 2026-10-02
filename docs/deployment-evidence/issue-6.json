@@ -234,9 +234,11 @@
   },
   "pr_completion_claim": {
     "number": 9,
-    "premature_closing_reference_removed": true,
-    "issue_completion_claimed": false,
-    "required_downstream_behavior": "Keep Issue #6 open and do not restore a closing reference before successful deployment and public commit/HTTP/hash verification. Publishing this checkpoint alone does not resolve the finding."
+    "premature_closing_reference_removed_by_upstream": true,
+    "closing_reference_included_by_publication_request": true,
+    "live_completion_verified": false,
+    "publication_note": "The publication node explicitly requires Closes #6 in the PR body. The closing reference does not establish live publication; the PR description retains the unresolved deployment caveat. This node does not merge or close the Issue.",
+    "required_post_merge_verification": "Require a successful main deployment and public commit/HTTP/hash verification before recording Issue #6 as complete."
   },
   "revision_validation": {
     "checked_at": "2026-10-02T12:11:35.173Z",
