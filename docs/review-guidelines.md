@@ -22,6 +22,16 @@ Do not approve a Pull Request as closing an Issue when important requirements re
 
 If the change is intentionally partial, the Pull Request should say so and the Issue should remain open.
 
+## Check Acceptance and Verification
+
+Mandatory pre-merge acceptance criteria must be achievable and verifiable before merge. Confirm that the implementation meets all requirements and that applicable pre-merge tests and checks pass.
+
+Checks possible only after merge must not be prerequisites for pre-merge Pull Request approval. Require these checks to be recorded separately, with instructions for verification, and reported as pending until performed. Pending post-merge verification does not excuse missing implementation or insufficient pre-merge validation, and must not be reported as passed or as proof that the overall outcome is verified.
+
+For a merge-triggered deployment, review the code and configuration, local build results, and applicable automated test results before merge. Verify successful publication and the newly published site after merge, then record the results and evidence.
+
+Follow the [development flow](development-flow.md#pre-merge-acceptance-and-post-merge-verification) and the [Issue template](../.github/ISSUE_TEMPLATE/issue.md) to keep the two stages explicit.
+
 ## Check for Unnecessary Work
 
 Verify that the Pull Request does not go beyond what the Issue requires without a clear reason.
@@ -51,8 +61,9 @@ Also verify the ordinary quality of the change:
 
 A Pull Request is ready to merge when:
 
-- it fully addresses the Issue it claims to resolve
+- it implements all requirements of the Issue it claims to resolve and satisfies all pre-merge acceptance criteria
 - it does not introduce unjustified scope or complexity
 - the implementation is correct and appropriately validated
+- required post-merge verification is recorded separately and accurately reported as pending until performed
 
 If any of these conditions are not met, request changes and review again after revision.
