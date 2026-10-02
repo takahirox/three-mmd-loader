@@ -2,7 +2,7 @@ import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { manifestName, sha256, validateManifest } from './pages-manifest.js';
+import { manifestName, requiredPages, sha256, validateManifest, writeUnpublishedSite } from './pages-manifest.js';
 
 async function get( base, path, fetcher ) {
 
@@ -16,7 +16,8 @@ async function get( base, path, fetcher ) {
 async function checkSite( base, manifest, { fetcher = fetch, directory, checks = [] } = {} ) {
 
 	validateManifest( manifest );
-	const entries = [
+	const unpublished = manifest.state === 'unpublished';
+	const entries = unpublished ? manifest.files : [
 		...manifest.files,
 		{ ...manifest.files.find( entry => entry.path === 'index.html' ), path: '' },
 		{ ...manifest.files.find( entry => entry.path === 'examples/index.html' ), path: 'examples/' }
@@ -45,6 +46,19 @@ async function checkSite( base, manifest, { fetcher = fetch, directory, checks =
 	const results = await Promise.allSettled( workers );
 	const failure = results.find( result => result.status === 'rejected' );
 	if ( failure ) throw failure.reason;
+	if ( unpublished ) {
+
+		for ( const path of [ '', 'examples/', ...requiredPages.filter( path => path.startsWith( 'examples/' ) ) ] ) {
+
+			const { status, bytes } = await get( base, path, fetcher );
+			const hash = sha256( bytes );
+			const expected = manifest.files.find( entry => entry.path === '404.html' ).sha256;
+			checks.push( { path: path || '/', status, sha256: hash, success: status === 404 && hash === expected } );
+			if ( status !== 404 || hash !== expected ) throw new Error( `Unpublished recovery site still serves content: ${path || '/'}` );
+
+		}
+
+	}
 	return checks;
 
 }
@@ -65,6 +79,7 @@ export async function backupSite( base, directory, { fetcher = fetch, report = {
 	if ( live.status !== 200 ) throw new Error( `Cannot back up public site: HTTP ${live.status}` );
 	const manifest = validateManifest( JSON.parse( live.bytes ) );
 	Object.assign( report, { exists: true, commit: manifest.commit, checks: [] } );
+	if ( manifest.state === 'unpublished' ) report.state = 'unpublished';
 	await checkSite( base, manifest, { fetcher, directory, checks: report.checks } );
 	await writeFile( join( directory, manifestName ), live.bytes );
 	report.success = true;
@@ -120,6 +135,12 @@ if ( process.argv[ 1 ] && resolve( process.argv[ 1 ] ) === fileURLToPath( import
 		if ( mode === 'backup' ) {
 
 			await backupSite( process.env.PAGE_URL, directory, { report, allowEmpty: process.env.ALLOW_EMPTY_SITE === 'true' } );
+			if ( ! report.exists ) {
+
+				await writeUnpublishedSite( directory, process.env.GITHUB_SHA );
+				report.recovery = 'unpublished';
+
+			}
 			if ( process.env.GITHUB_OUTPUT ) await appendFile( process.env.GITHUB_OUTPUT, `exists=${report.exists}\n` );
 
 		} else if ( mode === 'verify' ) {
@@ -134,6 +155,7 @@ if ( process.argv[ 1 ] && resolve( process.argv[ 1 ] ) === fileURLToPath( import
 
 	} catch ( error ) {
 
+		report.success = false;
 		report.error = error.message;
 		console.error( error.message );
 		process.exitCode = 1;

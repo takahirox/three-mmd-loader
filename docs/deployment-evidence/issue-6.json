@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "issue": 6,
+  "repository": "takahirox/three-mmd-loader",
+  "checked_at": "2026-10-02T12:00:15.044Z",
+  "completion_verified": false,
+  "bootstrap": {
+    "success": true,
+    "checked_at": "2026-10-02T11:54:53.637Z",
+    "repository": "takahirox/three-mmd-loader",
+    "mode": "--configure",
+    "created": true,
+    "never_published": true,
+    "build_type": "workflow",
+    "environment": "github-pages",
+    "branch": "main",
+    "page_url": "https://takahirox.github.io/three-mmd-loader/"
+  },
+  "configuration": {
+    "success": true,
+    "created": false,
+    "never_published": true,
+    "build_type": "workflow",
+    "environment": "github-pages",
+    "branch": "main",
+    "page_url": "https://takahirox.github.io/three-mmd-loader/",
+    "source": {
+      "branch": "main",
+      "path": "/"
+    },
+    "pages_status": null,
+    "environment_rules": [
+      {
+        "type": "branch_policy"
+      }
+    ],
+    "deployment_branch_policy": {
+      "protected_branches": false,
+      "custom_branch_policies": true
+    },
+    "branch_policies": [
+      {
+        "name": "main",
+        "type": "branch"
+      }
+    ],
+    "custom_protection_rules_count": 0,
+    "actions_enabled": true,
+    "repository_actions_secrets_count": 0
+  },
+  "deployment": {
+    "status": "pending-publication-and-merge",
+    "deployed_commit": null,
+    "remote_main_commit": "d8309fbd4af060ef9b33cfce1692e9d82de6d1fe",
+    "workflow_on_main_http_status": 404,
+    "recorded_pages_deployments": 0,
+    "blocker": "This node must not push or merge. The final workflow is absent from remote main, so no deployment of this implementation or successful public hash verification can occur here.",
+    "next_steps": [
+      "Publish the checkpoint through the downstream publication node.",
+      "After review and merge to main, require a successful Deploy browser examples run and its pages-setup-evidence and pages-deployment-evidence artifacts.",
+      "Verify deployment.json reports success, the merged commit, and successful public HTTP/hash checks for every file and both landing URLs."
+    ]
+  },
+  "public": {
+    "page_url": "https://takahirox.github.io/three-mmd-loader/",
+    "expected_commit_verified": false,
+    "checks": [
+      {
+        "path": "/",
+        "status": 404,
+        "sha256": "70d613e3acfba24fd2876fcbacaf639e1e111ef4d54baf70761c47673f37d6a3",
+        "success": false
+      },
+      {
+        "path": "examples/",
+        "status": 404,
+        "sha256": "70d613e3acfba24fd2876fcbacaf639e1e111ef4d54baf70761c47673f37d6a3",
+        "success": false
+      },
+      {
+        "path": "deployment-manifest.json",
+        "status": 404,
+        "sha256": "70d613e3acfba24fd2876fcbacaf639e1e111ef4d54baf70761c47673f37d6a3",
+        "success": false
+      }
+    ]
+  },
+  "local_validation": {
+    "node_tests": {
+      "command": "npm test",
+      "passed": 26,
+      "failed": 0
+    },
+    "static_build": {
+      "command": "npm run build:examples",
+      "success": true
+    },
+    "candidate_base_commit": "d32634f82928911da91c77cade0e14ce05e6e420",
+    "candidate_includes_worktree_changes": true,
+    "candidate_manifest_sha256": "20f9706a82db2fbb498cc911a8b5c34ffef206e92363331c901ebf8d12fa7922",
+    "candidate_file_count": 552,
+    "implementation_files": [
+      {
+        "path": ".github/workflows/examples-pages.yml",
+        "sha256": "4b49cd86c5957b367e5c2308915d1629ad46481f01e1a99c3c411bc1df4efe50"
+      },
+      {
+        "path": ".gitignore",
+        "sha256": "f1799c236d47f76726d83b89c3a1bbff630d2eef5c5dad1a8d8c7ad14f265e13"
+      },
+      {
+        "path": "examples/README.md",
+        "sha256": "146e7e13c8757e44a4c1cbe41bb303542060d6cbdcf4430b9bf77f5c238b5437"
+      },
+      {
+        "path": "package.json",
+        "sha256": "8f012e0ca393803bc47f6fb637ace2ea7a429fe0839e536d6c99e82d2ee8ddf4"
+      },
+      {
+        "path": "scripts/pages-manifest.js",
+        "sha256": "59a5a03a2d77f1361b760f86a46dcaeeaa638544596e1e3bbae6ae658f64b702"
+      },
+      {
+        "path": "scripts/setup-pages.js",
+        "sha256": "3381b990757a2a18d52ef9c235591e7bd0fb491a169f1991a416b27caff5d70b"
+      },
+      {
+        "path": "scripts/verify-pages.js",
+        "sha256": "9f348f803546e2ed03422b9cc8377991ec336ad0f9e37125c38edfacc86ba91e"
+      },
+      {
+        "path": "tests/pages-deployment.test.js",
+        "sha256": "9dacbaa0da9913928aa9894fdc643937d7fc05c0898b36ce09d29d1c5059b015"
+      }
+    ],
+    "http_hash_verification": {
+      "scope": "loopback static artifact at /three-mmd-loader/; not a public deployment",
+      "success": true,
+      "checked_urls": 555,
+      "failed_checks": 0,
+      "checks_sha256": "8b01b29d1dbc40924bd5a16395d33fae6c7ef2c6fca8b454d6ee14df346f7831",
+      "landing_and_scene_checks": [
+        {
+          "path": "/",
+          "status": 200,
+          "sha256": "73119b53e1cf1a6e47b61f3107aca2bebc3f0335926b12befdbf914f9e60d6f2",
+          "success": true
+        },
+        {
+          "path": "examples/",
+          "status": 200,
+          "sha256": "723fb3686df0ce629b304561d76dddfa6abdb00adc8198f3712a7edff6a5433a",
+          "success": true
+        },
+        {
+          "path": "examples/index.html",
+          "status": 200,
+          "sha256": "723fb3686df0ce629b304561d76dddfa6abdb00adc8198f3712a7edff6a5433a",
+          "success": true
+        },
+        {
+          "path": "examples/webgl_loader_mmd_audio.html",
+          "status": 200,
+          "sha256": "70f635cb33099bc81b7453ce2626142d8c50203e970670b13bfb3f312f646121",
+          "success": true
+        },
+        {
+          "path": "examples/webgl_loader_mmd_pose.html",
+          "status": 200,
+          "sha256": "1fa8daf41aa35b885bb20703a15b8ee6b935f02362f94625eb896465f7c9aae8",
+          "success": true
+        },
+        {
+          "path": "examples/webgl_loader_mmd.html",
+          "status": 200,
+          "sha256": "1f735f574639a9f37d6d643610112bee7a2850b500f5282980ad249fde1b4fa1",
+          "success": true
+        },
+        {
+          "path": "index.html",
+          "status": 200,
+          "sha256": "73119b53e1cf1a6e47b61f3107aca2bebc3f0335926b12befdbf914f9e60d6f2",
+          "success": true
+        }
+      ]
+    },
+    "built_site_browser": {
+      "command": "CHROME_BIN=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" MMD_EXAMPLE_SITE=dist/examples npm run test:examples",
+      "passed": 1,
+      "failed": 0,
+      "original_pinned_assets": true
+    },
+    "workflow_yaml": {
+      "success": true,
+      "parser": "Ruby YAML",
+      "required_jobs": [
+        "build",
+        "setup",
+        "deploy"
+      ]
+    }
+  }
+}

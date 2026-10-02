@@ -39,6 +39,11 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pages: read
     outputs:
       page_url: ${{ steps.setup.outputs.page_url }}
       created: ${{ steps.setup.outputs.created }}
@@ -48,13 +53,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      # Configure before entering the environment so existing approval rules
-      # cannot block the job that removes them. This token is never used on PRs.
-      - name: Enable Pages and configure unattended main deployments
+      # The repository is bootstrapped once with the agent's existing gh
+      # authorization. Ongoing runs only inspect configuration, without admin.
+      - name: Verify unattended main deployment configuration
         id: setup
-        run: node scripts/setup-pages.js
+        run: node scripts/setup-pages.js --check
         env:
-          PAGES_SETUP_TOKEN: ${{ secrets.PAGES_SETUP_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -95,7 +100,6 @@ jobs:
           PAGE_URL: ${{ needs.setup.outputs.page_url }}
           ALLOW_EMPTY_SITE: ${{ needs.setup.outputs.never_published }}
       - uses: actions/upload-pages-artifact@v4
-        if: steps.backup.outputs.exists == 'true'
         with:
           name: github-pages-rollback
           path: dist/rollback
@@ -115,7 +119,7 @@ jobs:
       - name: Restore the previous working site on deployment or validation failure
         id: rollback
         if: >-
-          !cancelled() && steps.backup.outputs.exists == 'true' &&
+          !cancelled() && steps.backup.outcome == 'success' &&
           (steps.deployment.outcome == 'failure' || steps.verification.outcome == 'failure')
         uses: actions/deploy-pages@v4
         continue-on-error: true
@@ -129,27 +133,6 @@ jobs:
           PAGE_URL: ${{ needs.setup.outputs.page_url }}
           DEPLOYMENT_OUTCOME: ${{ steps.rollback.outcome }}
           DEPLOYED_PAGE_URL: ${{ steps.rollback.outputs.page_url }}
-      - name: Remove a failed first publication when there was no previous site
-        if: >-
-          !cancelled() && needs.setup.outputs.never_published == 'true' && steps.backup.outputs.exists == 'false' &&
-          (steps.deployment.outcome == 'failure' || steps.verification.outcome == 'failure')
-        run: |
-          node --input-type=module <<'JS'
-          import { githubAPI } from './scripts/setup-pages.js';
-          import { writeFile } from 'node:fs/promises';
-          const report = { success: false, action: 'removed-failed-first-publication' };
-          try {
-            await githubAPI(process.env.PAGES_SETUP_TOKEN, process.env.GITHUB_REPOSITORY)('DELETE', 'pages');
-            report.success = true;
-          } catch (error) {
-            report.error = error.message;
-            process.exitCode = 1;
-          } finally {
-            await writeFile('deployment-evidence/rollback.json', JSON.stringify(report) + '\n');
-          }
-          JS
-        env:
-          PAGES_SETUP_TOKEN: ${{ secrets.PAGES_SETUP_TOKEN }}
       - name: Persist machine-readable deployment and rollback evidence
         if: always()
         uses: actions/upload-artifact@v4

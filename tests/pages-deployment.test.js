@@ -7,8 +7,8 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { manifestName, requiredPages, validateManifest, writeManifest } from '../scripts/pages-manifest.js';
-import { githubAPI, neverPublished, setupPages } from '../scripts/setup-pages.js';
+import { manifestName, requiredPages, validateManifest, writeManifest, writeUnpublishedSite } from '../scripts/pages-manifest.js';
+import { checkPages, githubAPI, neverPublished, setupCredential, setupPages } from '../scripts/setup-pages.js';
 import { backupSite, verifyDeployment, verifySite } from '../scripts/verify-pages.js';
 
 const oldCommit = 'a'.repeat( 40 );
@@ -68,14 +68,43 @@ test( 'hosting setup creates Pages, removes approval gates, and restricts deploy
 	assert.equal( ( await setupPages( api ) ).created, false );
 	assert.equal( ( await setupPages( api ) ).never_published, true );
 	assert.equal( calls.slice( afterFirst ).some( call => call.method === 'POST' ), false );
+	const readOnly = async ( ...args ) => {
+
+		assert.equal( args[ 0 ], 'GET', 'normal Actions runs must not require administration writes' );
+		return api( ...args );
+
+	};
+	assert.equal( ( await checkPages( readOnly ) ).success, true );
+	environment.protection_rules.push( { type: 'required_reviewers' } );
+	await assert.rejects( checkPages( readOnly ), /configuration did not match/ );
+	environment.protection_rules.pop();
 	// Existing legacy Pages settings are also migrated to Actions.
 	site.build_type = 'legacy';
 	assert.equal( ( await setupPages( api ) ).never_published, false );
 	assert.equal( site.build_type, 'workflow' );
-	assert.throws( () => githubAPI( '', 'owner/repo' ), /PAGES_SETUP_TOKEN/ );
+	assert.throws( () => githubAPI( '', 'owner/repo' ), /GitHub authorization/ );
 	const forbidden = githubAPI( 'do-not-log-this-token', 'owner/repo', async () => new Response( 'secret response', { status: 403 } ) );
 	await assert.rejects( forbidden( 'PUT', 'pages', {} ), { message: 'GitHub PUT pages: HTTP 403' } );
 	await assert.rejects( setupPages( async () => { throw new Error( 'Permission denied' ); } ), /Permission denied/ );
+
+} );
+
+test( 'bootstrap reuses available authorization without storing or exposing it and Actions requires its own token', async () => {
+
+	const unused = async () => { throw new Error( 'CLI must not run' ); };
+	assert.equal( await setupCredential( { GH_TOKEN: 'existing-cli-token' }, unused ), 'existing-cli-token' );
+	assert.equal( await setupCredential( { GITHUB_ACTIONS: 'true', GITHUB_TOKEN: 'workflow-token' }, unused ), 'workflow-token' );
+	assert.equal( await setupCredential( {}, async ( command, args ) => {
+
+		assert.equal( command, 'gh' );
+		assert.deepEqual( args, [ 'auth', 'token', '--hostname', 'github.com' ] );
+		return { stdout: 'existing-agent-token\n' };
+
+	} ), 'existing-agent-token' );
+	await assert.rejects( setupCredential( { GITHUB_ACTIONS: 'true' }, unused ), /GITHUB_TOKEN is required/ );
+	await assert.rejects( setupCredential( {}, async () => { throw new Error( 'sensitive stdout' ); } ), {
+		message: 'No available GitHub authorization; use the existing authenticated GitHub CLI'
+	} );
 
 } );
 
@@ -155,7 +184,9 @@ async function siteFixture( run ) {
 
 		} catch {
 
-			response.writeHead( 404 ).end();
+			let bytes = '';
+			try { bytes = await readFile( join( site, '404.html' ) ); } catch { /* No custom 404 page. */ }
+			response.writeHead( 404 ).end( bytes );
 
 		}
 
@@ -201,6 +232,39 @@ test( 'public verification checks commit and every file and a saved backup resto
 		assert.equal( restored.success, true );
 		assert.ok( restored.checks.some( check => check.path === '/' && check.status === 200 ) );
 		assert.ok( restored.checks.some( check => check.path === 'examples/' && check.status === 200 ) );
+
+	} );
+
+} );
+
+test( 'first-publication recovery restores only verified HTTP 404 content and can be backed up for retry', async () => {
+
+	await siteFixture( async ( { site, root, base } ) => {
+
+		await rm( site, { recursive: true } );
+		const recovery = join( root, 'recovery' );
+		const evidence = join( root, 'backup.json' );
+		const verify = fileURLToPath( new URL( '../scripts/verify-pages.js', import.meta.url ) );
+		await promisify( execFile )( process.execPath, [ verify, 'backup', recovery, evidence ], {
+			cwd: root, env: { PAGE_URL: base, ALLOW_EMPTY_SITE: 'true', GITHUB_SHA: newCommit }
+		} );
+		assert.equal( JSON.parse( await readFile( evidence ) ).recovery, 'unpublished' );
+		const manifest = JSON.parse( await readFile( join( recovery, manifestName ) ) );
+		assert.equal( manifest.state, 'unpublished' );
+		assert.throws( () => validateManifest( { ...manifest, files: [ ...manifest.files, { path: 'index.html', sha256: 'a'.repeat( 64 ) } ] } ), /must not contain examples/ );
+		await cp( recovery, site, { recursive: true } );
+		const restored = await verifyDeployment( base, await readFile( join( recovery, manifestName ) ), 'success' );
+		assert.equal( restored.success, true );
+		assert.equal( restored.checks.filter( check => check.status === 404 ).length, 6 );
+		const backup = await backupSite( base, join( root, 'next-backup' ) );
+		assert.equal( backup.exists, true );
+		assert.equal( backup.state, 'unpublished' );
+		await mkdir( join( site, 'examples' ) );
+		await writeFile( join( site, 'examples/index.html' ), 'Broken candidate still exposed' );
+		await assert.rejects( verifyDeployment( base, await readFile( join( recovery, manifestName ) ), 'success', { attempts: 1 } ), /still serves content/ );
+		await rm( site, { recursive: true } );
+		await writeUnpublishedSite( site, newCommit );
+		assert.equal( ( await verifyDeployment( base, await readFile( join( site, manifestName ) ), 'success' ) ).success, true );
 
 	} );
 
@@ -266,12 +330,12 @@ test( 'workflow scripts persist machine-readable evidence for successful and fai
 		const setup = fileURLToPath( new URL( '../scripts/setup-pages.js', import.meta.url ) );
 		const verify = fileURLToPath( new URL( '../scripts/verify-pages.js', import.meta.url ) );
 		const run = promisify( execFile );
-		await assert.rejects( run( process.execPath, [ setup ], {
-			cwd: root, env: { GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'push', GITHUB_REPOSITORY: 'owner/repo' }
+		await assert.rejects( run( process.execPath, [ setup, '--check' ], {
+			cwd: root, env: { GITHUB_ACTIONS: 'true', GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'push', GITHUB_REPOSITORY: 'owner/repo' }
 		} ), { code: 1 } );
 		const setupReport = JSON.parse( await readFile( join( root, 'deployment-evidence/setup.json' ) ) );
 		assert.equal( setupReport.success, false );
-		assert.match( setupReport.error, /PAGES_SETUP_TOKEN/ );
+		assert.match( setupReport.error, /GITHUB_TOKEN/ );
 		const evidence = join( root, 'deployment.json' );
 		const env = { PAGE_URL: base, DEPLOYED_PAGE_URL: base, EXPECTED_COMMIT: oldCommit, GITHUB_RUN_ID: '123', DEPLOYMENT_OUTCOME: 'success' };
 		await run( process.execPath, [ verify, 'verify', site, evidence ], { cwd: root, env } );

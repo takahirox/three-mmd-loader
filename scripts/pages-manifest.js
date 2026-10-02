@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export const manifestName = 'deployment-manifest.json';
@@ -13,6 +13,7 @@ export const sha256 = bytes => createHash( 'sha256' ).update( bytes ).digest( 'h
 export function validateManifest( manifest ) {
 
 	if ( manifest.version !== 1 || ! /^[a-f0-9]{40}$/.test( manifest.commit ) ) throw new Error( 'Invalid deployment commit' );
+	if ( manifest.state !== undefined && manifest.state !== 'unpublished' ) throw new Error( 'Invalid deployment state' );
 	if ( ! Array.isArray( manifest.files ) || manifest.files.length === 0 ) throw new Error( 'Empty deployment manifest' );
 	const paths = new Set();
 	for ( const { path, sha256: hash } of manifest.files ) {
@@ -28,7 +29,30 @@ export function validateManifest( manifest ) {
 		paths.add( path );
 
 	}
-	for ( const path of requiredPages ) if ( ! paths.has( path ) ) throw new Error( `Missing example content: ${path}` );
+	const required = manifest.state === 'unpublished' ? [ '404.html' ] : requiredPages;
+	for ( const path of required ) if ( ! paths.has( path ) ) throw new Error( `Missing example content: ${path}` );
+	if ( manifest.state === 'unpublished' && paths.size !== required.length ) throw new Error( 'Unpublished recovery site must not contain examples' );
+	return manifest;
+
+}
+
+export async function writeUnpublishedSite( directory, commit ) {
+
+	// First publication has no working site to restore. Restore HTTP 404 pages
+	// using the same Pages/OIDC permission as ordinary rollback, without admin.
+	await mkdir( directory, { recursive: true } );
+	const content = {
+		'404.html': '<!doctype html><html lang="en"><meta charset="utf-8"><title>Examples unavailable</title><p>The examples have not been published successfully yet.</p></html>\n'
+	};
+	const files = [];
+	for ( const [ path, bytes ] of Object.entries( content ) ) {
+
+		await writeFile( join( directory, path ), bytes );
+		files.push( { path, sha256: sha256( bytes ) } );
+
+	}
+	const manifest = validateManifest( { version: 1, state: 'unpublished', commit, files } );
+	await writeFile( join( directory, manifestName ), JSON.stringify( manifest, null, 2 ) + '\n' );
 	return manifest;
 
 }

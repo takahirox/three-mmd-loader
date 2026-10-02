@@ -9,7 +9,7 @@ OrbitControls and OutlineEffect come from `three/addons`.
 The public examples URL is **https://takahirox.github.io/three-mmd-loader/**.
 Updates to `main` automatically build and publish these same scenes to GitHub
 Pages and verify the public deployment. See [Deployment](#deployment) for the
-workflow and its configuration credential.
+workflow and its automated configuration.
 
 ## Local development
 
@@ -86,27 +86,32 @@ runtime is not bundled into the standalone MMD package.
 
 The workflow is [`.github/workflows/examples-pages.yml`](https://github.com/takahirox/three-mmd-loader/blob/main/.github/workflows/examples-pages.yml).
 It uses GitHub Actions to build a static site and GitHub Pages to host it.
-The `setup` job uses `scripts/setup-pages.js` to enable Pages with the Actions
-source, configure the workflow-owned `github-pages` environment to allow only
-the `main` branch, remove required reviewers, wait timers, and custom approval
-rules, and read back the settings to verify them. It runs before the deployment
-job enters that environment, so an existing reviewer rule cannot block setup.
-Setup is idempotent and runs after a successful build on every `main` deployment.
-No manual Pages settings, environment changes, or browser confirmation are
-part of the deployment procedure.
+Bootstrap the repository with the agent/integration's existing repository
+authorization, before the workflow first runs on `main`:
 
-Configuration requires the repository-level Actions secret `PAGES_SETUP_TOKEN`:
-a repository-scoped fine-grained token (or a GitHub App installation token)
-with **Pages: write**, **Administration: write**, **Actions: read**, and
-**Deployments: read**. The credential must be provisioned by the repository's
-credential management;
-the workflow cannot grant itself administration access. GitHub's default
-`GITHUB_TOKEN` cannot enable Pages or configure environment rules. Missing or
-insufficient credentials fail setup explicitly, before publication, and produce
-machine-readable evidence. See the [Pages API permissions](https://docs.github.com/en/rest/pages/pages#create-a-github-pages-site)
+```sh
+GITHUB_REPOSITORY=takahirox/three-mmd-loader npm run setup:pages
+```
+
+The script reuses `GH_TOKEN`, `GITHUB_TOKEN`, or the authenticated GitHub CLI
+credential in memory. It enables Pages with the Actions source, configures the
+workflow-owned `github-pages` environment to allow only `main`, removes required
+reviewers, wait timers, and custom approval rules, and reads back the settings.
+It is idempotent, including recovery from interrupted setup. No credential is
+printed or copied into a repository secret. This repository has been configured
+using the available CLI authorization; no separate secret provisioning or human
+confirmation is required. Bootstrap requires repository administration access
+(classic OAuth `repo` scope, or Pages and Administration write permissions).
+See the [Pages API permissions](https://docs.github.com/en/rest/pages/pages#create-a-github-pages-site)
 and [environment API permissions](https://docs.github.com/en/rest/deployments/environments#create-or-update-an-environment).
-The setup credential is used only on `main`; normal publication and rollback
-use the workflow's `GITHUB_TOKEN` with Pages write and OIDC permissions.
+
+On every `main` deployment, the `setup` job runs `scripts/setup-pages.js --check`
+with the automatic `GITHUB_TOKEN` and read permissions for Pages, Actions, and
+Deployments. It verifies configuration before entering the environment, without
+administration writes or a setup secret. Configuration drift fails before
+publication and produces JSON evidence; the bootstrap command can reconcile it
+using the existing repository authorization. Normal publication and all rollback
+paths use only the workflow token's Pages write and OIDC permissions.
 
 For every push to `main`, the workflow installs the lockfile dependencies with
 `npm ci`, runs `npm test`, and runs `npm run build:examples`. That build command
@@ -142,7 +147,12 @@ landing URLs. These are the same bytes that passed the browser checks before
 publication. Checks bypass caches and retry CDN propagation six times with
 ten-second delays. A deployment error or failed public validation restores the
 snapshot automatically and verifies its public contents and previous commit.
-A failed first publication removes the never-published Pages site. A rejected
+A failed first publication restores a minimal recovery artifact whose root,
+examples landing URL, and scene URLs return HTTP 404. Its manifest marks the
+site as `unpublished`; verification checks the recovery files' hashes and the
+404 responses. This avoids requiring administration permission to delete Pages.
+Later runs can back up this verified recovery site and retry publication.
+A rejected
 candidate leaves the workflow failed even if rollback succeeds. Restoration
 also depends on GitHub Pages and its API being available; any rollback failure
 is reported as a failed workflow with evidence.

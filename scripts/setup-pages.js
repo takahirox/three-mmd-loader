@@ -1,10 +1,31 @@
 import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+export async function setupCredential( env = process.env, run = promisify( execFile ) ) {
+
+	if ( env.GH_TOKEN || env.GITHUB_TOKEN ) return env.GH_TOKEN || env.GITHUB_TOKEN;
+	// Reuse the agent's authorization in memory; never copy it into Actions secrets.
+	if ( env.GITHUB_ACTIONS === 'true' ) throw new Error( 'GITHUB_TOKEN is required in Actions' );
+	try {
+
+		const { stdout } = await run( 'gh', [ 'auth', 'token', '--hostname', 'github.com' ] );
+		if ( stdout.trim() ) return stdout.trim();
+
+	} catch {
+
+		// execFile errors can contain stdout/stderr. Do not expose credentials.
+
+	}
+	throw new Error( 'No available GitHub authorization; use the existing authenticated GitHub CLI' );
+
+}
 
 export function githubAPI( token, repository, fetcher = fetch ) {
 
-	if ( ! token ) throw new Error( 'PAGES_SETUP_TOKEN is required: repository-scoped Pages and Administration write, Actions and Deployments read permissions' );
+	if ( ! token ) throw new Error( 'GitHub authorization is required' );
 	if ( ! /^[\w.-]+\/[\w.-]+$/.test( repository ) ) throw new Error( 'Invalid repository' );
 	return async ( method, path, body, allowed = [] ) => {
 
@@ -86,9 +107,23 @@ export async function setupPages( api ) {
 
 	}
 	if ( ! policies.some( policy => policy.name === 'main' && policy.type !== 'tag' ) ) await api( 'POST', policiesPath, { name: 'main', type: 'branch' } );
-	site = await api( 'GET', 'pages' );
+	return checkPages( api, { created, legacy } );
+
+}
+
+export async function checkPages( api, { created = false, legacy = false } = {} ) {
+
+	const site = await api( 'GET', 'pages' );
+	const environment = 'environments/github-pages';
 	const env = ( await api( 'GET', environment ) ).data;
-	const rules = ( await api( 'GET', policiesPath ) ).data.branch_policies;
+	const rules = [];
+	for ( let page = 1; ; page ++ ) {
+
+		const data = ( await api( 'GET', `${environment}/deployment-branch-policies?per_page=100&page=${page}` ) ).data;
+		rules.push( ...data.branch_policies );
+		if ( rules.length >= data.total_count ) break;
+
+	}
 	const remainingCustom = ( await api( 'GET', `${environment}/deployment_protection_rules` ) ).data.custom_deployment_protection_rules || [];
 	if ( site.data.build_type !== 'workflow' || ! site.data.html_url ||
 		! env.deployment_branch_policy?.custom_branch_policies || env.deployment_branch_policy.protected_branches ||
@@ -108,12 +143,19 @@ if ( process.argv[ 1 ] && resolve( process.argv[ 1 ] ) === fileURLToPath( import
 	const report = { success: false, run_id: process.env.GITHUB_RUN_ID, commit: process.env.GITHUB_SHA, checked_at: new Date().toISOString() };
 	try {
 
-		if ( process.env.GITHUB_REF !== 'refs/heads/main' || process.env.GITHUB_EVENT_NAME === 'pull_request' ) throw new Error( 'Hosting configuration is restricted to main' );
-		Object.assign( report, await setupPages( githubAPI( process.env.PAGES_SETUP_TOKEN, process.env.GITHUB_REPOSITORY ) ) );
+		if ( process.env.GITHUB_ACTIONS === 'true' && ( process.env.GITHUB_REF !== 'refs/heads/main' || process.env.GITHUB_EVENT_NAME === 'pull_request' ) ) throw new Error( 'Hosting configuration is restricted to main' );
+		const mode = process.argv[ 2 ];
+		if ( mode !== '--configure' && mode !== '--check' ) throw new Error( 'Expected --configure (bootstrap) or --check (read-only)' );
+		const repository = process.env.GITHUB_REPOSITORY || ( await promisify( execFile )( 'gh', [ 'repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner' ] ) ).stdout.trim();
+		report.repository = repository;
+		report.mode = mode;
+		const api = githubAPI( await setupCredential(), repository );
+		Object.assign( report, await ( mode === '--configure' ? setupPages( api ) : checkPages( api ) ) );
 		if ( process.env.GITHUB_OUTPUT ) await appendFile( process.env.GITHUB_OUTPUT, `page_url=${report.page_url}\ncreated=${report.created}\nnever_published=${report.never_published}\n` );
 
 	} catch ( error ) {
 
+		report.success = false;
 		report.error = error.message;
 		console.error( error.message );
 		process.exitCode = 1;

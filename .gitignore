@@ -2,3 +2,4 @@ node_modules/
 *.tgz
 examples/assets/
 dist/
+/deployment-evidence/
