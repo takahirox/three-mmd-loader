@@ -2,7 +2,7 @@
   "schema_version": 1,
   "issue": 6,
   "repository": "takahirox/three-mmd-loader",
-  "checked_at": "2026-10-02T12:00:15.044Z",
+  "checked_at": "2026-10-02T12:11:20.117Z",
   "completion_verified": false,
   "bootstrap": {
     "success": true,
@@ -49,17 +49,48 @@
     "repository_actions_secrets_count": 0
   },
   "deployment": {
-    "status": "pending-publication-and-merge",
+    "status": "blocked-workflow-absent-on-main",
     "deployed_commit": null,
     "remote_main_commit": "d8309fbd4af060ef9b33cfce1692e9d82de6d1fe",
     "workflow_on_main_http_status": 404,
     "recorded_pages_deployments": 0,
-    "blocker": "This node must not push or merge. The final workflow is absent from remote main, so no deployment of this implementation or successful public hash verification can occur here.",
+    "blocker": "Existing authorization passes Pages configuration checks, but remote main lacks the deployment workflow and dispatch on main is rejected with HTTP 422. This fix node must not push or merge. PR runs skip setup/deploy and cannot supply live deployment evidence. The finding remains unresolved until the workflow reaches main and public verification succeeds.",
     "next_steps": [
       "Publish the checkpoint through the downstream publication node.",
       "After review and merge to main, require a successful Deploy browser examples run and its pages-setup-evidence and pages-deployment-evidence artifacts.",
       "Verify deployment.json reports success, the merged commit, and successful public HTTP/hash checks for every file and both landing URLs."
-    ]
+    ],
+    "dispatch_attempt": {
+      "command": "gh workflow run examples-pages.yml --repo takahirox/three-mmd-loader --ref main",
+      "http_status": 422,
+      "error": "Workflow does not have 'workflow_dispatch' trigger",
+      "workflow_run_created": false
+    },
+    "pr_workflow_run": {
+      "id": 37004432900,
+      "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/37004432900",
+      "jobs": [
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "setup",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "deploy",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    "direct_deployment_constraint": {
+      "reason": "The Pages deployment API requires a GitHub Actions OIDC token. Local CLI authorization and a PR build artifact cannot substitute for a deployment job with id-token: write.",
+      "reference": "https://docs.github.com/en/rest/pages/pages#create-a-github-pages-deployment"
+    }
   },
   "public": {
     "page_url": "https://takahirox.github.io/three-mmd-loader/",
@@ -198,6 +229,27 @@
         "setup",
         "deploy"
       ]
-    }
+    },
+    "recorded_by_upstream_node": true
+  },
+  "pr_completion_claim": {
+    "number": 9,
+    "premature_closing_reference_removed": true,
+    "issue_completion_claimed": false,
+    "required_downstream_behavior": "Keep Issue #6 open and do not restore a closing reference before successful deployment and public commit/HTTP/hash verification. Publishing this checkpoint alone does not resolve the finding."
+  },
+  "revision_validation": {
+    "checked_at": "2026-10-02T12:11:35.173Z",
+    "node_tests": {
+      "command": "npm ci && npm test",
+      "passed": 26,
+      "failed": 0
+    },
+    "pages_configuration": {
+      "command": "node scripts/setup-pages.js --check",
+      "success": true
+    },
+    "live_deployment_verified": false,
+    "source_changes": false
   }
 }
