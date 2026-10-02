@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { buildExamples } from '../scripts/build-examples.js';
+import { manifestName, sha256 } from '../scripts/pages-manifest.js';
 
 const manifest = JSON.parse( await readFile( new URL( '../examples/assets-manifest.json', import.meta.url ), 'utf8' ) );
 
@@ -22,7 +23,15 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		}
 		await mkdir( outputDirectory );
 		await writeFile( join( outputDirectory, 'stale.html' ), 'old build' );
-		await buildExamples( { assetDirectory, outputDirectory } );
+		const commit = 'c'.repeat( 40 );
+		await buildExamples( { assetDirectory, outputDirectory, commit } );
+		const deployment = JSON.parse( await readFile( join( outputDirectory, manifestName ) ) );
+		assert.equal( deployment.commit, commit );
+		for ( const { path, sha256: expected } of deployment.files ) {
+
+			assert.equal( sha256( await readFile( join( outputDirectory, path ) ) ), expected, path );
+
+		}
 		for ( const { path } of manifest.files ) {
 
 			assert.equal( await readFile( join( outputDirectory, 'examples/assets/mmd', path ), 'utf8' ), path );

@@ -8,7 +8,8 @@ OrbitControls and OutlineEffect come from `three/addons`.
 
 The public examples URL is **https://takahirox.github.io/three-mmd-loader/**.
 Updates to `main` automatically build and publish these same scenes to GitHub
-Pages. See [Deployment](#deployment) for the initial hosting setup.
+Pages and verify the public deployment. See [Deployment](#deployment) for the
+workflow and its configuration credential.
 
 ## Local development
 
@@ -85,12 +86,26 @@ runtime is not bundled into the standalone MMD package.
 
 The workflow is [`.github/workflows/examples-pages.yml`](https://github.com/takahirox/three-mmd-loader/blob/main/.github/workflows/examples-pages.yml).
 It uses GitHub Actions to build a static site and GitHub Pages to host it.
-Before the first deployment, a repository administrator must set
-**Settings → Pages → Build and deployment → Source → GitHub Actions**, as
-described in the [GitHub Pages setup guide](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site#publishing-with-a-custom-github-actions-workflow).
-Allow `main` in the `github-pages` environment's deployment branch rules and
-leave required reviewers unset for unattended deployment. This is a one-time
-hosting setup; subsequent updates to `main` deploy automatically.
+The `setup` job uses `scripts/setup-pages.js` to enable Pages with the Actions
+source, configure the workflow-owned `github-pages` environment to allow only
+the `main` branch, remove required reviewers, wait timers, and custom approval
+rules, and read back the settings to verify them. It runs before the deployment
+job enters that environment, so an existing reviewer rule cannot block setup.
+Setup is idempotent and runs after a successful build on every `main` deployment.
+No manual Pages settings, environment changes, or browser confirmation are
+part of the deployment procedure.
+
+Configuration requires the repository-level Actions secret `PAGES_SETUP_TOKEN`:
+a repository-scoped fine-grained token (or a GitHub App installation token)
+with **Pages: write**, **Administration: write**, and **Actions: read**. The
+credential must be provisioned by the repository's credential management;
+the workflow cannot grant itself administration access. GitHub's default
+`GITHUB_TOKEN` cannot enable Pages or configure environment rules. Missing or
+insufficient credentials fail setup explicitly, before publication, and produce
+machine-readable evidence. See the [Pages API permissions](https://docs.github.com/en/rest/pages/pages#create-a-github-pages-site)
+and [environment API permissions](https://docs.github.com/en/rest/deployments/environments#create-or-update-an-environment).
+The setup credential is used only on `main`; normal publication and rollback
+use the workflow's `GITHUB_TOKEN` with Pages write and OIDC permissions.
 
 For every push to `main`, the workflow installs the lockfile dependencies with
 `npm ci`, runs `npm test`, and runs `npm run build:examples`. That build command
@@ -98,13 +113,39 @@ downloads and verifies the pinned assets using the existing asset manifest,
 then copies the existing pages, checkout's `src/` modules, Three.js and Ammo
 runtime dependencies, and all asset/license notices to `dist/examples/`.
 It does not bundle or build a second implementation of the scenes. The static
-site uses relative URLs so it works under the repository's Pages path.
+site uses relative URLs so it works under the repository's Pages path. A
+`deployment-manifest.json` records the full checkout commit and SHA-256 hashes
+of every published file, including pages, addon/runtime modules, and assets.
 
 Headless Chrome then tests the **built artifact** at `/three-mmd-loader/`,
 including rendering, animation, physics, audio, and poses. Only after all these
 steps succeed is the site uploaded and the dependent deployment job run.
 A failed dependency install, asset download/integrity check, build, or test
 prevents deployment and leaves the currently published site in place.
+Before publishing, `scripts/verify-pages.js` downloads and checks every file of
+the current public site against its manifest, including the root and examples
+landing URLs. It packages this verified snapshot as a rollback Pages artifact.
+An unavailable, incomplete, or unrecognised existing site blocks publication
+instead of proceeding without a usable backup. Only a newly enabled Pages
+site may start without a previous publication.
+
+After `deploy-pages` reports success (it polls the Pages deployment status),
+the workflow checks the public manifest against the exact candidate commit
+and manifest, then checks HTTP 200 responses and hashes for every file and both
+landing URLs. These are the same bytes that passed the browser checks before
+publication. Checks bypass caches and retry CDN propagation six times with
+ten-second delays. A deployment error or failed public validation restores the
+snapshot automatically and verifies its public contents and previous commit.
+A failed first publication removes the newly enabled Pages site. A rejected
+candidate leaves the workflow failed even if rollback succeeds. Restoration
+also depends on GitHub Pages and its API being available; any rollback failure
+is reported as a failed workflow with evidence.
+
+Download `pages-setup-evidence` and `pages-deployment-evidence` from the Actions
+run for JSON configuration, backup, deployment, and rollback results. Public
+verification records the action result, public URL, expected commit, workflow
+run ID, HTTP/hash checks, attempts, and errors. This automated evidence is the
+completion check; no human browser verification is required.
 Deployments are serialized without cancelling an in-progress run.
 Pull requests targeting `main` run the same build and validation without
 deploying. The workflow also supports **Actions → Deploy browser examples →
