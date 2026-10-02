@@ -20,7 +20,10 @@
   ],
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "test:browser": "node --test tests/browser/*.test.js"
+    "test:browser": "node --test tests/browser/*.test.js",
+    "dev": "node scripts/serve-examples.js",
+    "examples:assets": "node scripts/fetch-example-assets.js",
+    "test:examples": "node --test tests/browser/examples.test.js"
   },
   "peerDependencies": {
     "three": "~0.186.0"

@@ -79,6 +79,19 @@ npm run test:browser
 npm pack
 ```
 
+Run the [browser examples](examples/README.md) locally:
+
+```sh
+npm run examples:assets
+npm run dev
+```
+
+Open http://127.0.0.1:8080/ for model animation with IK/physics, synchronized
+audio/camera animation, and VPD poses. MMD modules come from this checkout.
+The asset setup downloads the former r171 example assets and their notices
+for local use; these assets have separate terms and are excluded from Git and
+the npm package. See the examples guide for credits, manual setup, and checks.
+
 The published artifact consists of native ES modules and requires no build
 step. Tests check all public imports, parse generated PMD/PMX/VMD assets,
 exercise animation, IK, VPD round trips, shader chunk compatibility, and real
@@ -92,6 +105,8 @@ the default command is `google-chrome`). It uses headless Chrome with software
 WebGL to compile, link, and render toon, textured, and additive/multiplicative
 matcap materials for generated PMD/PMX models without morph targets. Generated
 textures keep this check independent of external assets and image decoding.
+It also validates the actual example pages using generated MMD/audio fixtures,
+including rendering, animation, controls, audio playback, and VPD poses.
 
 Source provenance and licenses are recorded in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).
