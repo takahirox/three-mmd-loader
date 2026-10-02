@@ -16,7 +16,7 @@ const chrome = process.env.CHROME_BIN || ( process.platform === 'darwin'
 
 // Use Chrome's DevTools pipe so asynchronous audio work can finish on the
 // normal browser clock. A virtual clock can stall AudioContext operations.
-async function runBrowser( url, profile ) {
+async function runBrowser( url, profile, colorScheme = 'light' ) {
 
 	const browser = spawn( chrome, [
 		'--headless', '--no-first-run', '--no-default-browser-check',
@@ -85,6 +85,10 @@ async function runBrowser( url, profile ) {
 		const { targetId } = await send( 'Target.createTarget', { url: 'about:blank' } );
 		const { sessionId } = await send( 'Target.attachToTarget', { targetId, flatten: true } );
 		await send( 'Page.enable', {}, sessionId );
+		await send( 'Emulation.setEmulatedMedia', { features: [
+			{ name: 'prefers-color-scheme', value: colorScheme },
+			{ name: 'prefers-reduced-motion', value: 'reduce' }
+		] }, sessionId );
 		const loaded = new Promise( ( resolve, reject ) => {
 
 			events.set( `${sessionId}:Page.loadEventFired`, { resolve, reject } );
@@ -144,6 +148,12 @@ function checkInfo( page, doc ) {
 		noHorizontalScroll: doc.documentElement.scrollWidth === page.innerWidth
 	};
 }
+function frameLoaded( frame ) {
+	return new Promise( ( resolve, reject ) => {
+		const timeout = setTimeout( () => reject( new Error( 'Frame load timed out: ' + frame.src ) ), 8000 );
+		frame.onload = () => { clearTimeout( timeout ); resolve(); };
+	} );
+}
 async function resizeFrame( frame, width, height ) {
 	frame.width = width;
 	frame.height = height;
@@ -151,19 +161,148 @@ async function resizeFrame( frame, width, height ) {
 	await new Promise( resolve => frame.contentWindow.requestAnimationFrame( () => frame.contentWindow.requestAnimationFrame( resolve ) ) );
 }
 try {
-	const index = document.createElement( 'iframe' );
-	index.width = 1024;
-	index.height = 768;
-	const indexLoaded = new Promise( resolve => index.onload = resolve );
-	index.src = '/examples/';
-	document.body.appendChild( index );
-	await indexLoaded;
-	const indexChecks = checkInfo( index.contentWindow, index.contentDocument );
-	indexChecks.navigation = [ 'webgl_loader_mmd.html', 'webgl_loader_mmd_audio.html', 'webgl_loader_mmd_pose.html', 'README.md', 'assets/mmd/Readme.txt' ].every( href => index.contentDocument.querySelector( 'a[href="./' + href + '"]' ) );
-	await resizeFrame( index, 360, 640 );
-	for ( const [ name, passed ] of Object.entries( checkInfo( index.contentWindow, index.contentDocument ) ) ) indexChecks['mobile_' + name] = passed;
-	results.push( { page: 'index', checks: indexChecks } );
-	index.remove();
+	{
+		const index = document.createElement( 'iframe' );
+		index.width = 1024;
+		index.height = 768;
+		const indexLoaded = frameLoaded( index );
+		index.src = '/examples/';
+		document.body.appendChild( index );
+		await indexLoaded;
+		const page = index.contentWindow;
+		const doc = index.contentDocument;
+		await doc.fonts.ready;
+		const panel = doc.getElementById( 'panel' );
+		const navigation = doc.getElementById( 'contentWrapper' );
+		const viewerArea = doc.getElementById( 'viewerArea' );
+		const viewer = doc.getElementById( 'viewer' );
+		const placeholder = doc.getElementById( 'placeholder' );
+		const toggle = doc.getElementById( 'expandButton' );
+		const cards = [...doc.querySelectorAll( '.card' )];
+		const ids = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose' ];
+		const css = element => page.getComputedStyle( element );
+		function wideLayout( width ) {
+			const panelRect = panel.getBoundingClientRect();
+			const areaRect = viewerArea.getBoundingClientRect();
+			return css( panel ).position === 'fixed' && panelRect.left === 0 && panelRect.top === 0 && panelRect.width === width && panelRect.height === page.innerHeight && areaRect.left === width && areaRect.top === 0 && areaRect.width === page.innerWidth - width && areaRect.height === page.innerHeight;
+		}
+		function mobileClosed() {
+			const area = viewerArea.getBoundingClientRect();
+			const frame = viewer.getBoundingClientRect();
+			return !panel.classList.contains( 'open' ) && panel.getBoundingClientRect().height === 56 && toggle.getAttribute( 'aria-expanded' ) === 'false' && navigation.inert && !viewerArea.inert && area.left === 0 && area.top === 56 && area.width === page.innerWidth && area.height === page.innerHeight - 56 && frame.width === area.width && frame.height === area.height;
+		}
+		function mobileOpen() {
+			const rect = navigation.getBoundingClientRect();
+			return panel.classList.contains( 'open' ) && panel.getBoundingClientRect().height === page.innerHeight && toggle.getAttribute( 'aria-expanded' ) === 'true' && !navigation.inert && viewerArea.inert && rect.right === page.innerWidth && rect.width === Math.min( page.innerWidth - 60, 360 ) && rect.height === page.innerHeight;
+		}
+		async function settle() { await new Promise( resolve => page.setTimeout( resolve, 30 ) ); }
+		async function checkSelected( id ) {
+			const module = await viewer.contentWindow.eval( "import('/examples/" + id + ".js')" );
+			const context = await module.ready;
+			context.renderer.setAnimationLoop( null );
+			return viewer.contentWindow.location.pathname === '/examples/' + id + '.html' && viewer.contentDocument.body.dataset.state === 'ready' && context.renderer.domElement.getBoundingClientRect().width === viewer.clientWidth && page.location.hash === '#' + id && cards.filter( card => card.classList.contains( 'selected' ) ).length === 1 && doc.querySelector( '.selected' ).dataset.example === id && doc.querySelectorAll( 'a[aria-current="page"]' ).length === 1 && doc.querySelector( '.selected a' ).getAttribute( 'aria-current' ) === 'page' && !viewer.hidden && placeholder.hidden && page.location.pathname === '/examples/';
+		}
+		const indexChecks = {
+			wideLayout: wideLayout( 300 ),
+			placeholder: !placeholder.hidden && placeholder.textContent.includes( 'Select an example' ) && viewer.hidden && !viewer.hasAttribute( 'src' ) && !doc.querySelector( '.selected' ),
+			cards: cards.length === 3 && ids.every( ( id, i ) => cards[i].dataset.example === id && cards[i].querySelector( 'a' ).getAttribute( 'href' ) === './' + id + '.html' && cards[i].querySelector( 'a' ).target === 'viewer' && cards[i].querySelector( '.title' ).textContent.trim() ),
+			category: doc.querySelector( '#content h2' ).textContent === 'webgl / loaders / mmd',
+			images: ids.every( ( id, i ) => { const image = cards[i].querySelector( 'img' ); return image.getAttribute( 'src' ) === './screenshots/' + id + '.jpg' && image.complete && image.naturalWidth === 400 && image.naturalHeight === 250 && image.alt.length > 0; } ),
+			previewAspect: cards.every( card => { const rect = card.querySelector( '.cover' ).getBoundingClientRect(); return Math.abs( rect.height / rect.width - 9 / 16 ) < 0.001; } ),
+			typography: css( doc.body ).fontFamily === '"Roboto Mono", monospace' && css( doc.body ).fontSize === '15px' && css( doc.body ).lineHeight === '25px' && doc.fonts.check( '15px "Roboto Mono"' ),
+			lightColors: css( doc.body ).backgroundColor === 'rgb(255, 255, 255)' && css( doc.body ).color === 'rgb(68, 68, 68)' && css( cards[0] ).backgroundColor === 'rgb(247, 247, 247)',
+			panelStyling: css( panel ).borderRight === '1px solid rgb(232, 232, 232)' && css( doc.getElementById( 'header' ) ).height === '48px' && css( doc.getElementById( 'content' ) ).paddingLeft === '16px',
+			cardStyling: cards.every( card => css( card ).borderRadius === '3px' && css( card ).marginBottom === '16px' && css( card.querySelector( '.title' ) ).padding === '8px 12px 4px' ),
+			credits: [ 'README.md', 'assets/mmd/Readme.txt' ].every( href => doc.querySelector( 'a[href="./' + href + '"]' ) ),
+			wideNavigation: !navigation.inert && !viewerArea.inert && css( toggle ).display === 'none'
+		};
+		for ( const id of ids ) {
+			const loaded = frameLoaded( viewer );
+			doc.querySelector( '[data-example="' + id + '"] a' ).click();
+			await loaded;
+			indexChecks['select_' + id] = await checkSelected( id );
+			indexChecks['highlight_' + id] = css( doc.querySelector( '.selected' ) ).boxShadow === 'rgb(4, 158, 244) 0px 0px 0px 3px' && css( doc.querySelector( '.selected a' ) ).color === 'rgb(4, 158, 244)';
+		}
+		const selectedDocument = viewer.contentDocument;
+		doc.querySelector( '.selected a' ).click();
+		await settle();
+		indexChecks.repeatSelection = viewer.contentDocument === selectedDocument;
+		let loaded = frameLoaded( viewer );
+		page.history.back();
+		await loaded;
+		indexChecks.historyBack = await checkSelected( ids[1] );
+		loaded = frameLoaded( viewer );
+		page.history.forward();
+		await loaded;
+		indexChecks.historyForward = await checkSelected( ids[2] );
+		await resizeFrame( index, 360, 640 );
+		indexChecks.mobileClosed = mobileClosed();
+		toggle.click();
+		await settle();
+		indexChecks.mobileOpen = mobileOpen();
+		doc.getElementById( 'panelScrim' ).click();
+		await settle();
+		indexChecks.mobileScrimCloses = mobileClosed();
+		toggle.click();
+		await settle();
+		doc.getElementById( 'closeButton' ).click();
+		await settle();
+		indexChecks.mobileButtonCloses = mobileClosed() && doc.activeElement === toggle;
+		toggle.click();
+		await settle();
+		doc.dispatchEvent( new page.KeyboardEvent( 'keydown', { key: 'Escape' } ) );
+		await settle();
+		indexChecks.mobileEscapeCloses = mobileClosed() && doc.activeElement === toggle;
+		toggle.click();
+		await settle();
+		loaded = frameLoaded( viewer );
+		doc.querySelector( '[data-example="' + ids[0] + '"] a' ).click();
+		await loaded;
+		indexChecks.mobileSelection = mobileClosed() && await checkSelected( ids[0] );
+		indexChecks.mobileNoScroll = doc.documentElement.scrollWidth === page.innerWidth;
+		await resizeFrame( index, 640, 640 );
+		indexChecks.breakpointMobile = mobileClosed();
+		await resizeFrame( index, 641, 640 );
+		indexChecks.breakpointWide = wideLayout( 300 ) && !navigation.inert && !viewerArea.inert;
+		await resizeFrame( index, 1800, 900 );
+		indexChecks.extraWide = wideLayout( 360 ) && css( doc.body ).fontSize === '17px';
+		await resizeFrame( index, 1024, 768 );
+		indexChecks.resizedWide = wideLayout( 300 );
+		page.location.hash = '#unknown_example';
+		await settle();
+		indexChecks.invalidHash = viewer.contentWindow.location.href === 'about:blank' && viewer.hidden && !viewer.hasAttribute( 'src' ) && !placeholder.hidden && !doc.querySelector( '.selected' );
+		page.location.hash = '';
+		await settle();
+		indexChecks.emptyHash = viewer.hidden && !placeholder.hidden;
+		results.push( { page: 'index', checks: indexChecks } );
+		index.remove();
+		// Navigate a fresh browser document with a hash, rather than selecting first.
+		for ( const id of ids ) {
+			const direct = document.createElement( 'iframe' );
+			direct.width = 360;
+			direct.height = 640;
+			const loaded = frameLoaded( direct );
+			direct.src = '/examples/#' + id;
+			document.body.appendChild( direct );
+			await loaded;
+			const doc = direct.contentDocument;
+			const viewer = doc.getElementById( 'viewer' );
+			const module = await viewer.contentWindow.eval( "import('/examples/" + id + ".js')" );
+			const context = await module.ready;
+			context.renderer.setAnimationLoop( null );
+			indexChecks['direct_' + id] = viewer.contentWindow.location.pathname === '/examples/' + id + '.html' && viewer.contentDocument.body.dataset.state === 'ready' && doc.querySelector( '.selected' ).dataset.example === id && doc.querySelector( '.selected a' ).getAttribute( 'aria-current' ) === 'page' && doc.getElementById( 'placeholder' ).hidden && !doc.getElementById( 'panel' ).classList.contains( 'open' ) && doc.getElementById( 'expandButton' ).getAttribute( 'aria-expanded' ) === 'false';
+			direct.remove();
+		}
+		const initialMobile = document.createElement( 'iframe' );
+		initialMobile.width = 360;
+		initialMobile.height = 640;
+		loaded = frameLoaded( initialMobile );
+		initialMobile.src = '/examples/';
+		document.body.appendChild( initialMobile );
+		await loaded;
+		indexChecks.mobileInitialList = initialMobile.contentDocument.getElementById( 'panel' ).classList.contains( 'open' ) && initialMobile.contentDocument.getElementById( 'expandButton' ).getAttribute( 'aria-expanded' ) === 'true';
+		initialMobile.remove();
+	}
 	for ( const suffix of [ '', '_audio', '_pose' ] ) {
 		const frame = document.createElement( 'iframe' );
 		frame.width = 1024;
@@ -294,6 +433,29 @@ try {
 document.getElementById( 'result' ).textContent = encodeURIComponent( JSON.stringify( results ) );
 </script>`;
 
+const darkHarness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
+const results = [];
+try {
+	const frame = document.createElement( 'iframe' );
+	frame.width = 1024;
+	frame.height = 768;
+	const loaded = new Promise( resolve => frame.onload = resolve );
+	frame.src = '/examples/';
+	document.body.appendChild( frame );
+	await loaded;
+	const page = frame.contentWindow;
+	const doc = frame.contentDocument;
+	const css = element => page.getComputedStyle( element );
+	results.push( { page: 'dark index', checks: {
+		scheme: page.matchMedia( '(prefers-color-scheme: dark)' ).matches && css( doc.documentElement ).colorScheme === 'light dark',
+		colors: css( doc.body ).backgroundColor === 'rgb(34, 34, 34)' && css( doc.body ).color === 'rgb(187, 187, 187)' && css( doc.querySelector( '.card' ) ).backgroundColor === 'rgb(46, 46, 46)',
+		border: css( doc.getElementById( 'panel' ) ).borderRight === '1px solid rgb(68, 68, 68)',
+		accent: css( doc.querySelector( '#content h2' ) ).color === 'rgb(4, 158, 244)'
+	} } );
+} catch ( error ) { results.push( { error: error.stack || String( error ) } ); }
+document.getElementById( 'result' ).textContent = encodeURIComponent( JSON.stringify( results ) );
+</script>`;
+
 function wavBuffer() {
 
 	const samples = 8000;
@@ -337,6 +499,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 	const server = createServer( async ( request, response ) => {
 
 		if ( request.url === '/test' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness.replaceAll( '/examples/', prefix + '/examples/' ) );
+		else if ( request.url === '/test-dark' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( darkHarness.replaceAll( '/examples/', prefix + '/examples/' ) );
 		else if ( request.headers.referer?.includes( 'missing=1' ) && request.url.startsWith( prefix + '/examples/assets/mmd/' ) ) {
 
 			response.writeHead( 404 ).end();
@@ -354,7 +517,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 				const file = resolve( siteRoot, path.slice( prefix.length + 1 ) );
 				if ( ! file.startsWith( siteRoot + sep ) ) throw new Error( 'Outside site' );
 				const content = await readFile( file );
-				const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.bmp': 'image/bmp', '.mp3': 'audio/mpeg' };
+				const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.bmp': 'image/bmp', '.mp3': 'audio/mpeg', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
 				response.writeHead( 200, { 'Content-Type': types[ extname( file ) ] || 'application/octet-stream' } ).end( content );
 
 			} catch {
@@ -381,7 +544,9 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 		}
 		const results = await runBrowser( `http://127.0.0.1:${server.address().port}/test`, join( temporary, 'profile' ) );
 		assert.equal( results.length, 5, JSON.stringify( results ) );
-		for ( const result of results ) {
+		const darkResults = await runBrowser( `http://127.0.0.1:${server.address().port}/test-dark`, join( temporary, 'profile-dark' ), 'dark' );
+		assert.equal( darkResults.length, 1, JSON.stringify( darkResults ) );
+		for ( const result of [ ...results, ...darkResults ] ) {
 
 			assert.equal( result.error, undefined, result.error );
 			assert.ok( result.checks, JSON.stringify( results ) );

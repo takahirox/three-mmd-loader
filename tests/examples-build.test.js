@@ -40,6 +40,12 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		for ( const path of [
 			'examples/index.html', 'examples/scene.js', 'examples/README.md',
 			'examples/common.css', 'examples/main.css',
+			'examples/browser.css', 'examples/browser.js',
+			'examples/screenshots/webgl_loader_mmd.jpg',
+			'examples/screenshots/webgl_loader_mmd_audio.jpg',
+			'examples/screenshots/webgl_loader_mmd_pose.jpg',
+			'examples/fonts/RobotoMono-Regular.woff2', 'examples/fonts/RobotoMono-Medium.woff2',
+			'examples/fonts/LICENSE.txt',
 			'examples/webgl_loader_mmd.html', 'examples/webgl_loader_mmd_audio.html',
 			'examples/webgl_loader_mmd_pose.html',
 			'src/loaders/MMDLoader.js', 'src/libs/mmdparser.module.js',

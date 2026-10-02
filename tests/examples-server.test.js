@@ -13,6 +13,10 @@ test( 'example server serves local modules with MIME types and limits file acces
 			[ '/', 'text/html' ],
 			[ '/examples/webgl_loader_mmd_audio.html', 'text/html' ],
 			[ '/examples/scene.js', 'text/javascript' ],
+			[ '/examples/browser.js', 'text/javascript' ],
+			[ '/examples/browser.css', 'text/css' ],
+			[ '/examples/screenshots/webgl_loader_mmd.jpg', 'image/jpeg' ],
+			[ '/examples/fonts/RobotoMono-Regular.woff2', 'font/woff2' ],
 			[ '/src/loaders/MMDLoader.js', 'text/javascript' ],
 			[ '/node_modules/three/build/three.module.js', 'text/javascript' ],
 			[ '/node_modules/ammojs-typed/ammo/ammo.js', 'text/javascript' ]
