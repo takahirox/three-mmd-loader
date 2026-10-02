@@ -1057,7 +1057,12 @@ class GeometryBuilder {
 		geometry.bones = bones;
 
 		geometry.morphTargets = morphTargets;
-		geometry.morphAttributes.position = morphPositions;
+		// An empty attribute enables morph shaders without a target count in Three.js.
+		if ( morphPositions.length > 0 ) {
+
+			geometry.morphAttributes.position = morphPositions;
+
+		}
 		geometry.morphTargetsRelative = false;
 
 		geometry.userData.MMD = {

@@ -19,7 +19,8 @@
     "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "test:browser": "node --test tests/browser/*.test.js"
   },
   "peerDependencies": {
     "three": "~0.186.0"

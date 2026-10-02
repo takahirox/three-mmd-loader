@@ -75,6 +75,7 @@ Development and validation:
 ```sh
 npm ci
 npm test
+npm run test:browser
 npm pack
 ```
 
@@ -83,8 +84,14 @@ step. Tests check all public imports, parse generated PMD/PMX/VMD assets,
 exercise animation, IK, VPD round trips, shader chunk compatibility, and real
 Ammo physics. They also pack the package, install the tarball in an isolated
 consumer, and import every public module without access to the repository's
-source files. Node.js 20 or newer is needed to run the tests. Browser rendering
-and image decoding are not exercised by these Node.js tests.
+source files. Node.js 20 or newer is needed to run the tests.
+
+The separate browser regression suite requires Google Chrome. Set `CHROME_BIN`
+to its executable if it is not installed at the default location (on Linux,
+the default command is `google-chrome`). It uses headless Chrome with software
+WebGL to compile, link, and render toon, textured, and additive/multiplicative
+matcap materials for generated PMD/PMX models without morph targets. Generated
+textures keep this check independent of external assets and image decoding.
 
 Source provenance and licenses are recorded in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).

@@ -56,6 +56,7 @@ for ( const format of [ 'pmd', 'pmx' ] ) {
 		assert.equal( mesh.geometry.attributes.skinIndex.itemSize, 4 );
 		assert.equal( mesh.skeleton.bones[ 0 ].name, 'root' );
 		assert.equal( mesh.geometry.userData.MMD.format, format );
+		assert.equal( mesh.geometry.morphAttributes.position, undefined );
 		const material = mesh.material[ 0 ];
 		assert.equal( material.isMMDToonMaterial, true );
 		assert.equal( material.lights, true );
@@ -69,6 +70,23 @@ for ( const format of [ 'pmd', 'pmx' ] ) {
 	} );
 
 }
+
+test( 'PMX vertex morphs retain their positions and mesh influences', () => {
+
+	const data = new MMDParser.Parser().parsePmx( pmxBuffer(), true );
+	data.metadata.morphCount = 1;
+	data.morphs = [ {
+		name: 'smile', type: 1, elementCount: 1,
+		elements: [ { index: 0, position: [ 0.25, 0, 0 ] } ]
+	} ];
+	const mesh = modelLoader().meshBuilder.build( data, '' );
+	assert.equal( mesh.geometry.morphAttributes.position.length, 1 );
+	assert.equal( mesh.geometry.morphAttributes.position[ 0 ].getX( 0 ), 0.25 );
+	assert.equal( mesh.geometry.morphAttributes.position[ 0 ].getZ( 0 ), - 1 );
+	assert.equal( mesh.morphTargetDictionary.smile, 0 );
+	assert.deepEqual( mesh.morphTargetInfluences, [ 0 ] );
+
+} );
 
 test( 'public loader loads a PMD buffer through Three.js FileLoader', async () => {
 
