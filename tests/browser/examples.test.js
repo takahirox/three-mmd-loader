@@ -123,13 +123,51 @@ async function runBrowser( url, profile ) {
 
 // Load the real pages in an iframe, then use their module's ready promise to
 // exercise rendered scenes and their controls. No alternate app code path.
-const harness = `<!doctype html><pre id="result">pending</pre><script type="module">
+const harness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
 const results = [];
+function checkInfo( page, doc ) {
+	const info = doc.getElementById( 'info' );
+	const css = page.getComputedStyle( info );
+	const body = page.getComputedStyle( doc.body );
+	const link = info.querySelector( 'a' );
+	const linkCSS = page.getComputedStyle( link );
+	const rect = info.getBoundingClientRect();
+	return {
+		info: doc.querySelectorAll( '#info' ).length === 1 && info.parentElement === doc.body,
+		overlay: css.position === 'absolute' && rect.top === 0 && rect.left === 0 && rect.width === page.innerWidth && css.padding === '10px' && css.boxSizing === 'border-box' && css.textAlign === 'center' && css.zIndex === '1',
+		passThrough: css.pointerEvents === 'none' && css.userSelect === 'none' && linkCSS.pointerEvents === 'auto',
+		typography: body.fontFamily.toLowerCase() === 'monospace' && body.fontSize === '13px' && body.lineHeight === '24px' && body.margin === '0px' && body.overscrollBehavior === 'none',
+		colors: body.backgroundColor === 'rgb(255, 255, 255)' && body.color === 'rgb(68, 68, 68)' && linkCSS.color === 'rgb(0, 136, 255)',
+		links: linkCSS.textDecorationLine === 'none' && [...info.querySelectorAll( 'a[href^="https:"]' )].every( a => a.target === '_blank' && a.relList.contains( 'noopener' ) ),
+		noCards: !doc.querySelector( '.panel, main, fieldset' ) && css.backgroundColor === 'rgba(0, 0, 0, 0)' && css.borderRadius === '0px',
+		sharedCSS: doc.querySelectorAll( 'link[rel="stylesheet"]' ).length === 1 && doc.querySelector( 'link[rel="stylesheet"]' ).getAttribute( 'href' ) === './common.css' && [...doc.querySelectorAll( 'style' )].every( style => style.textContent.startsWith( '.lil-gui{' ) ),
+		noHorizontalScroll: doc.documentElement.scrollWidth === page.innerWidth
+	};
+}
+async function resizeFrame( frame, width, height ) {
+	frame.width = width;
+	frame.height = height;
+	// Let the iframe's resize event and layout finish before reading geometry.
+	await new Promise( resolve => frame.contentWindow.requestAnimationFrame( () => frame.contentWindow.requestAnimationFrame( resolve ) ) );
+}
 try {
+	const index = document.createElement( 'iframe' );
+	index.width = 1024;
+	index.height = 768;
+	const indexLoaded = new Promise( resolve => index.onload = resolve );
+	index.src = '/examples/';
+	document.body.appendChild( index );
+	await indexLoaded;
+	const indexChecks = checkInfo( index.contentWindow, index.contentDocument );
+	indexChecks.navigation = [ 'webgl_loader_mmd.html', 'webgl_loader_mmd_audio.html', 'webgl_loader_mmd_pose.html', 'README.md', 'assets/mmd/Readme.txt' ].every( href => index.contentDocument.querySelector( 'a[href="./' + href + '"]' ) );
+	await resizeFrame( index, 360, 640 );
+	for ( const [ name, passed ] of Object.entries( checkInfo( index.contentWindow, index.contentDocument ) ) ) indexChecks['mobile_' + name] = passed;
+	results.push( { page: 'index', checks: indexChecks } );
+	index.remove();
 	for ( const suffix of [ '', '_audio', '_pose' ] ) {
 		const frame = document.createElement( 'iframe' );
-		frame.width = 640;
-		frame.height = 480;
+		frame.width = 1024;
+		frame.height = 768;
 		const loaded = new Promise( resolve => frame.onload = resolve );
 		frame.src = '/examples/webgl_loader_mmd' + suffix + '.html';
 		document.body.appendChild( frame );
@@ -140,40 +178,74 @@ try {
 		const context = await module.ready;
 		context.renderer.setAnimationLoop( null );
 		const { mesh, helper, camera, effect, renderer, scene } = context;
-		const checks = {};
+		const checks = checkInfo( page, doc );
+		const control = name => [...doc.querySelectorAll( '#controls .controller' )].find( c => c.querySelector( '.name' ).textContent === name ).querySelector( 'input, select, button' );
+		const info = doc.getElementById( 'info' );
+		const gui = doc.getElementById( 'controls' );
+		checks.infoContent = info.textContent.includes( doc.title.replace( 'MMD — ', '' ) ) && info.contains( doc.getElementById( 'status' ) ) && doc.getElementById( 'status' ).getAttribute( 'role' ) === 'status' && [ 'MMD / Crypton', 'hino', 'LamazeP', 'doramata / Takahiro', 'KEITEL' ].every( credit => info.querySelector( '.credits' ).textContent.includes( credit ) );
+		checks.infoNavigation = [ './', './README.md', './assets/mmd/Readme.txt' ].every( href => info.querySelector( 'a[href="' + href + '"]' ) );
+		checks.gui = gui.matches( '.lil-gui.root.autoPlace' ) && gui.parentElement === doc.body && page.getComputedStyle( gui ).zIndex === '2' && gui.getAttribute( 'aria-disabled' ) === 'false' && gui.getAttribute( 'aria-busy' ) === 'false' && [...gui.querySelectorAll( '.controller input, .controller select, .controller button' )].every( input => !input.disabled );
+		const canvas = renderer.domElement;
+		function checkViewport() {
+			const rect = canvas.getBoundingClientRect();
+			return rect.x === 0 && rect.y === 0 && rect.width === page.innerWidth && rect.height === page.innerHeight && camera.aspect === page.innerWidth / page.innerHeight && canvas.width === Math.floor( page.innerWidth * renderer.getPixelRatio() ) && canvas.height === Math.floor( page.innerHeight * renderer.getPixelRatio() );
+		}
+		checks.viewport = canvas.parentElement === doc.body && doc.querySelectorAll( 'canvas' ).length === 1 && checkViewport();
+		checks.sceneColor = scene.background.getHex() === 0xffffff;
+		let guiRect = gui.getBoundingClientRect();
+		checks.desktopGUI = guiRect.right === page.innerWidth - 15 && guiRect.top === 0;
+		await resizeFrame( frame, 360, 640 );
+		checks.mobileViewport = checkViewport();
+		for ( const [ name, passed ] of Object.entries( checkInfo( page, doc ) ) ) checks['mobile_' + name] = passed;
+		guiRect = gui.getBoundingClientRect();
+		checks.mobileGUI = guiRect.left === 0 && guiRect.bottom === page.innerHeight && guiRect.width <= page.innerWidth * 0.8 && guiRect.height <= page.innerHeight * 0.5 && page.getComputedStyle( gui ).zIndex === '2';
+		const outline = control( 'outline' );
+		const outlineRect = outline.getBoundingClientRect();
+		checks.mobileControlReachable = doc.elementFromPoint( outlineRect.x + outlineRect.width / 2, outlineRect.y + outlineRect.height / 2 ) === outline;
+		await resizeFrame( frame, 1024, 768 );
+		checks.resizedViewport = checkViewport();
 		checks.ready = doc.body.dataset.state === 'ready';
 		checks.model = mesh.isSkinnedMesh && mesh.skeleton.bones.length > 0;
-		const outline = doc.querySelector( 'input[name="outline"]' );
 		outline.click();
 		checks.outline = effect.enabled === false;
 		outline.click();
 		if ( suffix === '_pose' ) {
 			const before = mesh.skeleton.bones.map( b => b.position.toArray().concat( b.quaternion.toArray() ) );
-			const pose = doc.getElementById( 'pose' );
-			pose.value = '0';
+			const pose = control( 'Pose' );
+			pose.selectedIndex = 1;
 			pose.dispatchEvent( new page.Event( 'change' ) );
 			checks.poses = context.poses.length === 11;
 			checks.poseChanged = JSON.stringify( before ) !== JSON.stringify( mesh.skeleton.bones.map( b => b.position.toArray().concat( b.quaternion.toArray() ) ) );
-			pose.value = '-1';
+			pose.selectedIndex = 0;
 			pose.dispatchEvent( new page.Event( 'change' ) );
 			checks.resetPose = JSON.stringify( before ) === JSON.stringify( mesh.skeleton.bones.map( b => b.position.toArray().concat( b.quaternion.toArray() ) ) );
+			control( 'ik' ).click();
+			checks.poseIK = context.gui.controllers.find( c => c.property === 'ik' ).getValue() === false;
+			control( 'ik' ).click();
 		} else {
 			const state = helper.objects.get( mesh );
 			checks.physics = !!state.physics;
 			checks.animation = state.mixer._actions[ 0 ].getClip().tracks.length > 0;
 			if ( suffix === '' ) {
 				for ( const name of [ 'animation', 'ik', 'physics' ] ) {
-					const input = doc.querySelector( 'input[name="' + name + '"]' );
+					const input = control( name );
 					input.click();
 					checks[name + 'Toggle'] = helper.enabled[name] === false;
 					input.click();
 				}
+				const hidden = scene.children.filter( child => !child.visible );
+				control( 'show IK bones' ).click();
+				control( 'show rigid bodies' ).click();
+				checks.debugHelpers = hidden.length === 2 && hidden.every( child => child.visible );
+				control( 'show IK bones' ).click();
+				control( 'show rigid bodies' ).click();
 			} else {
 				checks.audioLoaded = context.audio.buffer.duration > 0 && helper.audioManager.delayTime === 160 / 30;
 				checks.paused = !context.audio.isPlaying && helper.audioManager.elapsedTime === 0;
-				doc.getElementById( 'play' ).click();
+				const play = control( 'Play' );
+				play.click();
 				await new Promise( resolve => page.setTimeout( resolve, 50 ) );
-				checks.play = doc.getElementById( 'play' ).textContent === 'Playing';
+				checks.play = play.textContent === 'Playing' && play.disabled && doc.getElementById( 'status' ).textContent === 'Playing';
 				const before = camera.position.toArray();
 				helper.update( 0.5 );
 				checks.cameraAnimated = JSON.stringify( before ) !== JSON.stringify( camera.position.toArray() );
@@ -192,6 +264,9 @@ try {
 			const gl = renderer.getContext();
 			return gl.getProgramParameter( p.program, gl.LINK_STATUS );
 		} );
+		// A runtime failure must also disable controls that already exist.
+		renderer.debug.onShaderError();
+		checks.failureDisablesGUI = doc.body.dataset.state === 'error' && gui.getAttribute( 'aria-disabled' ) === 'true' && [...gui.querySelectorAll( '.controller input, .controller select, .controller button' )].every( input => input.disabled );
 		results.push( { page: suffix || 'animation', checks } );
 		renderer.dispose();
 		frame.remove();
@@ -209,7 +284,8 @@ try {
 		rejected,
 		error: doc.body.dataset.state === 'error',
 		setup: doc.getElementById( 'status' ).textContent.includes( 'npm run examples:assets' ),
-		disabled: doc.getElementById( 'controls' ).disabled
+		disabled: doc.getElementById( 'controls' ).getAttribute( 'aria-disabled' ) === 'true' && [...doc.querySelectorAll( '#controls .controller input, #controls .controller select, #controls .controller button' )].every( input => input.disabled ),
+		errorInInfo: doc.getElementById( 'info' ).contains( doc.getElementById( 'status' ) )
 	} } );
 	missing.remove();
 } catch ( error ) {
@@ -238,7 +314,7 @@ function wavBuffer() {
 
 }
 
-test( 'real example pages load, render, animate, play audio, and apply poses', { timeout: 90000 }, async () => {
+test( 'example pages match Three.js layout, resize, render, and preserve interactive controls', { timeout: 90000 }, async () => {
 
 	const temporary = await mkdtemp( join( tmpdir(), 'three-mmd-examples-' ) );
 	const assetRoot = join( temporary, 'assets' );
@@ -304,7 +380,7 @@ test( 'real example pages load, render, animate, play audio, and apply poses', {
 
 		}
 		const results = await runBrowser( `http://127.0.0.1:${server.address().port}/test`, join( temporary, 'profile' ) );
-		assert.equal( results.length, 4, JSON.stringify( results ) );
+		assert.equal( results.length, 5, JSON.stringify( results ) );
 		for ( const result of results ) {
 
 			assert.equal( result.error, undefined, result.error );
