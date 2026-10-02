@@ -1,3 +1,0 @@
-# three-mmd-loader
-
-Coming soon...
