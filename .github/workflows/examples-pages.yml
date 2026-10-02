@@ -42,6 +42,7 @@ jobs:
     outputs:
       page_url: ${{ steps.setup.outputs.page_url }}
       created: ${{ steps.setup.outputs.created }}
+      never_published: ${{ steps.setup.outputs.never_published }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -92,7 +93,7 @@ jobs:
         run: node scripts/verify-pages.js backup dist/rollback deployment-evidence/backup.json
         env:
           PAGE_URL: ${{ needs.setup.outputs.page_url }}
-          ALLOW_EMPTY_SITE: ${{ needs.setup.outputs.created }}
+          ALLOW_EMPTY_SITE: ${{ needs.setup.outputs.never_published }}
       - uses: actions/upload-pages-artifact@v4
         if: steps.backup.outputs.exists == 'true'
         with:
@@ -130,7 +131,7 @@ jobs:
           DEPLOYED_PAGE_URL: ${{ steps.rollback.outputs.page_url }}
       - name: Remove a failed first publication when there was no previous site
         if: >-
-          !cancelled() && needs.setup.outputs.created == 'true' && steps.backup.outputs.exists == 'false' &&
+          !cancelled() && needs.setup.outputs.never_published == 'true' && steps.backup.outputs.exists == 'false' &&
           (steps.deployment.outcome == 'failure' || steps.verification.outcome == 'failure')
         run: |
           node --input-type=module <<'JS'

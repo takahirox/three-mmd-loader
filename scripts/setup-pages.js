@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 export function githubAPI( token, repository, fetcher = fetch ) {
 
-	if ( ! token ) throw new Error( 'PAGES_SETUP_TOKEN is required: repository-scoped Pages and Administration write, Actions read permissions' );
+	if ( ! token ) throw new Error( 'PAGES_SETUP_TOKEN is required: repository-scoped Pages and Administration write, Actions and Deployments read permissions' );
 	if ( ! /^[\w.-]+\/[\w.-]+$/.test( repository ) ) throw new Error( 'Invalid repository' );
 	return async ( method, path, body, allowed = [] ) => {
 
@@ -22,10 +22,41 @@ export function githubAPI( token, repository, fetcher = fetch ) {
 
 }
 
+export async function neverPublished( api, site ) {
+
+	// Legacy sites lack Actions deployment history. A built/errored Pages status
+	// may also reflect a publication that is not represented in that history.
+	if ( site.build_type !== 'workflow' || site.status !== null ) return false;
+	for ( let page = 1; ; page ++ ) {
+
+		const deployments = ( await api( 'GET', `deployments?environment=github-pages&per_page=100&page=${page}` ) ).data;
+		for ( const deployment of deployments ) {
+
+			let latest;
+			for ( let statusPage = 1; ; statusPage ++ ) {
+
+				const statuses = ( await api( 'GET', `deployments/${deployment.id}/statuses?per_page=100&page=${statusPage}` ) ).data;
+				latest ??= statuses[ 0 ]?.state;
+				// Inactive deployments may be previously successful publications.
+				if ( statuses.some( status => status.state === 'success' || status.state === 'inactive' ) ) return false;
+				if ( statuses.length < 100 ) break;
+
+			}
+			// Unknown or in-progress attempts must finish before an empty-site retry.
+			if ( latest !== 'failure' && latest !== 'error' ) return false;
+
+		}
+		if ( deployments.length < 100 ) return true;
+
+	}
+
+}
+
 export async function setupPages( api ) {
 
 	let site = await api( 'GET', 'pages', undefined, [ 404 ] );
 	const created = site.status === 404;
+	const legacy = ! created && site.data.build_type !== 'workflow';
 	if ( created ) await api( 'POST', 'pages', { build_type: 'workflow' } );
 	else if ( site.data.build_type !== 'workflow' ) await api( 'PUT', 'pages', { build_type: 'workflow' } );
 	const environment = 'environments/github-pages';
@@ -67,7 +98,8 @@ export async function setupPages( api ) {
 		throw new Error( 'Pages or environment configuration did not match unattended main deployment settings' );
 
 	}
-	return { success: true, created, build_type: 'workflow', environment: 'github-pages', branch: 'main', page_url: site.data.html_url };
+	const never_published = ! legacy && await neverPublished( api, site.data );
+	return { success: true, created, never_published, build_type: 'workflow', environment: 'github-pages', branch: 'main', page_url: site.data.html_url };
 
 }
 
@@ -78,7 +110,7 @@ if ( process.argv[ 1 ] && resolve( process.argv[ 1 ] ) === fileURLToPath( import
 
 		if ( process.env.GITHUB_REF !== 'refs/heads/main' || process.env.GITHUB_EVENT_NAME === 'pull_request' ) throw new Error( 'Hosting configuration is restricted to main' );
 		Object.assign( report, await setupPages( githubAPI( process.env.PAGES_SETUP_TOKEN, process.env.GITHUB_REPOSITORY ) ) );
-		if ( process.env.GITHUB_OUTPUT ) await appendFile( process.env.GITHUB_OUTPUT, `page_url=${report.page_url}\ncreated=${report.created}\n` );
+		if ( process.env.GITHUB_OUTPUT ) await appendFile( process.env.GITHUB_OUTPUT, `page_url=${report.page_url}\ncreated=${report.created}\nnever_published=${report.never_published}\n` );
 
 	} catch ( error ) {
 

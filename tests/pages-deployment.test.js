@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { manifestName, requiredPages, validateManifest, writeManifest } from '../scripts/pages-manifest.js';
-import { githubAPI, setupPages } from '../scripts/setup-pages.js';
+import { githubAPI, neverPublished, setupPages } from '../scripts/setup-pages.js';
 import { backupSite, verifyDeployment, verifySite } from '../scripts/verify-pages.js';
 
 const oldCommit = 'a'.repeat( 40 );
@@ -18,6 +18,7 @@ test( 'hosting setup creates Pages, removes approval gates, and restricts deploy
 
 	let site;
 	let environment;
+	let failEnvironment = true;
 	let custom = [ { id: 10 } ];
 	let policies = [ { id: 1, name: 'release/*', type: 'branch' }, { id: 2, name: 'main', type: 'tag' } ];
 	const calls = [];
@@ -27,10 +28,11 @@ test( 'hosting setup creates Pages, removes approval gates, and restricts deploy
 		if ( path === 'pages' ) {
 
 			if ( method === 'GET' ) return site ? { status: 200, data: site } : { status: 404 };
-			if ( method === 'POST' || method === 'PUT' ) site = { ...body, html_url: 'https://example.github.io/repo/' };
+			if ( method === 'POST' || method === 'PUT' ) site = { ...body, status: null, html_url: 'https://example.github.io/repo/' };
 
 		} else if ( path === 'environments/github-pages' ) {
 
+			if ( failEnvironment ) throw new Error( 'Environment setup interrupted' );
 			if ( method === 'PUT' ) environment = { ...body, protection_rules: [ { type: 'branch_policy' } ] };
 			return { data: environment };
 
@@ -42,12 +44,21 @@ test( 'hosting setup creates Pages, removes approval gates, and restricts deploy
 			if ( method === 'DELETE' ) policies = policies.filter( policy => ! path.endsWith( '/' + policy.id ) );
 			if ( method === 'POST' ) policies.push( { id: 3, ...body } );
 
-		} else throw new Error( `Unexpected ${method} ${path}` );
+		} else if ( path.startsWith( 'deployments?' ) ) return { data: [] };
+		else throw new Error( `Unexpected ${method} ${path}` );
 		return { status: 204 };
 
 	};
+	await assert.rejects( setupPages( api ), /Environment setup interrupted/ );
+	assert.equal( site.build_type, 'workflow' );
+	failEnvironment = false;
 	const result = await setupPages( api );
-	assert.equal( result.created, true );
+	assert.equal( result.created, false );
+	assert.equal( result.never_published, true );
+	// Both public URLs are still missing after the interrupted bootstrap.
+	assert.deepEqual( await backupSite( site.html_url, 'unused', {
+		allowEmpty: result.never_published, fetcher: async () => new Response( '', { status: 404 } )
+	} ), { success: true, exists: false } );
 	assert.equal( result.success, true );
 	assert.deepEqual( policies, [ { id: 3, name: 'main', type: 'branch' } ] );
 	assert.deepEqual( environment.reviewers, [] );
@@ -55,15 +66,66 @@ test( 'hosting setup creates Pages, removes approval gates, and restricts deploy
 	assert.deepEqual( custom, [] );
 	const afterFirst = calls.length;
 	assert.equal( ( await setupPages( api ) ).created, false );
+	assert.equal( ( await setupPages( api ) ).never_published, true );
 	assert.equal( calls.slice( afterFirst ).some( call => call.method === 'POST' ), false );
 	// Existing legacy Pages settings are also migrated to Actions.
 	site.build_type = 'legacy';
-	await setupPages( api );
+	assert.equal( ( await setupPages( api ) ).never_published, false );
 	assert.equal( site.build_type, 'workflow' );
 	assert.throws( () => githubAPI( '', 'owner/repo' ), /PAGES_SETUP_TOKEN/ );
 	const forbidden = githubAPI( 'do-not-log-this-token', 'owner/repo', async () => new Response( 'secret response', { status: 403 } ) );
 	await assert.rejects( forbidden( 'PUT', 'pages', {} ), { message: 'GitHub PUT pages: HTTP 403' } );
 	await assert.rejects( setupPages( async () => { throw new Error( 'Permission denied' ); } ), /Permission denied/ );
+
+} );
+
+test( 'empty-site recovery fails closed for prior publications, active attempts, legacy sites, and unknown history', async () => {
+
+	const site = { build_type: 'workflow', status: null };
+	for ( const states of [ [ 'success' ], [ 'inactive' ], [ 'pending' ], [ 'queued' ], [ 'in_progress' ], [], [ 'failure', 'success' ] ] ) {
+
+		const api = async ( method, path ) => ( { data: path.startsWith( 'deployments?' )
+			? [ { id: 1 } ] : states.map( state => ( { state } ) ) } );
+		const allowEmpty = await neverPublished( api, site );
+		assert.equal( allowEmpty, false, JSON.stringify( states ) );
+		await assert.rejects( backupSite( 'https://example.github.io/repo/', 'unused', {
+			allowEmpty, fetcher: async () => new Response( '', { status: 404 } )
+		} ), /refusing to deploy without a backup/ );
+
+	}
+	const unused = async () => { throw new Error( 'History must not be queried' ); };
+	assert.equal( await neverPublished( unused, { ...site, status: 'built' } ), false );
+	assert.equal( await neverPublished( unused, { ...site, status: 'errored' } ), false );
+	assert.equal( await neverPublished( unused, { ...site, status: undefined } ), false );
+	assert.equal( await neverPublished( unused, { ...site, build_type: 'legacy' } ), false );
+	await assert.rejects( neverPublished( async () => { throw new Error( 'History unavailable' ); }, site ), /History unavailable/ );
+	for ( const state of [ 'failure', 'error' ] ) {
+
+		const api = async ( method, path ) => ( { data: path.startsWith( 'deployments?' ) ? [ { id: 1 } ] : [ { state } ] } );
+		assert.equal( await neverPublished( api, site ), true );
+
+	}
+
+} );
+
+test( 'empty-site recovery checks older pages of deployments and their statuses', async () => {
+
+	const site = { build_type: 'workflow', status: null };
+	const deployments = Array.from( { length: 100 }, ( _, id ) => ( { id } ) );
+	const api = async ( method, path ) => {
+
+		if ( path.startsWith( 'deployments?' ) ) return { data: path.endsWith( 'page=1' ) ? deployments : [ { id: 100 } ] };
+		return { data: [ { state: path.startsWith( 'deployments/100/' ) ? 'success' : 'failure' } ] };
+
+	};
+	assert.equal( await neverPublished( api, site ), false );
+	const statusesAPI = async ( method, path ) => {
+
+		if ( path.startsWith( 'deployments?' ) ) return { data: [ { id: 1 } ] };
+		return { data: path.endsWith( 'page=1' ) ? Array.from( { length: 100 }, () => ( { state: 'failure' } ) ) : [ { state: 'inactive' } ] };
+
+	};
+	assert.equal( await neverPublished( statusesAPI, site ), false );
 
 } );
 

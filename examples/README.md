@@ -97,8 +97,9 @@ part of the deployment procedure.
 
 Configuration requires the repository-level Actions secret `PAGES_SETUP_TOKEN`:
 a repository-scoped fine-grained token (or a GitHub App installation token)
-with **Pages: write**, **Administration: write**, and **Actions: read**. The
-credential must be provisioned by the repository's credential management;
+with **Pages: write**, **Administration: write**, **Actions: read**, and
+**Deployments: read**. The credential must be provisioned by the repository's
+credential management;
 the workflow cannot grant itself administration access. GitHub's default
 `GITHUB_TOKEN` cannot enable Pages or configure environment rules. Missing or
 insufficient credentials fail setup explicitly, before publication, and produce
@@ -126,8 +127,13 @@ Before publishing, `scripts/verify-pages.js` downloads and checks every file of
 the current public site against its manifest, including the root and examples
 landing URLs. It packages this verified snapshot as a rollback Pages artifact.
 An unavailable, incomplete, or unrecognised existing site blocks publication
-instead of proceeding without a usable backup. Only a newly enabled Pages
-site may start without a previous publication.
+instead of proceeding without a usable backup. A workflow Pages site may
+start without a backup only when Pages status and the complete Actions
+deployment/status history show no prior publication or active deployment.
+This also lets a later run recover when initial setup was interrupted after
+Pages creation. Unknown history and prior successful or inactive deployments
+cannot bypass the backup requirement. Legacy Pages settings do not authorize
+an empty-site retry.
 
 After `deploy-pages` reports success (it polls the Pages deployment status),
 the workflow checks the public manifest against the exact candidate commit
@@ -136,7 +142,7 @@ landing URLs. These are the same bytes that passed the browser checks before
 publication. Checks bypass caches and retry CDN propagation six times with
 ten-second delays. A deployment error or failed public validation restores the
 snapshot automatically and verifies its public contents and previous commit.
-A failed first publication removes the newly enabled Pages site. A rejected
+A failed first publication removes the never-published Pages site. A rejected
 candidate leaves the workflow failed even if rollback succeeds. Restoration
 also depends on GitHub Pages and its API being available; any rollback failure
 is reported as a failed workflow with evidence.
