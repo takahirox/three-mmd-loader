@@ -1,13 +1,23 @@
-body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color: #263044; background: #f4f6fa; }
-canvas { display: block; }
-a { color: #1558a6; }
-main, .panel { padding: 1.25rem; background: #fff; border-radius: 8px; }
-main { max-width: 720px; margin: 3rem auto; }
-.panel { position: absolute; top: 1rem; left: 1rem; max-width: min(340px, calc(100vw - 4.5rem)); max-height: calc(100vh - 4.5rem); overflow: auto; }
-h1 { font-size: 1.3rem; margin: 0 0 .5rem; }
-fieldset { border: 0; padding: 0; margin: .75rem 0; }
-label { display: block; margin: .35rem 0; }
-button, select { padding: .35rem .7rem; font: inherit; }
-#status { font-size: .9rem; overflow-wrap: anywhere; }
-body[data-state="error"] #status { color: #a31919; }
-.credits { font-size: .8rem; }
+@import url('./main.css');
+
+/* Light scene and link colors used by the official Three.js MMD examples. */
+body {
+	background-color: #fff;
+	color: #444;
+}
+
+a {
+	color: #08f;
+}
+
+canvas {
+	display: block;
+}
+
+#status {
+	overflow-wrap: anywhere;
+}
+
+body[data-state="error"] #status {
+	color: #f00;
+}

@@ -4,6 +4,7 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { MMDLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
 import { MMDAnimationHelper } from 'three-mmd-loader/animation/MMDAnimationHelper.js';
 
@@ -12,20 +13,32 @@ const assets = './assets/mmd/';
 export async function initExample( mode ) {
 
 	const status = document.getElementById( 'status' );
-	const controls = document.getElementById( 'controls' );
+	let gui;
 	let renderer;
 	function fail( error ) {
 
 		document.body.dataset.state = 'error';
-		status.textContent = `Could not load the example: ${error.message || error}. Run npm run examples:assets, then reload. See Asset terms and setup below.`;
-		controls.disabled = true;
+		status.textContent = `Could not load the example: ${error.message || error}. Run npm run examples:assets, then reload. See Asset terms and setup.`;
+		if ( gui ) {
+
+			gui.controllersRecursive().forEach( controller => controller.disable() );
+			gui.domElement.setAttribute( 'aria-disabled', 'true' );
+			gui.domElement.setAttribute( 'aria-busy', 'false' );
+
+		}
 		renderer?.setAnimationLoop( null );
 
 	}
 	try {
 
+		gui = new GUI();
+		gui.domElement.id = 'controls';
+		gui.domElement.setAttribute( 'role', 'group' );
+		gui.domElement.setAttribute( 'aria-label', 'Example controls' );
+		gui.domElement.setAttribute( 'aria-disabled', 'true' );
+		gui.domElement.setAttribute( 'aria-busy', 'true' );
 		const scene = new Scene();
-		scene.background = new Color( 0xf4f6fa );
+		scene.background = new Color( 0xffffff );
 		scene.add( new PolarGridHelper( 30, 8 ), new AmbientLight( 0xffffff, 2 ) );
 		const light = new DirectionalLight( 0xffffff, 3 );
 		light.position.set( - 1, 2, 1 );
@@ -99,17 +112,12 @@ export async function initExample( mode ) {
 		}
 		await resourcesReady;
 		scene.add( mesh );
-		const context = { mesh, helper, camera, scene, renderer, effect };
+		const context = { mesh, helper, camera, scene, renderer, effect, gui };
+		const api = {};
 		function checkbox( name, checked, change ) {
 
-			const label = document.createElement( 'label' );
-			const input = document.createElement( 'input' );
-			input.type = 'checkbox';
-			input.name = name;
-			input.checked = checked;
-			input.addEventListener( 'change', () => change( input.checked ) );
-			label.append( input, ` ${name}` );
-			controls.appendChild( label );
+			api[ name ] = checked;
+			gui.add( api, name ).onChange( change ).disable();
 
 		}
 		let running = mode === 'animation';
@@ -143,19 +151,17 @@ export async function initExample( mode ) {
 			// WAVEFILE's dance starts 160 frames before its music (30 fps).
 			helper.add( audio, { delayTime: 160 / 30 } );
 			context.audio = audio;
-			const play = document.createElement( 'button' );
-			play.id = 'play';
-			play.textContent = 'Play';
-			play.addEventListener( 'click', async () => {
+			api.play = async () => {
 
-				play.disabled = true;
+				play.disable();
 				try {
 
 					// Resume in the click handler to satisfy browser audio policies.
 					await listener.context.resume();
 					previousTime = null;
 					running = true;
-					play.textContent = 'Playing';
+					play.name( 'Playing' );
+					status.textContent = 'Playing';
 
 				} catch ( error ) {
 
@@ -163,8 +169,8 @@ export async function initExample( mode ) {
 
 				}
 
-			} );
-			controls.appendChild( play );
+			};
+			const play = gui.add( api, 'play' ).name( 'Play' ).disable();
 
 		} else {
 
@@ -175,28 +181,25 @@ export async function initExample( mode ) {
 				loader.loadVPD( assets + 'vpds/' + file, false, resolve, undefined, reject );
 
 			} ) ) );
-			const label = document.createElement( 'label' );
-			label.textContent = 'Pose ';
-			const select = document.createElement( 'select' );
-			select.id = 'pose';
-			select.add( new Option( 'Rest pose', '-1' ) );
-			for ( let i = 0; i < poses.length; i ++ ) select.add( new Option( `Pose ${i + 1}`, String( i ) ) );
+			api.pose = - 1;
+			const options = { 'Rest pose': - 1 };
+			for ( let i = 0; i < poses.length; i ++ ) options[ `Pose ${i + 1}` ] = i;
 			let ik = true;
 			function applyPose() {
 
-				if ( select.value === '-1' ) mesh.pose();
-				else helper.pose( mesh, poses[ Number( select.value ) ], { ik } );
+				if ( api.pose === - 1 ) mesh.pose();
+				else helper.pose( mesh, poses[ api.pose ], { ik } );
 
 			}
-			select.addEventListener( 'change', applyPose );
-			label.appendChild( select );
-			controls.appendChild( label );
+			gui.add( api, 'pose', options ).name( 'Pose' ).onChange( applyPose ).disable();
 			checkbox( 'ik', true, value => { ik = value; applyPose(); } );
 			context.poses = poses;
 
 		}
 		checkbox( 'outline', true, value => { effect.enabled = value; } );
-		controls.disabled = false;
+		gui.controllersRecursive().forEach( controller => controller.enable() );
+		gui.domElement.setAttribute( 'aria-disabled', 'false' );
+		gui.domElement.setAttribute( 'aria-busy', 'false' );
 		status.textContent = mode === 'audio' ? 'Ready — press Play to start.' : 'Ready';
 		let previousTime = null;
 		renderer.setAnimationLoop( time => {

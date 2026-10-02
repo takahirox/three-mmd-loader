@@ -39,10 +39,14 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		}
 		for ( const path of [
 			'examples/index.html', 'examples/scene.js', 'examples/README.md',
+			'examples/common.css', 'examples/main.css',
+			'examples/webgl_loader_mmd.html', 'examples/webgl_loader_mmd_audio.html',
+			'examples/webgl_loader_mmd_pose.html',
 			'src/loaders/MMDLoader.js', 'src/libs/mmdparser.module.js',
 			'node_modules/three/build/three.module.js', 'node_modules/three/build/three.core.js',
 			'node_modules/three/examples/jsm/controls/OrbitControls.js',
 			'node_modules/three/examples/jsm/loaders/TGALoader.js',
+			'node_modules/three/examples/jsm/libs/lil-gui.module.min.js',
 			'node_modules/ammojs-typed/ammo/ammo.js',
 			'node_modules/three/LICENSE', 'node_modules/ammojs-typed/LICENSE.md',
 			'LICENSE', 'THIRD_PARTY_NOTICES.md'

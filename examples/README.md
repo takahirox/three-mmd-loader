@@ -4,7 +4,14 @@ These scenes follow the model/animation, audio/camera, and VPD pose examples
 from [Three.js r171](https://github.com/mrdoob/three.js/tree/r171/examples).
 They import MMD modules from this checkout's `src/` directory through the
 `three-mmd-loader/` import map. Only retained Three.js utilities such as
-OrbitControls and OutlineEffect come from `three/addons`.
+OrbitControls, OutlineEffect, and lil-gui come from `three/addons`.
+
+The pages use a full-viewport canvas, the standard Three.js `#info` overlay,
+and lil-gui controls. Their shared `common.css` imports an unmodified copy of
+the official `examples/main.css` (Git blob
+`d496122b4cfb54f811495bd9f80ca48151beeb3b`) and applies the official MMD
+examples' white background and blue links. On narrow screens, the standard
+stylesheet moves the GUI to the bottom left so it remains usable.
 
 The public examples URL is **https://takahirox.github.io/three-mmd-loader/**.
 Updates to `main` automatically build and publish these same scenes to GitHub
@@ -194,12 +201,23 @@ npm test
 npm run test:browser
 ```
 
+`npm test` checks the reference stylesheet's Git blob hash and shared stylesheet
+links, and verifies that the static build includes the pages, both stylesheets,
+and the bundled lil-gui module. The browser checks run on pull requests through
+the existing Tests and examples build workflows; the latter checks the built
+artifact before any deployment. All presentation checks can run before merge,
+without a deployed site or human visual confirmation.
+
 The browser suite requires Google Chrome, with the same `CHROME_BIN` override
 as the existing shader suite. `npm run test:examples` runs only the examples
 check. It serves the actual pages and repository modules in headless Chrome,
-renders and checks shader links, exercises animation/IK/physics/outline
+checks the index and scene DOM, computed typography/colors/spacing, overlay
+positioning, link behavior, desktop/mobile GUI placement, viewport canvas sizing,
+and resizing from desktop to mobile and back. It renders and checks shader
+links, exercises animation/IK/physics/outline
 controls, advances model and camera animation, starts decoded audio through
-Play, and applies/resets VPD poses. Generated PMD/VMD/VPD and silent WAV fixtures
+Play, applies/resets VPD poses, and verifies loading/runtime error status and
+disabled controls. Generated PMD/VMD/VPD and silent WAV fixtures
 make this check independent of downloaded third-party assets and network
 access. The audio autoplay flag is used only by tests; the normal page requires
 a Play click.

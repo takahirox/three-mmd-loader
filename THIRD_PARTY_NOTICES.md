@@ -24,6 +24,15 @@ clone in MMDExporter to avoid resetting the source skeleton when exporting.
 The parser, CCDIK solver, and toon shader retain their r171 implementations.
 Three.js itself and the Ammo.js physics runtime are not vendored.
 
+## Three.js example stylesheet
+
+`examples/main.css` is an unmodified copy of the official Three.js
+`examples/main.css`, pinned to Git blob
+`d496122b4cfb54f811495bd9f80ca48151beeb3b` (the reference for Issue #10).
+It is copyright © three.js authors and uses the MIT license reproduced in
+[LICENSE](LICENSE). `examples/common.css` shares the light background and blue
+links used by the official MMD examples, plus canvas and status handling.
+
 ## mmd-parser
 
 `src/libs/mmdparser.module.js` contains
