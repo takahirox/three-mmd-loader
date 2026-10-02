@@ -23,6 +23,8 @@
     "test:browser": "node --test tests/browser/*.test.js",
     "dev": "node scripts/serve-examples.js",
     "examples:assets": "node scripts/fetch-example-assets.js",
+    "build:examples": "npm run examples:assets && node scripts/build-examples.js",
+    "setup:pages": "node scripts/setup-pages.js --configure",
     "test:examples": "node --test tests/browser/examples.test.js"
   },
   "peerDependencies": {

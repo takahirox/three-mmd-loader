@@ -1,0 +1,149 @@
+name: Deploy browser examples
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: examples-pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:examples
+      - name: Validate the built site under the project path
+        run: npm run test:examples
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+          MMD_EXAMPLE_SITE: dist/examples
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/examples
+
+  setup:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pages: read
+    outputs:
+      page_url: ${{ steps.setup.outputs.page_url }}
+      created: ${{ steps.setup.outputs.created }}
+      never_published: ${{ steps.setup.outputs.never_published }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # The repository is bootstrapped once with the agent's existing gh
+      # authorization. Ongoing runs only inspect configuration, without admin.
+      - name: Verify unattended main deployment configuration
+        id: setup
+        run: node scripts/setup-pages.js --check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pages-setup-evidence
+          path: deployment-evidence
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [build, setup]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ needs.setup.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/configure-pages@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: candidate
+      - name: Extract the already validated candidate
+        run: |
+          mkdir -p dist/examples
+          tar -xf candidate/artifact.tar -C dist/examples
+      - name: Verify and back up the current public site
+        id: backup
+        run: node scripts/verify-pages.js backup dist/rollback deployment-evidence/backup.json
+        env:
+          PAGE_URL: ${{ needs.setup.outputs.page_url }}
+          ALLOW_EMPTY_SITE: ${{ needs.setup.outputs.never_published }}
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-rollback
+          path: dist/rollback
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Verify deployment result, public commit, and all examples content
+        id: verification
+        continue-on-error: true
+        run: node scripts/verify-pages.js verify dist/examples deployment-evidence/deployment.json
+        env:
+          PAGE_URL: ${{ needs.setup.outputs.page_url }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+          DEPLOYMENT_OUTCOME: ${{ steps.deployment.outcome }}
+          DEPLOYED_PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+      - name: Restore the previous working site on deployment or validation failure
+        id: rollback
+        if: >-
+          !cancelled() && steps.backup.outcome == 'success' &&
+          (steps.deployment.outcome == 'failure' || steps.verification.outcome == 'failure')
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+        with:
+          artifact_name: github-pages-rollback
+      - name: Verify the restored public site
+        if: >-
+          !cancelled() && steps.rollback.outcome != 'skipped'
+        run: node scripts/verify-pages.js verify dist/rollback deployment-evidence/rollback.json
+        env:
+          PAGE_URL: ${{ needs.setup.outputs.page_url }}
+          DEPLOYMENT_OUTCOME: ${{ steps.rollback.outcome }}
+          DEPLOYED_PAGE_URL: ${{ steps.rollback.outputs.page_url }}
+      - name: Persist machine-readable deployment and rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-deployment-evidence
+          path: deployment-evidence
+      - name: Fail the run if the candidate did not pass public verification
+        if: always()
+        run: |
+          test "$DEPLOYMENT_OUTCOME" = success
+          test "$VERIFICATION_OUTCOME" = success
+        env:
+          DEPLOYMENT_OUTCOME: ${{ steps.deployment.outcome }}
+          VERIFICATION_OUTCOME: ${{ steps.verification.outcome }}

@@ -6,6 +6,11 @@ They import MMD modules from this checkout's `src/` directory through the
 `three-mmd-loader/` import map. Only retained Three.js utilities such as
 OrbitControls and OutlineEffect come from `three/addons`.
 
+The public examples URL is **https://takahirox.github.io/three-mmd-loader/**.
+Updates to `main` automatically build and publish these same scenes to GitHub
+Pages and verify the public deployment. See [Deployment](#deployment) for the
+workflow and its automated configuration.
+
 ## Local development
 
 From the repository root, using Node.js 20 or newer:
@@ -77,6 +82,111 @@ the upstream summary also links to the character guidelines. The examples use
 the already installed `ammojs-typed` development dependency for physics; its
 runtime is not bundled into the standalone MMD package.
 
+## Deployment
+
+The workflow is [`.github/workflows/examples-pages.yml`](https://github.com/takahirox/three-mmd-loader/blob/main/.github/workflows/examples-pages.yml).
+It uses GitHub Actions to build a static site and GitHub Pages to host it.
+Bootstrap the repository with the agent/integration's existing repository
+authorization, before the workflow first runs on `main`:
+
+```sh
+GITHUB_REPOSITORY=takahirox/three-mmd-loader npm run setup:pages
+```
+
+The script reuses `GH_TOKEN`, `GITHUB_TOKEN`, or the authenticated GitHub CLI
+credential in memory. It enables Pages with the Actions source, configures the
+workflow-owned `github-pages` environment to allow only `main`, removes required
+reviewers, wait timers, and custom approval rules, and reads back the settings.
+It is idempotent, including recovery from interrupted setup. No credential is
+printed or copied into a repository secret. This repository has been configured
+using the available CLI authorization; no separate secret provisioning or human
+confirmation is required. Bootstrap requires repository administration access
+(classic OAuth `repo` scope, or Pages and Administration write permissions).
+See the [Pages API permissions](https://docs.github.com/en/rest/pages/pages#create-a-github-pages-site)
+and [environment API permissions](https://docs.github.com/en/rest/deployments/environments#create-or-update-an-environment).
+
+On every `main` deployment, the `setup` job runs `scripts/setup-pages.js --check`
+with the automatic `GITHUB_TOKEN` and read permissions for Pages, Actions, and
+Deployments. It verifies configuration before entering the environment, without
+administration writes or a setup secret. Configuration drift fails before
+publication and produces JSON evidence; the bootstrap command can reconcile it
+using the existing repository authorization. Normal publication and all rollback
+paths use only the workflow token's Pages write and OIDC permissions.
+
+For every push to `main`, the workflow installs the lockfile dependencies with
+`npm ci`, runs `npm test`, and runs `npm run build:examples`. That build command
+downloads and verifies the pinned assets using the existing asset manifest,
+then copies the existing pages, checkout's `src/` modules, Three.js and Ammo
+runtime dependencies, and all asset/license notices to `dist/examples/`.
+It does not bundle or build a second implementation of the scenes. The static
+site uses relative URLs so it works under the repository's Pages path. A
+`deployment-manifest.json` records the full checkout commit and SHA-256 hashes
+of every published file, including pages, addon/runtime modules, and assets.
+
+Headless Chrome then tests the **built artifact** at `/three-mmd-loader/`,
+including rendering, animation, physics, audio, and poses. Only after all these
+steps succeed is the site uploaded and the dependent deployment job run.
+A failed dependency install, asset download/integrity check, build, or test
+prevents deployment and leaves the currently published site in place.
+Before publishing, `scripts/verify-pages.js` downloads and checks every file of
+the current public site against its manifest, including the root and examples
+landing URLs. It packages this verified snapshot as a rollback Pages artifact.
+An unavailable, incomplete, or unrecognised existing site blocks publication
+instead of proceeding without a usable backup. A workflow Pages site may
+start without a backup only when Pages status and the complete Actions
+deployment/status history show no prior publication or active deployment.
+This also lets a later run recover when initial setup was interrupted after
+Pages creation. Unknown history and prior successful or inactive deployments
+cannot bypass the backup requirement. Legacy Pages settings do not authorize
+an empty-site retry.
+
+After `deploy-pages` reports success (it polls the Pages deployment status),
+the workflow checks the public manifest against the exact candidate commit
+and manifest, then checks HTTP 200 responses and hashes for every file and both
+landing URLs. These are the same bytes that passed the browser checks before
+publication. Checks bypass caches and retry CDN propagation six times with
+ten-second delays. A deployment error or failed public validation restores the
+snapshot automatically and verifies its public contents and previous commit.
+A failed first publication restores a minimal recovery artifact whose root,
+examples landing URL, and scene URLs return HTTP 404. Its manifest marks the
+site as `unpublished`; verification checks the recovery files' hashes and the
+404 responses. This avoids requiring administration permission to delete Pages.
+Later runs can back up this verified recovery site and retry publication.
+A rejected
+candidate leaves the workflow failed even if rollback succeeds. Restoration
+also depends on GitHub Pages and its API being available; any rollback failure
+is reported as a failed workflow with evidence.
+
+Download `pages-setup-evidence` and `pages-deployment-evidence` from the Actions
+run for JSON configuration, backup, deployment, and rollback results. Public
+verification records the action result, public URL, expected commit, workflow
+run ID, HTTP/hash checks, attempts, and errors. This automated evidence is the
+completion check; no human browser verification is required.
+Deployments are serialized without cancelling an in-progress run.
+Pull requests targeting `main` run the same build and validation without
+deploying. The workflow also supports **Actions → Deploy browser examples →
+Run workflow**; select `main` to redeploy. Other branches cannot deploy.
+The deployment job reports the published URL in the `github-pages` environment.
+
+To reproduce the deployment build and validation locally:
+
+```sh
+npm ci
+npm test
+npm run build:examples
+MMD_EXAMPLE_SITE=dist/examples npm run test:examples
+```
+
+The last command requires Chrome and supports `CHROME_BIN`. Serve
+`dist/examples/` with any static HTTP server to preview the site. Its root
+redirects to `examples/`; no Node.js server is needed by the hosted site.
+The build output and downloaded assets are Git-ignored, and the npm package
+continues to contain only the standalone addon and its notices.
+The deployed assets retain their individual terms described above; deployment
+does not relicense them. The site includes the
+[asset license summary](assets/mmd/Readme.txt), all author readmes, and runtime
+licenses.
+
 ## Automated validation
 
 ```sh
@@ -102,5 +212,6 @@ MMD_EXAMPLE_ASSETS=1 npm run test:examples
 
 This exercises the same pages with the original Miku model, texture, dance,
 camera, music, and poses. The normal fixture test checks audio playback state;
-listening to the music is an optional manual check. The workflow validates
-local examples only; it does not deploy or publish them.
+listening to the music is an optional manual check. The existing Tests workflow
+validates local examples with fixtures; the deployment workflow additionally
+validates the built site with the pinned original assets before publication.

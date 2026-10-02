@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { extname, join, resolve, sep } from 'node:path';
 import { test } from 'node:test';
 import { createExamplesServer } from '../../scripts/serve-examples.js';
 import { cameraVmdBuffer, pmdBuffer, vmdBuffer } from '../fixtures.js';
@@ -256,20 +256,53 @@ test( 'real example pages load, render, animate, play audio, and apply poses', {
 	}
 	const app = createExamplesServer( process.env.MMD_EXAMPLE_ASSETS === '1' ? {} : { assetRoot } );
 	const handler = app.listeners( 'request' )[ 0 ];
-	const server = createServer( ( request, response ) => {
+	const siteRoot = process.env.MMD_EXAMPLE_SITE && resolve( process.env.MMD_EXAMPLE_SITE );
+	const prefix = siteRoot ? '/three-mmd-loader' : '';
+	const server = createServer( async ( request, response ) => {
 
-		if ( request.url === '/test' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness );
-		else if ( request.headers.referer?.includes( 'missing=1' ) && request.url.startsWith( '/examples/assets/mmd/' ) ) {
+		if ( request.url === '/test' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness.replaceAll( '/examples/', prefix + '/examples/' ) );
+		else if ( request.headers.referer?.includes( 'missing=1' ) && request.url.startsWith( prefix + '/examples/assets/mmd/' ) ) {
 
 			response.writeHead( 404 ).end();
 
 		}
-		else handler( request, response );
+		else if ( siteRoot ) {
+
+			// Serve only the artifact, at the GitHub Pages project prefix. Requests
+			// to origin-root dependencies cannot fall back to the source checkout.
+			try {
+
+				let path = decodeURIComponent( new URL( request.url, 'http://localhost' ).pathname );
+				if ( ! path.startsWith( prefix + '/' ) ) throw new Error( 'Outside site' );
+				if ( path.endsWith( '/' ) ) path += 'index.html';
+				const file = resolve( siteRoot, path.slice( prefix.length + 1 ) );
+				if ( ! file.startsWith( siteRoot + sep ) ) throw new Error( 'Outside site' );
+				const content = await readFile( file );
+				const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.bmp': 'image/bmp', '.mp3': 'audio/mpeg' };
+				response.writeHead( 200, { 'Content-Type': types[ extname( file ) ] || 'application/octet-stream' } ).end( content );
+
+			} catch {
+
+				response.writeHead( 404 ).end();
+
+			}
+
+		} else handler( request, response );
 
 	} );
 	try {
 
 		await new Promise( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+		if ( siteRoot ) {
+
+			const landing = await fetch( `http://127.0.0.1:${server.address().port}${prefix}/` );
+			assert.equal( landing.status, 200 );
+			assert.match( await landing.text(), /url=\.\/examples\// );
+			const index = await fetch( `http://127.0.0.1:${server.address().port}${prefix}/examples/` );
+			assert.equal( index.status, 200 );
+			assert.match( await index.text(), /webgl_loader_mmd_audio.html/ );
+
+		}
 		const results = await runBrowser( `http://127.0.0.1:${server.address().port}/test`, join( temporary, 'profile' ) );
 		assert.equal( results.length, 4, JSON.stringify( results ) );
 		for ( const result of results ) {
