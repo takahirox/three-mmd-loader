@@ -122,3 +122,19 @@ export function vmdBuffer( { morphs = [] } = {} ) {
 	return w.buffer();
 
 }
+
+export function cameraVmdBuffer() {
+
+	const w = new Writer();
+	w.text( 'Vocaloid Motion Data 0002', 30 ).text( 'camera', 20 );
+	w.u32( 0 ).u32( 0 ).u32( 2 ); // bone motions, morphs, camera frames
+	for ( const frame of [ 0, 30 ] ) {
+
+		w.u32( frame ).f32( - 35, frame / 30, 10, 0, 0, 0, 0 );
+		for ( let i = 0; i < 6; i ++ ) w.u8( 0 ).u8( 127 ).u8( 0 ).u8( 127 );
+		w.u32( 45 ).u8( 0 );
+
+	}
+	return w.buffer();
+
+}

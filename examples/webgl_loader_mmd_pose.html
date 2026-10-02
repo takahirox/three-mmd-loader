@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>MMD — VPD poses</title>
+	<link rel="stylesheet" href="./common.css">
+	<script type="importmap">
+	{"imports": {
+		"three": "/node_modules/three/build/three.module.js",
+		"three/addons/": "/node_modules/three/examples/jsm/",
+		"three-mmd-loader/": "/src/"
+	}}
+	</script>
+	<script src="/node_modules/ammojs-typed/ammo/ammo.js"></script>
+</head>
+<body data-state="loading">
+	<section class="panel">
+		<a href="./">All examples</a>
+		<h1>VPD poses</h1>
+		<p>Choose a pose to apply it to the loaded model. Drag to orbit; scroll to zoom.</p>
+		<p id="status" role="status">Loading assets…</p>
+		<fieldset id="controls" disabled aria-label="Example controls"></fieldset>
+		<p class="credits">Miku model: <a href="https://sites.google.com/view/evpvp/">MMD / Crypton</a> · Motion: <a href="https://www.nicovideo.jp/watch/sm13147122">hino</a> · Music: <a href="https://www.nicovideo.jp/watch/sm11938255">LamazeP</a> · Camera: <a href="https://www.nicovideo.jp/watch/sm19168559">doramata / Takahiro</a> · Poses: <a href="https://seiga.nicovideo.jp/seiga/im5162984">KEITEL</a>. <a href="./README.md">Asset terms and setup</a>.</p>
+	</section>
+	<script type="module" src="./webgl_loader_mmd_pose.js"></script>
+</body>
+</html>
