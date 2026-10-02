@@ -132,6 +132,56 @@ test( 'parsed VMD animates a loaded bone with physics disabled', () => {
 
 } );
 
+test( 'public loadAnimation skips VMD morphs on models without morph targets', async ( t ) => {
+
+	const original = globalThis.ProgressEvent;
+	globalThis.ProgressEvent ??= class extends Event {
+
+		constructor( type, properties ) { super( type ); Object.assign( this, properties ); }
+
+	};
+	try {
+
+		const buffer = vmdBuffer( { morphs: [
+			{ morphName: 'smile', frameNum: 0, weight: 0 },
+			{ morphName: 'smile', frameNum: 30, weight: 1 }
+		] } );
+		const url = `data:application/octet-stream;base64,${Buffer.from( buffer ).toString( 'base64' )}`;
+		for ( const format of [ 'pmd', 'pmx' ] ) {
+
+			await t.test( format.toUpperCase(), async () => {
+
+				const mesh = buildMesh( format );
+				assert.equal( mesh.morphTargetDictionary, undefined );
+				const animation = await new Promise( ( resolve, reject ) => {
+
+					new MMDLoader().loadAnimation( url, mesh, resolve, undefined, reject );
+
+				} );
+				assert.deepEqual( animation.tracks.map( track => track.name ), [
+					'.bones[root].position', '.bones[root].quaternion'
+				] );
+				assert.equal( animation.duration, 1 );
+				assert.equal( animation.validate(), true );
+				const helper = new MMDAnimationHelper( { sync: false } );
+				helper.add( mesh, { animation, physics: false } );
+				helper.update( 0.5 );
+				assert.ok( Math.abs( mesh.skeleton.bones[ 0 ].position.x - 1 ) < 1e-5 );
+				helper.remove( mesh );
+
+			} );
+
+		}
+
+	} finally {
+
+		if ( original === undefined ) delete globalThis.ProgressEvent;
+		else globalThis.ProgressEvent = original;
+
+	}
+
+} );
+
 test( 'VPD exporter round trips a posed bone through the bundled parser', () => {
 
 	const mesh = buildMesh();

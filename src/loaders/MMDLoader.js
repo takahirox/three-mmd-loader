@@ -1766,7 +1766,7 @@ class AnimationBuilder {
 			const morph = vmd.morphs[ i ];
 			const morphName = morph.morphName;
 
-			if ( morphTargetDictionary[ morphName ] === undefined ) continue;
+			if ( morphTargetDictionary === undefined || morphTargetDictionary[ morphName ] === undefined ) continue;
 
 			morphs[ morphName ] = morphs[ morphName ] || [];
 			morphs[ morphName ].push( morph );

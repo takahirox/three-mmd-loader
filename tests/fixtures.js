@@ -101,7 +101,7 @@ export function pmxBuffer() {
 
 }
 
-export function vmdBuffer() {
+export function vmdBuffer( { morphs = [] } = {} ) {
 
 	const w = new Writer();
 	w.text( 'Vocaloid Motion Data 0002', 30 ).text( 'triangle', 20 ).u32( 2 );
@@ -112,7 +112,13 @@ export function vmdBuffer() {
 		for ( let i = 0; i < 64; i ++ ) w.u8( i % 16 < 8 ? 0 : 127 );
 
 	}
-	w.u32( 0 ).u32( 0 ); // morphs, cameras
+	w.u32( morphs.length );
+	for ( const morph of morphs ) {
+
+		w.text( morph.morphName, 15 ).u32( morph.frameNum ).f32( morph.weight );
+
+	}
+	w.u32( 0 ); // cameras
 	return w.buffer();
 
 }
