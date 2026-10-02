@@ -1,3 +1,7 @@
+import { Camera, LoadingManager } from 'three';
+import type { Texture, TypedArray, KeyframeTrack, ShaderMaterialParameters, Combine, NormalMapTypes, Vector2 } from 'three';
+import type { Parser } from '../libs/mmdparser.module.js';
+import type { ModelData, ModelMorph, MorphElement, MMDBone, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters, VMD, VMDMotion, VMDMorph, VPD } from '../types.js';
 import {
 	AddOperation,
 	AnimationClip,
@@ -42,6 +46,18 @@ import { MMDToonShader } from '../shaders/MMDToonShader.js';
 import { TGALoader } from 'three/addons/loaders/TGALoader.js';
 import { MMDParser } from '../libs/mmdparser.module.js';
 
+type OnProgress = ( event: ProgressEvent ) => void;
+type OnError = ( error: unknown ) => void;
+type MMDTexture = Texture & { readyCallbacks?: ( ( texture: MMDTexture ) => void )[]; transparent?: boolean; isCompressedTexture?: boolean };
+type TextureOptions = { isToonTexture?: boolean; isDefaultToonTexture?: boolean };
+type GrantEntry = { parent: GrantEntry | null; children: GrantEntry[]; param: Grant | null; visited: boolean };
+type MMDMaterialParameters = ShaderMaterialParameters & {
+	diffuse?: Color; specular?: Color; shininess?: number; emissive?: Color;
+	map?: MMDTexture; matcap?: MMDTexture; gradientMap?: MMDTexture; matcapCombine?: Combine;
+	userData: { MMD: { mapFileName?: string; matcapFileName?: string }; outlineParameters?: { thickness: number; color: number[]; alpha: number; visible: boolean } };
+};
+
+
 /**
  * Dependencies
  *  - mmd-parser https://github.com/takahirox/mmd-parser
@@ -74,9 +90,15 @@ import { MMDParser } from '../libs/mmdparser.module.js';
 /**
  * @param {THREE.LoadingManager} manager
  */
-class MMDLoader extends Loader {
+class MMDLoader extends Loader<MMDMesh> {
 
-	constructor( manager ) {
+	loader: FileLoader;
+	parser: Parser | null;
+	meshBuilder: MeshBuilder;
+	animationBuilder: AnimationBuilder;
+	animationPath?: string;
+
+	constructor( manager?: LoadingManager ) {
 
 		super( manager );
 
@@ -92,7 +114,7 @@ class MMDLoader extends Loader {
 	 * @param {string} animationPath
 	 * @return {MMDLoader}
 	 */
-	setAnimationPath( animationPath ) {
+	setAnimationPath( animationPath: string ) {
 
 		this.animationPath = animationPath;
 		return this;
@@ -109,7 +131,7 @@ class MMDLoader extends Loader {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	load( url, onLoad, onProgress, onError ) {
+	load( url: string, onLoad: ( mesh: MMDMesh ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const builder = this.meshBuilder.setCrossOrigin( this.crossOrigin );
 
@@ -135,7 +157,7 @@ class MMDLoader extends Loader {
 		const extractModelExtension = this._extractModelExtension;
 
 		this.loader
-			.setMimeType( undefined )
+			.setMimeType( '' )
 			.setPath( this.path )
 			.setResponseType( 'arraybuffer' )
 			.setRequestHeader( this.requestHeader )
@@ -144,7 +166,7 @@ class MMDLoader extends Loader {
 
 				try {
 
-					const modelExtension = extractModelExtension( buffer );
+					const modelExtension = extractModelExtension( buffer as ArrayBuffer );
 
 					if ( modelExtension !== 'pmd' && modelExtension !== 'pmx' ) {
 
@@ -154,7 +176,7 @@ class MMDLoader extends Loader {
 
 					}
 
-					const data = modelExtension === 'pmd' ? parser.parsePmd( buffer, true ) : parser.parsePmx( buffer, true );
+					const data = modelExtension === 'pmd' ? parser.parsePmd( buffer as ArrayBuffer, true ) : parser.parsePmx( buffer as ArrayBuffer, true );
 
 					onLoad( builder.build( data, resourcePath, onProgress, onError ) );
 
@@ -178,13 +200,13 @@ class MMDLoader extends Loader {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadAnimation( url, object, onLoad, onProgress, onError ) {
+	loadAnimation( url: string | string[], object: SkinnedMesh | Camera, onLoad: ( animation: AnimationClip ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const builder = this.animationBuilder;
 
 		this.loadVMD( url, function ( vmd ) {
 
-			onLoad( object.isCamera
+			onLoad( isCamera( object )
 				? builder.buildCameraAnimation( vmd )
 				: builder.build( vmd, object ) );
 
@@ -203,7 +225,7 @@ class MMDLoader extends Loader {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadWithAnimation( modelUrl, vmdUrl, onLoad, onProgress, onError ) {
+	loadWithAnimation( modelUrl: string, vmdUrl: string | string[], onLoad: ( result: { mesh: MMDMesh; animation: AnimationClip } ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const scope = this;
 
@@ -232,12 +254,12 @@ class MMDLoader extends Loader {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadPMD( url, onLoad, onProgress, onError ) {
+	loadPMD( url: string, onLoad: ( data: ModelData ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const parser = this._getParser();
 
 		this.loader
-			.setMimeType( undefined )
+			.setMimeType( '' )
 			.setPath( this.path )
 			.setResponseType( 'arraybuffer' )
 			.setRequestHeader( this.requestHeader )
@@ -246,7 +268,7 @@ class MMDLoader extends Loader {
 
 				try {
 
-					onLoad( parser.parsePmd( buffer, true ) );
+					onLoad( parser.parsePmd( buffer as ArrayBuffer, true ) );
 
 				} catch ( e ) {
 
@@ -266,12 +288,12 @@ class MMDLoader extends Loader {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadPMX( url, onLoad, onProgress, onError ) {
+	loadPMX( url: string, onLoad: ( data: ModelData ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const parser = this._getParser();
 
 		this.loader
-			.setMimeType( undefined )
+			.setMimeType( '' )
 			.setPath( this.path )
 			.setResponseType( 'arraybuffer' )
 			.setRequestHeader( this.requestHeader )
@@ -280,7 +302,7 @@ class MMDLoader extends Loader {
 
 				try {
 
-					onLoad( parser.parsePmx( buffer, true ) );
+					onLoad( parser.parsePmx( buffer as ArrayBuffer, true ) );
 
 				} catch ( e ) {
 
@@ -301,18 +323,18 @@ class MMDLoader extends Loader {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadVMD( url, onLoad, onProgress, onError ) {
+	loadVMD( url: string | string[], onLoad: ( data: VMD ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const urls = Array.isArray( url ) ? url : [ url ];
 
-		const vmds = [];
+		const vmds: VMD[] = [];
 		const vmdNum = urls.length;
 
 		const parser = this._getParser();
 
 		this.loader
-			.setMimeType( undefined )
-			.setPath( this.animationPath )
+			.setMimeType( '' )
+			.setPath( this.animationPath ?? '' )
 			.setResponseType( 'arraybuffer' )
 			.setRequestHeader( this.requestHeader )
 			.setWithCredentials( this.withCredentials );
@@ -323,7 +345,7 @@ class MMDLoader extends Loader {
 
 				try {
 
-					vmds.push( parser.parseVmd( buffer, true ) );
+					vmds.push( parser.parseVmd( buffer as ArrayBuffer, true ) );
 
 					if ( vmds.length === vmdNum ) onLoad( parser.mergeVmds( vmds ) );
 
@@ -348,13 +370,13 @@ class MMDLoader extends Loader {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadVPD( url, isUnicode, onLoad, onProgress, onError ) {
+	loadVPD( url: string, isUnicode: boolean, onLoad: ( data: VPD ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const parser = this._getParser();
 
 		this.loader
-			.setMimeType( isUnicode ? undefined : 'text/plain; charset=shift_jis' )
-			.setPath( this.animationPath )
+			.setMimeType( isUnicode ? '' : 'text/plain; charset=shift_jis' )
+			.setPath( this.animationPath ?? '' )
 			.setResponseType( 'text' )
 			.setRequestHeader( this.requestHeader )
 			.setWithCredentials( this.withCredentials )
@@ -362,7 +384,7 @@ class MMDLoader extends Loader {
 
 				try {
 
-					onLoad( parser.parseVpd( text, true ) );
+					onLoad( parser.parseVpd( text as string, true ) );
 
 				} catch ( e ) {
 
@@ -376,7 +398,7 @@ class MMDLoader extends Loader {
 
 	// private methods
 
-	_extractModelExtension( buffer ) {
+	_extractModelExtension( buffer: ArrayBuffer ) {
 
 		const decoder = new TextDecoder( 'utf-8' );
 		const bytes = new Uint8Array( buffer, 0, 3 );
@@ -395,6 +417,12 @@ class MMDLoader extends Loader {
 		return this.parser;
 
 	}
+
+}
+
+function isCamera( object: SkinnedMesh | Camera ): object is Camera {
+
+	return 'isCamera' in object && object.isCamera === true;
 
 }
 
@@ -418,7 +446,7 @@ const DEFAULT_TOON_TEXTURES = [
 	'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAL0lEQVRYR+3QQREAAAzCsOFfNJPBJ1XQS9r2hsUAAQIECBAgQIAAAQIECBAgsBZ4MUx/ofm2I/kAAAAASUVORK5CYII='
 ];
 
-const NON_ALPHA_CHANNEL_FORMATS = [
+const NON_ALPHA_CHANNEL_FORMATS: number[] = [
 	RGB_S3TC_DXT1_Format,
 	RGB_PVRTC_4BPPV1_Format,
 	RGB_PVRTC_2BPPV1_Format,
@@ -433,7 +461,11 @@ const NON_ALPHA_CHANNEL_FORMATS = [
  */
 class MeshBuilder {
 
-	constructor( manager ) {
+	crossOrigin: string;
+	geometryBuilder: GeometryBuilder;
+	materialBuilder: MaterialBuilder;
+
+	constructor( manager?: LoadingManager ) {
 
 		this.crossOrigin = 'anonymous';
 		this.geometryBuilder = new GeometryBuilder();
@@ -445,7 +477,7 @@ class MeshBuilder {
 	 * @param {string} crossOrigin
 	 * @return {MeshBuilder}
 	 */
-	setCrossOrigin( crossOrigin ) {
+	setCrossOrigin( crossOrigin: string ) {
 
 		this.crossOrigin = crossOrigin;
 		return this;
@@ -459,7 +491,7 @@ class MeshBuilder {
 	 * @param {function} onError
 	 * @return {SkinnedMesh}
 	 */
-	build( data, resourcePath, onProgress, onError ) {
+	build( data: ModelData, resourcePath: string, onProgress?: OnProgress, onError?: OnError ) {
 
 		const geometry = this.geometryBuilder.build( data );
 		const material = this.materialBuilder
@@ -482,11 +514,11 @@ class MeshBuilder {
 
 // TODO: Try to remove this function
 
-function initBones( mesh ) {
+function initBones( mesh: MMDMesh ) {
 
 	const geometry = mesh.geometry;
 
-	const bones = [];
+	const bones: Bone[] = [];
 
 	if ( geometry && geometry.bones !== undefined ) {
 
@@ -551,10 +583,10 @@ class GeometryBuilder {
 	 * @param {Object} data - parsed PMD/PMX data
 	 * @return {BufferGeometry}
 	 */
-	build( data ) {
+	build( data: ModelData ) {
 
 		// for geometry
-		const positions = [];
+		const positions: number[] = [];
 		const uvs = [];
 		const normals = [];
 
@@ -562,22 +594,22 @@ class GeometryBuilder {
 
 		const groups = [];
 
-		const bones = [];
+		const bones: MMDBone[] = [];
 		const skinIndices = [];
 		const skinWeights = [];
 
 		const morphTargets = [];
 		const morphPositions = [];
 
-		const iks = [];
-		const grants = [];
+		const iks: IK[] = [];
+		const grants: Grant[] = [];
 
-		const rigidBodies = [];
-		const constraints = [];
+		const rigidBodies: RigidBodyParameters[] = [];
+		const constraints: ConstraintParameters[] = [];
 
 		// for work
 		let offset = 0;
-		const boneTypeTable = {};
+		const boneTypeTable: Record<number, number> = {};
 
 		// positions, normals, uvs, skinIndices, skinWeights
 
@@ -664,7 +696,7 @@ class GeometryBuilder {
 
 			const boneData = data.bones[ i ];
 
-			const bone = {
+			const bone: MMDBone = {
 				index: i,
 				transformationClass: boneData.transformationClass,
 				parent: boneData.parentIndex,
@@ -692,11 +724,11 @@ class GeometryBuilder {
 		// TODO: remove duplicated codes between PMD and PMX
 		if ( data.metadata.format === 'pmd' ) {
 
-			for ( let i = 0; i < data.metadata.ikCount; i ++ ) {
+			for ( let i = 0; i < data.metadata.ikCount!; i ++ ) {
 
-				const ik = data.iks[ i ];
+				const ik = data.iks![ i ];
 
-				const param = {
+				const param: IK = {
 					target: ik.target,
 					effector: ik.effector,
 					iteration: ik.iteration,
@@ -706,8 +738,7 @@ class GeometryBuilder {
 
 				for ( let j = 0, jl = ik.links.length; j < jl; j ++ ) {
 
-					const link = {};
-					link.index = ik.links[ j ].index;
+					const link: IKLink = { index: ik.links[ j ].index };
 					link.enabled = true;
 
 					if ( data.bones[ link.index ].name.indexOf( 'ひざ' ) >= 0 ) {
@@ -732,7 +763,7 @@ class GeometryBuilder {
 
 				if ( ik === undefined ) continue;
 
-				const param = {
+				const param: IK = {
 					target: i,
 					effector: ik.effector,
 					iteration: ik.iteration,
@@ -742,8 +773,7 @@ class GeometryBuilder {
 
 				for ( let j = 0, jl = ik.links.length; j < jl; j ++ ) {
 
-					const link = {};
-					link.index = ik.links[ j ].index;
+					const link: IKLink = { index: ik.links[ j ].index };
 					link.enabled = true;
 
 					if ( ik.links[ j ].angleLimitation === 1 ) {
@@ -751,8 +781,8 @@ class GeometryBuilder {
 						// Revert if rotationMin/Max doesn't work well
 						// link.limitation = new Vector3( 1.0, 0.0, 0.0 );
 
-						const rotationMin = ik.links[ j ].lowerLimitationAngle;
-						const rotationMax = ik.links[ j ].upperLimitationAngle;
+						const rotationMin = ik.links[ j ].lowerLimitationAngle!;
+						const rotationMax = ik.links[ j ].upperLimitationAngle!;
 
 						// Convert Left to Right coordinate by myself because
 						// MMDParser doesn't convert. It's a MMDParser's bug
@@ -788,7 +818,7 @@ class GeometryBuilder {
 		if ( data.metadata.format === 'pmx' ) {
 
 			// bone index -> grant entry map
-			const grantEntryMap = {};
+			const grantEntryMap: Record<string, GrantEntry> = {};
 
 			for ( let i = 0; i < data.metadata.boneCount; i ++ ) {
 
@@ -811,14 +841,14 @@ class GeometryBuilder {
 
 			}
 
-			const rootEntry = { parent: null, children: [], param: null, visited: false };
+			const rootEntry: GrantEntry = { parent: null, children: [], param: null, visited: false };
 
 			// Build a tree representing grant hierarchy
 
 			for ( const boneIndex in grantEntryMap ) {
 
 				const grantEntry = grantEntryMap[ boneIndex ];
-				const parentGrantEntry = grantEntryMap[ grantEntry.parentIndex ] || rootEntry;
+				const parentGrantEntry = grantEntryMap[ grantEntry.param!.parentIndex ] || rootEntry;
 
 				grantEntry.parent = parentGrantEntry;
 				parentGrantEntry.children.push( grantEntry );
@@ -829,7 +859,7 @@ class GeometryBuilder {
 			// grant uses parent's transform that parent's grant is already applied
 			// so grant should be applied in order from parents to children
 
-			function traverse( entry ) {
+			function traverse( entry: GrantEntry ) {
 
 				if ( entry.param ) {
 
@@ -860,7 +890,7 @@ class GeometryBuilder {
 
 		// morph
 
-		function updateAttributes( attribute, morph, ratio ) {
+		function updateAttributes( attribute: Float32BufferAttribute, morph: ModelMorph, ratio: number ) {
 
 			for ( let i = 0; i < morph.elementCount; i ++ ) {
 
@@ -878,9 +908,9 @@ class GeometryBuilder {
 
 				}
 
-				attribute.array[ index * 3 + 0 ] += element.position[ 0 ] * ratio;
-				attribute.array[ index * 3 + 1 ] += element.position[ 1 ] * ratio;
-				attribute.array[ index * 3 + 2 ] += element.position[ 2 ] * ratio;
+				attribute.array[ index * 3 + 0 ] += element.position![  0 ] * ratio;
+				attribute.array[ index * 3 + 1 ] += element.position![  1 ] * ratio;
+				attribute.array[ index * 3 + 2 ] += element.position![  2 ] * ratio;
 
 			}
 
@@ -915,7 +945,7 @@ class GeometryBuilder {
 					for ( let j = 0; j < morph.elementCount; j ++ ) {
 
 						const morph2 = data.morphs[ morph.elements[ j ].index ];
-						const ratio = morph.elements[ j ].ratio;
+						const ratio = morph.elements[ j ].ratio!;
 
 						if ( morph2.type === 1 ) {
 
@@ -975,13 +1005,7 @@ class GeometryBuilder {
 		for ( let i = 0; i < data.metadata.rigidBodyCount; i ++ ) {
 
 			const rigidBody = data.rigidBodies[ i ];
-			const params = {};
-
-			for ( const key in rigidBody ) {
-
-				params[ key ] = rigidBody[ key ];
-
-			}
+			const params = { ...rigidBody };
 
 			/*
 				 * RigidBody position parameter in PMX seems global position
@@ -1010,13 +1034,7 @@ class GeometryBuilder {
 		for ( let i = 0; i < data.metadata.constraintCount; i ++ ) {
 
 			const constraint = data.constraints[ i ];
-			const params = {};
-
-			for ( const key in constraint ) {
-
-				params[ key ] = constraint[ key ];
-
-			}
+			const params = { ...constraint };
 
 			const bodyA = rigidBodies[ params.rigidBodyIndex1 ];
 			const bodyB = rigidBodies[ params.rigidBodyIndex2 ];
@@ -1039,7 +1057,7 @@ class GeometryBuilder {
 
 		// build BufferGeometry.
 
-		const geometry = new BufferGeometry();
+		const geometry = new BufferGeometry() as MMDGeometry;
 
 		geometry.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
 		geometry.setAttribute( 'normal', new Float32BufferAttribute( normals, 3 ) );
@@ -1089,9 +1107,15 @@ class GeometryBuilder {
  */
 class MaterialBuilder {
 
-	constructor( manager ) {
+	manager: LoadingManager;
+	textureLoader: TextureLoader;
+	tgaLoader: TGALoader | null;
+	crossOrigin: string;
+	resourcePath: string | undefined;
 
-		this.manager = manager;
+	constructor( manager?: LoadingManager ) {
+
+		this.manager = manager ?? new LoadingManager();
 
 		this.textureLoader = new TextureLoader( this.manager );
 		this.tgaLoader = null; // lazy generation
@@ -1105,7 +1129,7 @@ class MaterialBuilder {
 	 * @param {string} crossOrigin
 	 * @return {MaterialBuilder}
 	 */
-	setCrossOrigin( crossOrigin ) {
+	setCrossOrigin( crossOrigin: string ) {
 
 		this.crossOrigin = crossOrigin;
 		return this;
@@ -1116,7 +1140,7 @@ class MaterialBuilder {
 	 * @param {string} resourcePath
 	 * @return {MaterialBuilder}
 	 */
-	setResourcePath( resourcePath ) {
+	setResourcePath( resourcePath: string ) {
 
 		this.resourcePath = resourcePath;
 		return this;
@@ -1130,11 +1154,11 @@ class MaterialBuilder {
 	 * @param {function} onError
 	 * @return {Array<MMDToonMaterial>}
 	 */
-	build( data, geometry /*, onProgress, onError */ ) {
+	build( data: ModelData, geometry: MMDGeometry, _onProgress?: OnProgress, _onError?: OnError ) {
 
 		const materials = [];
 
-		const textures = {};
+		const textures: Record<string, MMDTexture> = {};
 
 		this.textureLoader.setCrossOrigin( this.crossOrigin );
 
@@ -1144,7 +1168,7 @@ class MaterialBuilder {
 
 			const material = data.materials[ i ];
 
-			const params = { userData: { MMD: {} } };
+			const params: MMDMaterialParameters = { userData: { MMD: {} } };
 
 			if ( material.name !== undefined ) params.name = material.name;
 
@@ -1184,7 +1208,7 @@ class MaterialBuilder {
 
 			// side
 
-			if ( data.metadata.format === 'pmx' && ( material.flag & 0x1 ) === 1 ) {
+			if ( data.metadata.format === 'pmx' && ( material.flag! & 0x1 ) === 1 ) {
 
 				params.side = DoubleSide;
 
@@ -1229,7 +1253,7 @@ class MaterialBuilder {
 
 				const toonFileName = ( material.toonIndex === - 1 )
 					? 'toon00.bmp'
-					: data.toonTextures[ material.toonIndex ].fileName;
+					: data.toonTextures![ material.toonIndex ].fileName;
 
 				params.gradientMap = this._loadTexture(
 					toonFileName,
@@ -1253,28 +1277,28 @@ class MaterialBuilder {
 
 				// map
 
-				if ( material.textureIndex !== - 1 ) {
+				if ( material.textureIndex! !== - 1 ) {
 
-					params.map = this._loadTexture( data.textures[ material.textureIndex ], textures );
+					params.map = this._loadTexture( data.textures![ material.textureIndex! ], textures );
 
 					// Since PMX spec don't have standard to list map files except color map and env map,
 					// we need to save file name for further mapping, like matching normal map file names after model loaded.
 					// ref: https://gist.github.com/felixjones/f8a06bd48f9da9a4539f#texture
-					params.userData.MMD.mapFileName = data.textures[ material.textureIndex ];
+					params.userData.MMD.mapFileName = data.textures![ material.textureIndex! ];
 
 				}
 
 				// matcap TODO: support m.envFlag === 3
 
-				if ( material.envTextureIndex !== - 1 && ( material.envFlag === 1 || material.envFlag == 2 ) ) {
+				if ( material.envTextureIndex! !== - 1 && ( material.envFlag === 1 || material.envFlag == 2 ) ) {
 
 					params.matcap = this._loadTexture(
-						data.textures[ material.envTextureIndex ],
+						data.textures![ material.envTextureIndex! ],
 						textures
 					);
 
 					// Same as color map above, keep file name in userData for further usage.
-					params.userData.MMD.matcapFileName = data.textures[ material.envTextureIndex ];
+					params.userData.MMD.matcapFileName = data.textures![ material.envTextureIndex! ];
 
 					params.matcapCombine = material.envFlag === 1
 						? MultiplyOperation
@@ -1293,7 +1317,7 @@ class MaterialBuilder {
 
 				} else {
 
-					toonFileName = data.textures[ material.toonIndex ];
+					toonFileName = data.textures![ material.toonIndex ];
 					isDefaultToon = false;
 
 				}
@@ -1309,10 +1333,10 @@ class MaterialBuilder {
 
 				// parameters for OutlineEffect
 				params.userData.outlineParameters = {
-					thickness: material.edgeSize / 300, // TODO: better calculation?
-					color: material.edgeColor.slice( 0, 3 ),
-					alpha: material.edgeColor[ 3 ],
-					visible: ( material.flag & 0x10 ) !== 0 && material.edgeSize > 0.0
+					thickness: material.edgeSize! / 300, // TODO: better calculation?
+					color: material.edgeColor!.slice( 0, 3 ),
+					alpha: material.edgeColor![ 3 ],
+					visible: ( material.flag! & 0x10 ) !== 0 && material.edgeSize! > 0.0
 				};
 
 			}
@@ -1337,7 +1361,7 @@ class MaterialBuilder {
 
 			// set transparent true if alpha morph is defined.
 
-			function checkAlphaMorph( elements, materials ) {
+			function checkAlphaMorph( elements: MorphElement[], materials: MMDToonMaterial[] ) {
 
 				for ( let i = 0, il = elements.length; i < il; i ++ ) {
 
@@ -1347,7 +1371,7 @@ class MaterialBuilder {
 
 					const material = materials[ element.index ];
 
-					if ( material.opacity !== element.diffuse[ 3 ] ) {
+					if ( material.opacity !== element.diffuse![ 3 ] ) {
 
 						material.transparent = true;
 
@@ -1408,7 +1432,7 @@ class MaterialBuilder {
 
 	}
 
-	_isDefaultToonTexture( name ) {
+	_isDefaultToonTexture( name: string ) {
 
 		if ( name.length !== 10 ) return false;
 
@@ -1416,7 +1440,7 @@ class MaterialBuilder {
 
 	}
 
-	_loadTexture( filePath, textures, params, onProgress, onError ) {
+	_loadTexture( filePath: string, textures: Record<string, MMDTexture>, params: TextureOptions = {}, onProgress?: OnProgress, onError?: OnError ) {
 
 		params = params || {};
 
@@ -1430,7 +1454,7 @@ class MaterialBuilder {
 
 			try {
 
-				index = parseInt( filePath.match( /toon([0-9]{2})\.bmp$/ )[ 1 ] );
+				index = parseInt( filePath.match( /toon([0-9]{2})\.bmp$/ )![ 1 ] );
 
 			} catch ( e ) {
 
@@ -1451,7 +1475,7 @@ class MaterialBuilder {
 
 		if ( textures[ fullPath ] !== undefined ) return textures[ fullPath ];
 
-		let loader = this.manager.getHandler( fullPath );
+		let loader = this.manager.getHandler( fullPath ) as Loader<MMDTexture> | TextureLoader | TGALoader | null;
 
 		if ( loader === null ) {
 
@@ -1461,14 +1485,14 @@ class MaterialBuilder {
 
 		}
 
-		const texture = loader.load( fullPath, function ( t ) {
+		const texture = loader.load( fullPath, function ( t: Texture ) {
 
 			// MMD toon texture is Axis-Y oriented
 			// but Three.js gradient map is Axis-X oriented.
 			// So here replaces the toon texture image with the rotated one.
 			if ( params.isToonTexture === true ) {
 
-				t.image = scope._getRotatedImage( t.image );
+				t.image = scope._getRotatedImage( t.image as CanvasImageSource & { width: number; height: number } );
 
 				t.magFilter = NearestFilter;
 				t.minFilter = NearestFilter;
@@ -1481,15 +1505,15 @@ class MaterialBuilder {
 			t.wrapT = RepeatWrapping;
 			t.colorSpace = SRGBColorSpace;
 
-			for ( let i = 0; i < texture.readyCallbacks.length; i ++ ) {
+			for ( let i = 0; i < texture.readyCallbacks!.length; i ++ ) {
 
-				texture.readyCallbacks[ i ]( texture );
+				texture.readyCallbacks![ i ]( texture );
 
 			}
 
 			delete texture.readyCallbacks;
 
-		}, onProgress, onError );
+		}, onProgress, onError ) as MMDTexture;
 
 		texture.readyCallbacks = [];
 
@@ -1499,10 +1523,10 @@ class MaterialBuilder {
 
 	}
 
-	_getRotatedImage( image ) {
+	_getRotatedImage( image: CanvasImageSource & { width: number; height: number } ) {
 
 		const canvas = document.createElement( 'canvas' );
-		const context = canvas.getContext( '2d' );
+		const context = canvas.getContext( '2d' )!;
 
 		const width = image.width;
 		const height = image.height;
@@ -1521,25 +1545,25 @@ class MaterialBuilder {
 	}
 
 	// Check if the partial image area used by the texture is transparent.
-	_checkImageTransparency( map, geometry, groupIndex ) {
+	_checkImageTransparency( map: MMDTexture, geometry: BufferGeometry, groupIndex: number ) {
 
-		map.readyCallbacks.push( function ( texture ) {
+		map.readyCallbacks!.push( function ( texture ) {
 
 			// Is there any efficient ways?
-			function createImageData( image ) {
+			function createImageData( image: CanvasImageSource & { width: number; height: number } ) {
 
 				const canvas = document.createElement( 'canvas' );
 				canvas.width = image.width;
 				canvas.height = image.height;
 
-				const context = canvas.getContext( '2d' );
+				const context = canvas.getContext( '2d' )!;
 				context.drawImage( image, 0, 0 );
 
 				return context.getImageData( 0, 0, canvas.width, canvas.height );
 
 			}
 
-			function detectImageTransparency( image, uvs, indices ) {
+			function detectImageTransparency( image: ImageData, uvs: TypedArray, indices: TypedArray ) {
 
 				const width = image.width;
 				const height = image.height;
@@ -1582,7 +1606,7 @@ class MaterialBuilder {
 				 *   texture.wrapT = RepeatWrapping
 				 * TODO: more precise
 				 */
-			function getAlphaByUv( image, uv ) {
+			function getAlphaByUv( image: ImageData, uv: { x: number; y: number } ) {
 
 				const width = image.width;
 				const height = image.height;
@@ -1616,16 +1640,15 @@ class MaterialBuilder {
 
 			}
 
-			const imageData = texture.image.data !== undefined
-				? texture.image
-				: createImageData( texture.image );
+			const image = texture.image as ImageData | ( CanvasImageSource & { width: number; height: number } );
+			const imageData = 'data' in image ? image as ImageData : createImageData( image );
 
 			const group = geometry.groups[ groupIndex ];
 
 			if ( detectImageTransparency(
 				imageData,
 				geometry.attributes.uv.array,
-				geometry.index.array.slice( group.start, group.start + group.count ) ) ) {
+				geometry.index!.array.slice( group.start, group.start + group.count ) ) ) {
 
 				map.transparent = true;
 
@@ -1646,7 +1669,7 @@ class AnimationBuilder {
 	 * @param {SkinnedMesh} mesh - tracks will be fitting to mesh
 	 * @return {AnimationClip}
 	 */
-	build( vmd, mesh ) {
+	build( vmd: VMD, mesh: SkinnedMesh ) {
 
 		// combine skeletal and morph animations
 
@@ -1668,9 +1691,9 @@ class AnimationBuilder {
 	 * @param {SkinnedMesh} mesh - tracks will be fitting to mesh
 	 * @return {AnimationClip}
 	 */
-	buildSkeletalAnimation( vmd, mesh ) {
+	buildSkeletalAnimation( vmd: VMD, mesh: SkinnedMesh ) {
 
-		function pushInterpolation( array, interpolation, index ) {
+		function pushInterpolation( array: number[], interpolation: number[], index: number ) {
 
 			array.push( interpolation[ index + 0 ] / 127 ); // x1
 			array.push( interpolation[ index + 8 ] / 127 ); // x2
@@ -1681,9 +1704,9 @@ class AnimationBuilder {
 
 		const tracks = [];
 
-		const motions = {};
+		const motions: Record<string, VMDMotion[]> = {};
 		const bones = mesh.skeleton.bones;
-		const boneNameDictionary = {};
+		const boneNameDictionary: Record<string, boolean> = {};
 
 		for ( let i = 0, il = bones.length; i < il; i ++ ) {
 
@@ -1714,12 +1737,12 @@ class AnimationBuilder {
 			} );
 
 			const times = [];
-			const positions = [];
+			const positions: number[] = [];
 			const rotations = [];
-			const pInterpolations = [];
-			const rInterpolations = [];
+			const pInterpolations: number[] = [];
+			const rInterpolations: number[] = [];
 
-			const basePosition = mesh.skeleton.getBoneByName( key ).position.toArray();
+			const basePosition = mesh.skeleton.getBoneByName( key )!.position.toArray();
 
 			for ( let i = 0, il = array.length; i < il; i ++ ) {
 
@@ -1754,11 +1777,11 @@ class AnimationBuilder {
 	 * @param {SkinnedMesh} mesh - tracks will be fitting to mesh
 	 * @return {AnimationClip}
 	 */
-	buildMorphAnimation( vmd, mesh ) {
+	buildMorphAnimation( vmd: VMD, mesh: SkinnedMesh ) {
 
 		const tracks = [];
 
-		const morphs = {};
+		const morphs: Record<string, VMDMorph[]> = {};
 		const morphTargetDictionary = mesh.morphTargetDictionary;
 
 		for ( let i = 0; i < vmd.metadata.morphCount; i ++ ) {
@@ -1793,7 +1816,7 @@ class AnimationBuilder {
 
 			}
 
-			tracks.push( new NumberKeyframeTrack( '.morphTargetInfluences[' + morphTargetDictionary[ key ] + ']', times, values ) );
+			tracks.push( new NumberKeyframeTrack( '.morphTargetInfluences[' + morphTargetDictionary![ key ] + ']', times, values ) );
 
 		}
 
@@ -1805,9 +1828,9 @@ class AnimationBuilder {
 	 * @param {Object} vmd - parsed VMD data
 	 * @return {AnimationClip}
 	 */
-	buildCameraAnimation( vmd ) {
+	buildCameraAnimation( vmd: VMD ) {
 
-		function pushVector3( array, vec ) {
+		function pushVector3( array: number[], vec: Vector3 ) {
 
 			array.push( vec.x );
 			array.push( vec.y );
@@ -1815,7 +1838,7 @@ class AnimationBuilder {
 
 		}
 
-		function pushQuaternion( array, q ) {
+		function pushQuaternion( array: number[], q: Quaternion ) {
 
 			array.push( q.x );
 			array.push( q.y );
@@ -1824,7 +1847,7 @@ class AnimationBuilder {
 
 		}
 
-		function pushInterpolation( array, interpolation, index ) {
+		function pushInterpolation( array: number[], interpolation: number[], index: number ) {
 
 			array.push( interpolation[ index * 4 + 0 ] / 127 ); // x1
 			array.push( interpolation[ index * 4 + 1 ] / 127 ); // x2
@@ -1842,15 +1865,15 @@ class AnimationBuilder {
 		} );
 
 		const times = [];
-		const centers = [];
-		const quaternions = [];
-		const positions = [];
+		const centers: number[] = [];
+		const quaternions: number[] = [];
+		const positions: number[] = [];
 		const fovs = [];
 
-		const cInterpolations = [];
-		const qInterpolations = [];
-		const pInterpolations = [];
-		const fInterpolations = [];
+		const cInterpolations: number[] = [];
+		const qInterpolations: number[] = [];
+		const pInterpolations: number[] = [];
+		const fInterpolations: number[] = [];
 
 		const quaternion = new Quaternion();
 		const euler = new Euler();
@@ -1919,7 +1942,7 @@ class AnimationBuilder {
 
 	// private method
 
-	_createTrack( node, typedKeyframeTrack, times, values, interpolations ) {
+	_createTrack( node: string, typedKeyframeTrack: typeof NumberKeyframeTrack | typeof VectorKeyframeTrack | typeof QuaternionKeyframeTrack, times: number[], values: number[], interpolations: number[] ) {
 
 		/*
 			 * optimizes here not to let KeyframeTrackPrototype optimize
@@ -1979,7 +2002,7 @@ class AnimationBuilder {
 
 		const track = new typedKeyframeTrack( node, times, values );
 
-		track.createInterpolant = function InterpolantFactoryMethodCubicBezier( result ) {
+		( track as KeyframeTrack & { createInterpolant: ( result?: TypedArray ) => Interpolant } ).createInterpolant = function InterpolantFactoryMethodCubicBezier( result?: TypedArray ) {
 
 			return new CubicBezierInterpolation( this.times, this.values, this.getValueSize(), result, new Float32Array( interpolations ) );
 
@@ -1995,7 +2018,9 @@ class AnimationBuilder {
 
 class CubicBezierInterpolation extends Interpolant {
 
-	constructor( parameterPositions, sampleValues, sampleSize, resultBuffer, params ) {
+	interpolationParams: Float32Array;
+
+	constructor( parameterPositions: TypedArray, sampleValues: TypedArray, sampleSize: number, resultBuffer: TypedArray | undefined, params: Float32Array ) {
 
 		super( parameterPositions, sampleValues, sampleSize, resultBuffer );
 
@@ -2003,11 +2028,12 @@ class CubicBezierInterpolation extends Interpolant {
 
 	}
 
-	interpolate_( i1, t0, t, t1 ) {
+	interpolate_( i1: number, t0: number, t: number, t1: number ) {
 
 		const result = this.resultBuffer;
 		const values = this.sampleValues;
-		const stride = this.valueSize;
+		// @types/three declares valueSize as a typed array; Three.js stores a number.
+		const stride = this.valueSize as unknown as number;
 		const params = this.interpolationParams;
 
 		const offset1 = i1 * stride;
@@ -2027,7 +2053,8 @@ class CubicBezierInterpolation extends Interpolant {
 
 			const ratio = this._calculate( x1, x2, y1, y2, weight1 );
 
-			Quaternion.slerpFlat( result, 0, values, offset0, values, offset1, ratio );
+			// The Three.js typings accept number[], but the runtime also accepts typed arrays.
+			( Quaternion.slerpFlat as unknown as ( dst: TypedArray, dstOffset: number, src0: TypedArray, srcOffset0: number, src1: TypedArray, srcOffset1: number, t: number ) => void )( result, 0, values, offset0, values, offset1, ratio );
 
 		} else if ( stride === 3 ) { // Vector3
 
@@ -2061,7 +2088,7 @@ class CubicBezierInterpolation extends Interpolant {
 
 	}
 
-	_calculate( x1, x2, y1, y2, x ) {
+	_calculate( x1: number, x2: number, y1: number, y2: number, x: number ) {
 
 		/*
 			 * Cubic Bezier curves
@@ -2107,7 +2134,7 @@ class CubicBezierInterpolation extends Interpolant {
 		const eps = 1e-5;
 		const math = Math;
 
-		let sst3, stt3, ttt;
+		let sst3 = 0, stt3 = 0, ttt = 0;
 
 		for ( let i = 0; i < loop; i ++ ) {
 
@@ -2134,7 +2161,42 @@ class CubicBezierInterpolation extends Interpolant {
 
 class MMDToonMaterial extends ShaderMaterial {
 
-	constructor( parameters ) {
+	declare readonly isMMDToonMaterial: boolean;
+	declare _matcapCombine: Combine;
+	declare matcapCombine: Combine;
+	declare emissiveIntensity: number;
+	declare normalMapType: NormalMapTypes;
+	declare combine: Combine;
+	declare wireframeLinecap: string;
+	declare wireframeLinejoin: string;
+	declare flatShading: boolean;
+	declare _shininess: number;
+	declare shininess: number;
+	declare diffuse: Color;
+	declare color: Color;
+	declare specular: Color;
+	declare emissive: Color;
+	declare map: Texture | null;
+	declare matcap: Texture | null;
+	declare gradientMap: Texture | null;
+	declare lightMap: Texture | null;
+	declare lightMapIntensity: number;
+	declare aoMap: Texture | null;
+	declare aoMapIntensity: number;
+	declare emissiveMap: Texture | null;
+	declare bumpMap: Texture | null;
+	declare bumpScale: number;
+	declare normalMap: Texture | null;
+	declare normalScale: Vector2;
+	declare displacemantBias: number;
+	declare displacemantMap: Texture | null;
+	declare displacemantScale: number;
+	declare specularMap: Texture | null;
+	declare alphaMap: Texture | null;
+	declare reflectivity: number;
+	declare refractionRatio: number;
+
+	constructor( parameters?: MMDMaterialParameters ) {
 
 		super();
 
@@ -2270,14 +2332,14 @@ class MMDToonMaterial extends ShaderMaterial {
 		Object.defineProperty(
 			this,
 			'color',
-			Object.getOwnPropertyDescriptor( this, 'diffuse' )
+			Object.getOwnPropertyDescriptor( this, 'diffuse' )!
 		);
 
 		this.setValues( parameters );
 
 	}
 
-	copy( source ) {
+	copy( source: MMDToonMaterial ) {
 
 		super.copy( source );
 
@@ -2299,3 +2361,4 @@ class MMDToonMaterial extends ShaderMaterial {
 }
 
 export { MMDLoader };
+export type { MMDToonMaterial };

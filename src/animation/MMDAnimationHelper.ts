@@ -1,3 +1,7 @@
+import type { Audio, Camera, Object3D as ThreeObject } from 'three';
+import type { AnimationAction, AnimationClip, Bone } from 'three';
+import type { MMDMesh, MMDBone, Grant, VPD } from '../types.js';
+import type { MMDPhysicsParameters } from './MMDPhysics.js';
 import {
 	AnimationMixer,
 	Object3D,
@@ -6,6 +10,40 @@ import {
 } from 'three';
 import { CCDIKSolver } from '../animation/CCDIKSolver.js';
 import { MMDPhysics } from '../animation/MMDPhysics.js';
+
+export interface MMDAnimationHelperParameters {
+	sync?: boolean;
+	afterglow?: number;
+	resetPhysicsOnLoop?: boolean;
+	pmxAnimation?: boolean;
+}
+export interface MMDAnimationParameters extends MMDPhysicsParameters {
+	animation?: AnimationClip | AnimationClip[];
+	physics?: boolean;
+	warmup?: number;
+	animationWarmup?: boolean;
+	delayTime?: number;
+}
+export interface MMDPoseParameters { resetPose?: boolean; ik?: boolean; grant?: boolean }
+export type MMDAnimationFeature = 'animation' | 'ik' | 'grant' | 'physics' | 'cameraAnimation';
+export type MMDCamera = Camera & { updateProjectionMatrix(): void };
+// Three.js exposes no public API for enumerating mixer actions/bindings.
+type MMDMixer = AnimationMixer & {
+	_actions: AnimationAction[];
+	_bindings: { buffer: number[]; valueSize: number; binding: { getValue( buffer: number[], offset: number ): void } }[];
+	_accuIndex: number;
+};
+export interface MMDAnimationState {
+	mixer?: MMDMixer;
+	ikSolver?: CCDIKSolver;
+	grantSolver?: GrantSolver;
+	physics?: MMDPhysics;
+	looped?: boolean;
+	duration?: number;
+	backupBones?: Float32Array;
+	sortedBonesData?: MMDBone[];
+}
+
 
 /**
  * MMDAnimationHelper handles animation of MMD assets loaded by MMDLoader
@@ -21,13 +59,25 @@ import { MMDPhysics } from '../animation/MMDPhysics.js';
  */
 class MMDAnimationHelper {
 
+	meshes: MMDMesh[];
+	camera: MMDCamera | null;
+	cameraTarget: Object3D;
+	audio: Audio | null;
+	audioManager: AudioManager | null;
+	objects: WeakMap<object, MMDAnimationState>;
+	configuration: Required<MMDAnimationHelperParameters>;
+	enabled: Record<MMDAnimationFeature, boolean>;
+	onBeforePhysics: ( mesh: MMDMesh ) => void;
+	sharedPhysics: boolean;
+	masterPhysics: MMDPhysics | null;
+
 	/**
 	 * @param {Object} params - (optional)
 	 * @param {boolean} params.sync - Whether animation durations of added objects are synched. Default is true.
 	 * @param {Number} params.afterglow - Default is 0.0.
 	 * @param {boolean} params.resetPhysicsOnLoop - Default is true.
 	 */
-	constructor( params = {} ) {
+	constructor( params: MMDAnimationHelperParameters = {} ) {
 
 		this.meshes = [];
 
@@ -79,13 +129,13 @@ class MMDAnimationHelper {
 	 * @param {Number} params.delayTime - Only for THREE.Audio. Default is 0.0.
 	 * @return {MMDAnimationHelper}
 	 */
-	add( object, params = {} ) {
+	add( object: MMDMesh | MMDCamera | Audio, params: MMDAnimationParameters = {} ) {
 
-		if ( object.isSkinnedMesh ) {
+		if ( isMMDMesh( object ) ) {
 
 			this._addMesh( object, params );
 
-		} else if ( object.isCamera ) {
+		} else if ( isMMDCamera( object ) ) {
 
 			this._setupCamera( object, params );
 
@@ -115,13 +165,13 @@ class MMDAnimationHelper {
 	 * @param {THREE.SkinnedMesh|THREE.Camera|THREE.Audio} object
 	 * @return {MMDAnimationHelper}
 	 */
-	remove( object ) {
+	remove( object: MMDMesh | MMDCamera | Audio ) {
 
-		if ( object.isSkinnedMesh ) {
+		if ( isMMDMesh( object ) ) {
 
 			this._removeMesh( object );
 
-		} else if ( object.isCamera ) {
+		} else if ( isMMDCamera( object ) ) {
 
 			this._clearCamera( object );
 
@@ -151,7 +201,7 @@ class MMDAnimationHelper {
 	 * @param {Number} delta
 	 * @return {MMDAnimationHelper}
 	 */
-	update( delta ) {
+	update( delta: number ) {
 
 		if ( this.audioManager !== null ) this.audioManager.control( delta );
 
@@ -180,14 +230,14 @@ class MMDAnimationHelper {
 	 * @param {boolean} params.grant - Default is true.
 	 * @return {MMDAnimationHelper}
 	 */
-	pose( mesh, vpd, params = {} ) {
+	pose( mesh: MMDMesh, vpd: VPD, params: MMDPoseParameters = {} ) {
 
 		if ( params.resetPose !== false ) mesh.pose();
 
 		const bones = mesh.skeleton.bones;
 		const boneParams = vpd.bones;
 
-		const boneNameDictionary = {};
+		const boneNameDictionary: Record<string, number> = {};
 
 		for ( let i = 0, il = bones.length; i < il; i ++ ) {
 
@@ -249,7 +299,7 @@ class MMDAnimationHelper {
 	 * @param {boolean} enabled
 	 * @return {MMDAnimationHelper}
 	 */
-	enable( key, enabled ) {
+	enable( key: MMDAnimationFeature, enabled: boolean ) {
 
 		if ( this.enabled[ key ] === undefined ) {
 
@@ -280,7 +330,7 @@ class MMDAnimationHelper {
 	 * @param {THREE.SkinnedMesh} mesh
 	 * @return {GrantSolver}
 	 */
-	createGrantSolver( mesh ) {
+	createGrantSolver( mesh: MMDMesh ) {
 
 		return new GrantSolver( mesh, mesh.geometry.userData.MMD.grants );
 
@@ -288,7 +338,7 @@ class MMDAnimationHelper {
 
 	// private methods
 
-	_addMesh( mesh, params ) {
+	_addMesh( mesh: MMDMesh, params: MMDAnimationParameters ) {
 
 		if ( this.meshes.indexOf( mesh ) >= 0 ) {
 
@@ -312,7 +362,7 @@ class MMDAnimationHelper {
 
 	}
 
-	_setupCamera( camera, params ) {
+	_setupCamera( camera: MMDCamera, params: MMDAnimationParameters ) {
 
 		if ( this.camera === camera ) {
 
@@ -321,7 +371,7 @@ class MMDAnimationHelper {
 
 		}
 
-		if ( this.camera ) this.clearCamera( this.camera );
+		if ( this.camera ) this._clearCamera( this.camera );
 
 		this.camera = camera;
 
@@ -339,7 +389,7 @@ class MMDAnimationHelper {
 
 	}
 
-	_setupAudio( audio, params ) {
+	_setupAudio( audio: Audio, params: MMDAnimationParameters ) {
 
 		if ( this.audio === audio ) {
 
@@ -348,7 +398,7 @@ class MMDAnimationHelper {
 
 		}
 
-		if ( this.audio ) this.clearAudio( this.audio );
+		if ( this.audio ) this._clearAudio( this.audio );
 
 		this.audio = audio;
 		this.audioManager = new AudioManager( audio, params );
@@ -361,7 +411,7 @@ class MMDAnimationHelper {
 
 	}
 
-	_removeMesh( mesh ) {
+	_removeMesh( mesh: MMDMesh ) {
 
 		let found = false;
 		let writeIndex = 0;
@@ -394,7 +444,7 @@ class MMDAnimationHelper {
 
 	}
 
-	_clearCamera( camera ) {
+	_clearCamera( camera: MMDCamera ) {
 
 		if ( camera !== this.camera ) {
 
@@ -403,16 +453,16 @@ class MMDAnimationHelper {
 
 		}
 
-		this.camera.remove( this.cameraTarget );
+		this.camera!.remove( this.cameraTarget );
 
-		this.objects.delete( this.camera );
+		this.objects.delete( this.camera! );
 		this.camera = null;
 
 		return this;
 
 	}
 
-	_clearAudio( audio ) {
+	_clearAudio( audio: Audio ) {
 
 		if ( audio !== this.audio ) {
 
@@ -421,7 +471,7 @@ class MMDAnimationHelper {
 
 		}
 
-		this.objects.delete( this.audioManager );
+		this.objects.delete( this.audioManager! );
 
 		this.audio = null;
 		this.audioManager = null;
@@ -430,16 +480,16 @@ class MMDAnimationHelper {
 
 	}
 
-	_setupMeshAnimation( mesh, animation ) {
+	_setupMeshAnimation( mesh: MMDMesh, animation?: AnimationClip | AnimationClip[] ) {
 
-		const objects = this.objects.get( mesh );
+		const objects = this.objects.get( mesh )!;
 
 		if ( animation !== undefined ) {
 
 			const animations = Array.isArray( animation )
 				? animation : [ animation ];
 
-			objects.mixer = new AnimationMixer( mesh );
+			objects.mixer = new AnimationMixer( mesh ) as MMDMixer;
 
 			for ( let i = 0, il = animations.length; i < il; i ++ ) {
 
@@ -450,7 +500,7 @@ class MMDAnimationHelper {
 			// TODO: find a workaround not to access ._clip looking like a private property
 			objects.mixer.addEventListener( 'loop', function ( event ) {
 
-				const tracks = event.action._clip.tracks;
+				const tracks = event.action.getClip().tracks;
 
 				if ( tracks.length > 0 && tracks[ 0 ].name.slice( 0, 6 ) !== '.bones' ) return;
 
@@ -467,14 +517,14 @@ class MMDAnimationHelper {
 
 	}
 
-	_setupCameraAnimation( camera, animation ) {
+	_setupCameraAnimation( camera: MMDCamera, animation: AnimationClip | AnimationClip[] ) {
 
 		const animations = Array.isArray( animation )
 			? animation : [ animation ];
 
-		const objects = this.objects.get( camera );
+		const objects = this.objects.get( camera )!;
 
-		objects.mixer = new AnimationMixer( camera );
+		objects.mixer = new AnimationMixer( camera ) as MMDMixer;
 
 		for ( let i = 0, il = animations.length; i < il; i ++ ) {
 
@@ -484,9 +534,9 @@ class MMDAnimationHelper {
 
 	}
 
-	_setupMeshPhysics( mesh, params ) {
+	_setupMeshPhysics( mesh: MMDMesh, params: MMDAnimationParameters ) {
 
-		const objects = this.objects.get( mesh );
+		const objects = this.objects.get( mesh )!;
 
 		// shared physics is experimental
 
@@ -494,7 +544,7 @@ class MMDAnimationHelper {
 
 			const masterPhysics = this._getMasterPhysics();
 
-			if ( masterPhysics !== null ) world = masterPhysics.world; // eslint-disable-line no-undef
+			if ( masterPhysics !== null && masterPhysics.world !== null ) params = { ...params, world: masterPhysics.world };
 
 		}
 
@@ -513,9 +563,9 @@ class MMDAnimationHelper {
 
 	}
 
-	_animateMesh( mesh, delta ) {
+	_animateMesh( mesh: MMDMesh, delta: number ) {
 
-		const objects = this.objects.get( mesh );
+		const objects = this.objects.get( mesh )!;
 
 		const mixer = objects.mixer;
 		const ikSolver = objects.ikSolver;
@@ -587,13 +637,13 @@ class MMDAnimationHelper {
 	// Sort bones in order by 1. transformationClass and 2. bone index.
 	// In PMX animation system, bone transformations should be processed
 	// in this order.
-	_sortBoneDataArray( boneDataArray ) {
+	_sortBoneDataArray( boneDataArray: MMDBone[] ) {
 
 		return boneDataArray.sort( function ( a, b ) {
 
 			if ( a.transformationClass !== b.transformationClass ) {
 
-				return a.transformationClass - b.transformationClass;
+				return ( a.transformationClass ?? 0 ) - ( b.transformationClass ?? 0 );
 
 			} else {
 
@@ -612,7 +662,7 @@ class MMDAnimationHelper {
 	// you are recommended to set constructor parameter "pmxAnimation: true"
 	// only if your PMX model animation doesn't work well.
 	// If you need better method you would be required to write your own.
-	_animatePMXMesh( mesh, sortedBonesData, ikSolver, grantSolver ) {
+	_animatePMXMesh( mesh: MMDMesh, sortedBonesData: MMDBone[], ikSolver: CCDIKSolver | null, grantSolver: GrantSolver | null ) {
 
 		_quaternionIndex = 0;
 		_grantResultMap.clear();
@@ -628,9 +678,9 @@ class MMDAnimationHelper {
 
 	}
 
-	_animateCamera( camera, delta ) {
+	_animateCamera( camera: MMDCamera, delta: number ) {
 
-		const mixer = this.objects.get( camera ).mixer;
+		const mixer = this.objects.get( camera )!.mixer;
 
 		if ( mixer && this.enabled.cameraAnimation ) {
 
@@ -646,7 +696,7 @@ class MMDAnimationHelper {
 
 	}
 
-	_optimizeIK( mesh, physicsEnabled ) {
+	_optimizeIK( mesh: MMDMesh, physicsEnabled: boolean ) {
 
 		const iks = mesh.geometry.userData.MMD.iks;
 		const bones = mesh.geometry.userData.MMD.bones;
@@ -678,7 +728,7 @@ class MMDAnimationHelper {
 
 	}
 
-	_createCCDIKSolver( mesh ) {
+	_createCCDIKSolver( mesh: MMDMesh ) {
 
 		if ( CCDIKSolver === undefined ) {
 
@@ -690,7 +740,7 @@ class MMDAnimationHelper {
 
 	}
 
-	_createMMDPhysics( mesh, params ) {
+	_createMMDPhysics( mesh: MMDMesh, params: MMDAnimationParameters ) {
 
 		if ( MMDPhysics === undefined ) {
 
@@ -723,13 +773,13 @@ class MMDAnimationHelper {
 
 		for ( let i = 0, il = meshes.length; i < il; i ++ ) {
 
-			const mixer = this.objects.get( meshes[ i ] ).mixer;
+			const mixer = this.objects.get( meshes[ i ] )!.mixer;
 
 			if ( mixer === undefined ) continue;
 
 			for ( let j = 0; j < mixer._actions.length; j ++ ) {
 
-				const clip = mixer._actions[ j ]._clip;
+				const clip = mixer._actions[ j ].getClip();
 
 				if ( ! objects.has( clip ) ) {
 
@@ -739,7 +789,7 @@ class MMDAnimationHelper {
 
 				}
 
-				max = Math.max( max, objects.get( clip ).duration );
+				max = Math.max( max, objects.get( clip )!.duration! );
 
 			}
 
@@ -747,13 +797,13 @@ class MMDAnimationHelper {
 
 		if ( camera !== null ) {
 
-			const mixer = this.objects.get( camera ).mixer;
+			const mixer = this.objects.get( camera )!.mixer;
 
 			if ( mixer !== undefined ) {
 
 				for ( let i = 0, il = mixer._actions.length; i < il; i ++ ) {
 
-					const clip = mixer._actions[ i ]._clip;
+					const clip = mixer._actions[ i ].getClip();
 
 					if ( ! objects.has( clip ) ) {
 
@@ -763,7 +813,7 @@ class MMDAnimationHelper {
 
 					}
 
-					max = Math.max( max, objects.get( clip ).duration );
+					max = Math.max( max, objects.get( clip )!.duration! );
 
 				}
 
@@ -773,7 +823,7 @@ class MMDAnimationHelper {
 
 		if ( audioManager !== null ) {
 
-			max = Math.max( max, objects.get( audioManager ).duration );
+			max = Math.max( max, objects.get( audioManager )!.duration! );
 
 		}
 
@@ -783,13 +833,13 @@ class MMDAnimationHelper {
 
 		for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
-			const mixer = this.objects.get( this.meshes[ i ] ).mixer;
+			const mixer = this.objects.get( this.meshes[ i ] )!.mixer;
 
 			if ( mixer === undefined ) continue;
 
 			for ( let j = 0, jl = mixer._actions.length; j < jl; j ++ ) {
 
-				mixer._actions[ j ]._clip.duration = max;
+				mixer._actions[ j ].getClip().duration = max;
 
 			}
 
@@ -797,13 +847,13 @@ class MMDAnimationHelper {
 
 		if ( camera !== null ) {
 
-			const mixer = this.objects.get( camera ).mixer;
+			const mixer = this.objects.get( camera )!.mixer;
 
 			if ( mixer !== undefined ) {
 
 				for ( let i = 0, il = mixer._actions.length; i < il; i ++ ) {
 
-					mixer._actions[ i ]._clip.duration = max;
+					mixer._actions[ i ].getClip().duration = max;
 
 				}
 
@@ -821,12 +871,12 @@ class MMDAnimationHelper {
 
 	// workaround
 
-	_updatePropertyMixersBuffer( mesh ) {
+	_updatePropertyMixersBuffer( mesh: MMDMesh ) {
 
-		const mixer = this.objects.get( mesh ).mixer;
+		const mixer = this.objects.get( mesh )!.mixer;
 
-		const propertyMixers = mixer._bindings;
-		const accuIndex = mixer._accuIndex;
+		const propertyMixers = mixer!._bindings;
+		const accuIndex = mixer!._accuIndex;
 
 		for ( let i = 0, il = propertyMixers.length; i < il; i ++ ) {
 
@@ -850,9 +900,9 @@ class MMDAnimationHelper {
 	 *
 	 * 2. Applying Grant two or more times without reset the posing breaks model.
 	 */
-	_saveBones( mesh ) {
+	_saveBones( mesh: MMDMesh ) {
 
-		const objects = this.objects.get( mesh );
+		const objects = this.objects.get( mesh )!;
 
 		const bones = mesh.skeleton.bones;
 
@@ -875,9 +925,9 @@ class MMDAnimationHelper {
 
 	}
 
-	_restoreBones( mesh ) {
+	_restoreBones( mesh: MMDMesh ) {
 
-		const objects = this.objects.get( mesh );
+		const objects = this.objects.get( mesh )!;
 
 		const backupBones = objects.backupBones;
 
@@ -903,7 +953,7 @@ class MMDAnimationHelper {
 
 		for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
-			const physics = this.meshes[ i ].physics;
+			const physics = this.objects.get( this.meshes[ i ] )!.physics;
 
 			if ( physics !== undefined && physics !== null ) {
 
@@ -918,7 +968,7 @@ class MMDAnimationHelper {
 
 	}
 
-	_updateSharedPhysics( delta ) {
+	_updateSharedPhysics( delta: number ) {
 
 		if ( this.meshes.length === 0 || ! this.enabled.physics || ! this.sharedPhysics ) return;
 
@@ -928,25 +978,25 @@ class MMDAnimationHelper {
 
 		for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
-			const p = this.meshes[ i ].physics;
+			const p = this.objects.get( this.meshes[ i ] )!.physics;
 
 			if ( p !== null && p !== undefined ) {
 
-				p.updateRigidBodies();
+				p._updateRigidBodies();
 
 			}
 
 		}
 
-		physics.stepSimulation( delta );
+		physics._stepSimulation( delta );
 
 		for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
-			const p = this.meshes[ i ].physics;
+			const p = this.objects.get( this.meshes[ i ] )!.physics;
 
 			if ( p !== null && p !== undefined ) {
 
-				p.updateBones();
+				p._updateBones();
 
 			}
 
@@ -956,8 +1006,20 @@ class MMDAnimationHelper {
 
 }
 
+function isMMDMesh( object: ThreeObject ): object is MMDMesh {
+
+	return 'isSkinnedMesh' in object && object.isSkinnedMesh === true;
+
+}
+
+function isMMDCamera( object: ThreeObject ): object is MMDCamera {
+
+	return 'isCamera' in object && object.isCamera === true;
+
+}
+
 // Keep working quaternions for less GC
-const _quaternions = [];
+const _quaternions: Quaternion[] = [];
 let _quaternionIndex = 0;
 
 function getQuaternion() {
@@ -974,9 +1036,9 @@ function getQuaternion() {
 
 // Save rotation whose grant and IK are already applied
 // used by grant children
-const _grantResultMap = new Map();
+const _grantResultMap = new Map<number, Quaternion>();
 
-function updateOne( mesh, boneIndex, ikSolver, grantSolver ) {
+function updateOne( mesh: MMDMesh, boneIndex: number, ikSolver: CCDIKSolver | null, grantSolver: GrantSolver | null ) {
 
 	const bones = mesh.skeleton.bones;
 	const bonesData = mesh.geometry.userData.MMD.bones;
@@ -1007,7 +1069,7 @@ function updateOne( mesh, boneIndex, ikSolver, grantSolver ) {
 
 		}
 
-		grantSolver.addGrantRotation( bone, _grantResultMap.get( parentIndex ), ratio );
+		grantSolver.addGrantRotation( bone, _grantResultMap.get( parentIndex )!, ratio );
 
 	}
 
@@ -1031,7 +1093,7 @@ function updateOne( mesh, boneIndex, ikSolver, grantSolver ) {
 
 			if ( _grantResultMap.has( linkIndex ) ) {
 
-				_grantResultMap.set( linkIndex, _grantResultMap.get( linkIndex ).copy( bones[ linkIndex ].quaternion ) );
+				_grantResultMap.set( linkIndex, _grantResultMap.get( linkIndex )!.copy( bones[ linkIndex ].quaternion ) );
 
 			}
 
@@ -1048,12 +1110,19 @@ function updateOne( mesh, boneIndex, ikSolver, grantSolver ) {
 
 class AudioManager {
 
+	audio: Audio;
+	elapsedTime: number;
+	currentTime: number;
+	delayTime: number;
+	audioDuration: number;
+	duration: number;
+
 	/**
 	 * @param {THREE.Audio} audio
 	 * @param {Object} params - (optional)
 	 * @param {Nuumber} params.delayTime
 	 */
-	constructor( audio, params = {} ) {
+	constructor( audio: Audio, params: MMDAnimationParameters = {} ) {
 
 		this.audio = audio;
 
@@ -1062,7 +1131,7 @@ class AudioManager {
 		this.delayTime = params.delayTime !== undefined
 			? params.delayTime : 0.0;
 
-		this.audioDuration = this.audio.buffer.duration;
+		this.audioDuration = this.audio.buffer!.duration;
 		this.duration = this.audioDuration + this.delayTime;
 
 	}
@@ -1071,9 +1140,9 @@ class AudioManager {
 	 * @param {Number} delta
 	 * @return {AudioManager}
 	 */
-	control( delta ) {
+	control( delta: number ) {
 
-		this.elapsed += delta;
+		this.elapsedTime += delta;
 		this.currentTime += delta;
 
 		if ( this._shouldStopAudio() ) this.audio.stop();
@@ -1125,7 +1194,10 @@ const _q = new Quaternion();
  */
 class GrantSolver {
 
-	constructor( mesh, grants = [] ) {
+	mesh: MMDMesh;
+	grants: Grant[];
+
+	constructor( mesh: MMDMesh, grants: Grant[] = [] ) {
 
 		this.mesh = mesh;
 		this.grants = grants;
@@ -1155,7 +1227,7 @@ class GrantSolver {
 	 * @param {Object} grant - grant parameter
 	 * @return {GrantSolver}
 	 */
-	updateOne( grant ) {
+	updateOne( grant: Grant ) {
 
 		const bones = this.mesh.skeleton.bones;
 		const bone = bones[ grant.index ];
@@ -1192,7 +1264,7 @@ class GrantSolver {
 
 	}
 
-	addGrantRotation( bone, q, ratio ) {
+	addGrantRotation( bone: Bone, q: Quaternion, ratio: number ) {
 
 		_q.set( 0, 0, 0, 1 );
 		_q.slerp( q, ratio );

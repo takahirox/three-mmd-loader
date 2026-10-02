@@ -3,6 +3,7 @@ import {
 	Quaternion,
 	Vector3
 } from 'three';
+import type { SkinnedMesh } from 'three';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { MMDParser } from '../libs/mmdparser.module.js';
 
@@ -38,7 +39,10 @@ class MMDExporter {
 	 * skeleton -> vpd
 	 * Returns Shift_JIS encoded Uint8Array. Otherwise return strings.
 	 */
-	parseVpd( skin, outputShiftJis, useOriginalBones ) {
+	parseVpd( skin: SkinnedMesh, outputShiftJis?: false, useOriginalBones?: boolean ): string | null;
+	parseVpd( skin: SkinnedMesh, outputShiftJis: true, useOriginalBones?: boolean ): Uint8Array | null;
+	parseVpd( skin: SkinnedMesh, outputShiftJis: boolean, useOriginalBones?: boolean ): string | Uint8Array | null;
+	parseVpd( skin: SkinnedMesh, outputShiftJis = false, useOriginalBones = false ): string | Uint8Array | null {
 
 		if ( skin.isSkinnedMesh !== true ) {
 
@@ -47,7 +51,7 @@ class MMDExporter {
 
 		}
 
-		function toStringsFromNumber( num ) {
+		function toStringsFromNumber( num: number ) {
 
 			if ( Math.abs( num ) < 1e-6 ) num = 0;
 
@@ -70,7 +74,7 @@ class MMDExporter {
 
 		}
 
-		function toStringsFromArray( array ) {
+		function toStringsFromArray( array: number[] ) {
 
 			const a = [];
 
@@ -152,9 +156,9 @@ class MMDExporter {
 }
 
 // Unicode to Shift_JIS table
-let u2sTable;
+let u2sTable: Record<number, number> | undefined;
 
-function unicodeToShiftjis( str ) {
+function unicodeToShiftjis( str: string ) {
 
 	if ( u2sTable === undefined ) {
 
@@ -166,12 +170,12 @@ function unicodeToShiftjis( str ) {
 
 		for ( let i = 0, il = keys.length; i < il; i ++ ) {
 
-			let key = keys[ i ];
+			const key = keys[ i ];
 
-			const value = table[ key ];
-			key = parseInt( key );
+			const value = table[ Number( key ) ];
+			const code = parseInt( key );
 
-			u2sTable[ value ] = key;
+			u2sTable[ value ] = code;
 
 		}
 
@@ -206,11 +210,11 @@ function unicodeToShiftjis( str ) {
 
 }
 
-function getBindBones( skin ) {
+function getBindBones( skin: SkinnedMesh ) {
 
 	// any more efficient ways?
 	// SkinnedMesh.clone() shares the skeleton and posing it changes the source.
-	const poseSkin = clone( skin );
+	const poseSkin = clone( skin ) as SkinnedMesh;
 	poseSkin.pose();
 	return poseSkin.skeleton.bones;
 

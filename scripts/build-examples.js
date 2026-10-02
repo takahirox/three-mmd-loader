@@ -35,7 +35,7 @@ export async function buildExamples( {
 
 	}
 	for ( const path of [
-		'src', 'LICENSE', 'THIRD_PARTY_NOTICES.md',
+		'LICENSE', 'THIRD_PARTY_NOTICES.md',
 		'node_modules/three/build/three.module.js',
 		'node_modules/three/build/three.core.js',
 		'node_modules/three/examples/jsm',
@@ -45,6 +45,12 @@ export async function buildExamples( {
 	] ) {
 
 		await cp( join( root, path ), join( outputDirectory, path ), { recursive: true } );
+
+	}
+	// Keep the browser import-map paths stable while serving compiled modules.
+	for ( const name of [ 'index.js', 'animation', 'exporters', 'loaders', 'shaders', 'libs' ] ) {
+
+		await cp( join( root, 'dist', name ), join( outputDirectory, 'src', name ), { recursive: true, filter: source => ! source.endsWith( '.d.ts' ) } );
 
 	}
 	await writeFile( join( outputDirectory, 'index.html' ), `<!doctype html>

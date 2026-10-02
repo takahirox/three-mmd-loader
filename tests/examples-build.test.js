@@ -58,7 +58,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			'LICENSE', 'THIRD_PARTY_NOTICES.md'
 		] ) {
 
-			assert.deepEqual( await readFile( join( outputDirectory, path ) ), await readFile( new URL( '../' + path, import.meta.url ) ), path );
+			assert.deepEqual( await readFile( join( outputDirectory, path ) ), await readFile( new URL( '../' + path.replace( /^src\//, 'dist/' ), import.meta.url ) ), path );
 
 		}
 		for ( const path of [ 'stale.html', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {

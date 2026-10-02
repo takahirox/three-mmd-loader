@@ -14,6 +14,26 @@
  */
 
 import { UniformsUtils, ShaderLib } from 'three';
+import type { Color, IUniform, Texture } from 'three';
+
+export interface MMDToonUniforms extends Record<string, IUniform<unknown>> {
+	diffuse: IUniform<Color>;
+	specular: IUniform<Color>;
+	emissive: IUniform<Color>;
+	opacity: IUniform<number>;
+	shininess: IUniform<number>;
+	map: IUniform<Texture | null>;
+	matcap: IUniform<Texture | null>;
+	gradientMap: IUniform<Texture | null>;
+}
+
+export interface MMDToonShaderDefinition {
+	name: string;
+	defines: Record<string, boolean | number | string>;
+	uniforms: MMDToonUniforms;
+	vertexShader: string;
+	fragmentShader: string;
+}
 
 const lights_mmd_toon_pars_fragment = /* glsl */`
 varying vec3 vViewPosition;
@@ -69,7 +89,7 @@ const mmd_toon_matcap_fragment = /* glsl */`
 #endif
 `;
 
-const MMDToonShader = {
+const MMDToonShader: MMDToonShaderDefinition = {
 
 	name: 'MMDToonShader',
 
@@ -83,7 +103,7 @@ const MMDToonShader = {
 		ShaderLib.toon.uniforms,
 		ShaderLib.phong.uniforms,
 		ShaderLib.matcap.uniforms,
-	] ),
+	] ) as MMDToonUniforms,
 
 	vertexShader:
 		ShaderLib.phong.vertexShader
