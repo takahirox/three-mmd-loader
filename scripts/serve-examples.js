@@ -19,7 +19,7 @@ export function createExamplesServer( { assetRoot = resolve( root, 'examples/ass
 	const mounts = [
 		[ '/examples/assets/mmd/', assetRoot ],
 		[ '/examples/', resolve( root, 'examples' ) ],
-		[ '/src/', resolve( root, 'src' ) ],
+		[ '/src/', resolve( root, 'dist' ) ],
 		[ '/node_modules/three/', resolve( root, 'node_modules/three' ) ],
 		[ '/node_modules/ammojs-typed/ammo/', resolve( root, 'node_modules/ammojs-typed/ammo' ) ]
 	];

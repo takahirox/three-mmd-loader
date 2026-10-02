@@ -1,3 +1,6 @@
+import type { SkinnedMesh } from 'three';
+import type { RigidBodyParameters, ConstraintParameters } from '../types.js';
+import type { AmmoAPI, AmmoWorld, AmmoVector3, AmmoQuaternion, AmmoTransform, AmmoBody, AmmoConstraint } from '../ammo.js';
 import {
 	Bone,
 	BoxGeometry,
@@ -12,6 +15,17 @@ import {
 	SphereGeometry,
 	Vector3
 } from 'three';
+
+// Ammo is initialized by the application; only its used API is described here.
+declare const Ammo: AmmoAPI;
+
+export interface MMDPhysicsParameters {
+	unitStep?: number;
+	maxStepNum?: number;
+	gravity?: Vector3;
+	world?: AmmoWorld;
+}
+
 
 /**
  * Dependencies
@@ -28,6 +42,15 @@ import {
 
 class MMDPhysics {
 
+	manager: ResourceManager;
+	mesh: SkinnedMesh;
+	unitStep: number;
+	maxStepNum: number;
+	gravity: Vector3;
+	world: AmmoWorld | null;
+	bodies: RigidBody[];
+	constraints: Constraint[];
+
 	/**
 	 * @param {THREE.SkinnedMesh} mesh
 	 * @param {Array<Object>} rigidBodyParams
@@ -37,7 +60,7 @@ class MMDPhysics {
 	 * @param {Integer} params.maxStepNum - Default is 3.
 	 * @param {Vector3} params.gravity - Default is ( 0, - 9.8 * 10, 0 )
 	 */
-	constructor( mesh, rigidBodyParams, constraintParams = [], params = {} ) {
+	constructor( mesh: SkinnedMesh, rigidBodyParams: RigidBodyParameters[], constraintParams: ConstraintParameters[] = [], params: MMDPhysicsParameters = {} ) {
 
 		if ( typeof Ammo === 'undefined' ) {
 
@@ -76,7 +99,7 @@ class MMDPhysics {
 	 * @param {Number} delta - time in second
 	 * @return {MMDPhysics}
 	 */
-	update( delta ) {
+	update( delta: number ) {
 
 		const manager = this.manager;
 		const mesh = this.mesh;
@@ -99,7 +122,7 @@ class MMDPhysics {
 
 		}
 
-		let parent;
+		let parent: Object3D | null = null;
 
 		if ( isNonDefaultScale ) {
 
@@ -161,7 +184,7 @@ class MMDPhysics {
 	 * @param {Integer} cycles
 	 * @return {MMDPhysics}
 	 */
-	warmup( cycles ) {
+	warmup( cycles: number ) {
 
 		for ( let i = 0; i < cycles; i ++ ) {
 
@@ -179,9 +202,9 @@ class MMDPhysics {
 	 * @param {Vector3} gravity
 	 * @return {MMDPhysicsHelper}
 	 */
-	setGravity( gravity ) {
+	setGravity( gravity: Vector3 ) {
 
-		this.world.setGravity( new Ammo.btVector3( gravity.x, gravity.y, gravity.z ) );
+		this.world!.setGravity( new Ammo.btVector3( gravity.x, gravity.y, gravity.z ) );
 		this.gravity.copy( gravity );
 
 		return this;
@@ -201,7 +224,7 @@ class MMDPhysics {
 
 	// private methods
 
-	_init( mesh, rigidBodyParams, constraintParams ) {
+	_init( mesh: SkinnedMesh, rigidBodyParams: RigidBodyParameters[], constraintParams: ConstraintParameters[] ) {
 
 		const manager = this.manager;
 
@@ -264,31 +287,31 @@ class MMDPhysics {
 
 	}
 
-	_initRigidBodies( rigidBodies ) {
+	_initRigidBodies( rigidBodies: RigidBodyParameters[] ) {
 
 		for ( let i = 0, il = rigidBodies.length; i < il; i ++ ) {
 
 			this.bodies.push( new RigidBody(
-				this.mesh, this.world, rigidBodies[ i ], this.manager ) );
+				this.mesh, this.world!, rigidBodies[ i ], this.manager ) );
 
 		}
 
 	}
 
-	_initConstraints( constraints ) {
+	_initConstraints( constraints: ConstraintParameters[] ) {
 
 		for ( let i = 0, il = constraints.length; i < il; i ++ ) {
 
 			const params = constraints[ i ];
 			const bodyA = this.bodies[ params.rigidBodyIndex1 ];
 			const bodyB = this.bodies[ params.rigidBodyIndex2 ];
-			this.constraints.push( new Constraint( this.mesh, this.world, bodyA, bodyB, params, this.manager ) );
+			this.constraints.push( new Constraint( this.mesh, this.world!, bodyA, bodyB, params, this.manager ) );
 
 		}
 
 	}
 
-	_stepSimulation( delta ) {
+	_stepSimulation( delta: number ) {
 
 		const unitStep = this.unitStep;
 		let stepTime = delta;
@@ -307,7 +330,7 @@ class MMDPhysics {
 
 		}
 
-		this.world.stepSimulation( stepTime, maxStepNum, unitStep );
+		this.world!.stepSimulation( stepTime, maxStepNum, unitStep );
 
 	}
 
@@ -344,6 +367,14 @@ class MMDPhysics {
  */
 class ResourceManager {
 
+	threeVector3s: Vector3[];
+	threeMatrix4s: Matrix4[];
+	threeQuaternions: Quaternion[];
+	threeEulers: Euler[];
+	transforms: AmmoTransform[];
+	quaternions: AmmoQuaternion[];
+	vector3s: AmmoVector3[];
+
 	constructor() {
 
 		// for Three.js
@@ -362,12 +393,12 @@ class ResourceManager {
 	allocThreeVector3() {
 
 		return ( this.threeVector3s.length > 0 )
-			? this.threeVector3s.pop()
+			? this.threeVector3s.pop()!
 			: new Vector3();
 
 	}
 
-	freeThreeVector3( v ) {
+	freeThreeVector3( v: Vector3 ) {
 
 		this.threeVector3s.push( v );
 
@@ -376,12 +407,12 @@ class ResourceManager {
 	allocThreeMatrix4() {
 
 		return ( this.threeMatrix4s.length > 0 )
-			? this.threeMatrix4s.pop()
+			? this.threeMatrix4s.pop()!
 			: new Matrix4();
 
 	}
 
-	freeThreeMatrix4( m ) {
+	freeThreeMatrix4( m: Matrix4 ) {
 
 		this.threeMatrix4s.push( m );
 
@@ -390,12 +421,12 @@ class ResourceManager {
 	allocThreeQuaternion() {
 
 		return ( this.threeQuaternions.length > 0 )
-			? this.threeQuaternions.pop()
+			? this.threeQuaternions.pop()!
 			: new Quaternion();
 
 	}
 
-	freeThreeQuaternion( q ) {
+	freeThreeQuaternion( q: Quaternion ) {
 
 		this.threeQuaternions.push( q );
 
@@ -404,12 +435,12 @@ class ResourceManager {
 	allocThreeEuler() {
 
 		return ( this.threeEulers.length > 0 )
-			? this.threeEulers.pop()
+			? this.threeEulers.pop()!
 			: new Euler();
 
 	}
 
-	freeThreeEuler( e ) {
+	freeThreeEuler( e: Euler ) {
 
 		this.threeEulers.push( e );
 
@@ -418,12 +449,12 @@ class ResourceManager {
 	allocTransform() {
 
 		return ( this.transforms.length > 0 )
-			? this.transforms.pop()
+			? this.transforms.pop()!
 			: new Ammo.btTransform();
 
 	}
 
-	freeTransform( t ) {
+	freeTransform( t: AmmoTransform ) {
 
 		this.transforms.push( t );
 
@@ -432,12 +463,12 @@ class ResourceManager {
 	allocQuaternion() {
 
 		return ( this.quaternions.length > 0 )
-			? this.quaternions.pop()
+			? this.quaternions.pop()!
 			: new Ammo.btQuaternion();
 
 	}
 
-	freeQuaternion( q ) {
+	freeQuaternion( q: AmmoQuaternion ) {
 
 		this.quaternions.push( q );
 
@@ -446,24 +477,24 @@ class ResourceManager {
 	allocVector3() {
 
 		return ( this.vector3s.length > 0 )
-			? this.vector3s.pop()
+			? this.vector3s.pop()!
 			: new Ammo.btVector3();
 
 	}
 
-	freeVector3( v ) {
+	freeVector3( v: AmmoVector3 ) {
 
 		this.vector3s.push( v );
 
 	}
 
-	setIdentity( t ) {
+	setIdentity( t: AmmoTransform ) {
 
 		t.setIdentity();
 
 	}
 
-	getBasis( t ) {
+	getBasis( t: AmmoTransform ) {
 
 		var q = this.allocQuaternion();
 		t.getBasis().getRotation( q );
@@ -471,7 +502,7 @@ class ResourceManager {
 
 	}
 
-	getBasisAsMatrix3( t ) {
+	getBasisAsMatrix3( t: AmmoTransform ) {
 
 		var q = this.getBasis( t );
 		var m = this.quaternionToMatrix3( q );
@@ -480,32 +511,32 @@ class ResourceManager {
 
 	}
 
-	getOrigin( t ) {
+	getOrigin( t: AmmoTransform ) {
 
 		return t.getOrigin();
 
 	}
 
-	setOrigin( t, v ) {
+	setOrigin( t: AmmoTransform, v: AmmoVector3 ) {
 
 		t.getOrigin().setValue( v.x(), v.y(), v.z() );
 
 	}
 
-	copyOrigin( t1, t2 ) {
+	copyOrigin( t1: AmmoTransform, t2: AmmoTransform ) {
 
 		var o = t2.getOrigin();
 		this.setOrigin( t1, o );
 
 	}
 
-	setBasis( t, q ) {
+	setBasis( t: AmmoTransform, q: AmmoQuaternion ) {
 
 		t.setRotation( q );
 
 	}
 
-	setBasisFromMatrix3( t, m ) {
+	setBasisFromMatrix3( t: AmmoTransform, m: number[] ) {
 
 		var q = this.matrix3ToQuaternion( m );
 		this.setBasis( t, q );
@@ -513,19 +544,19 @@ class ResourceManager {
 
 	}
 
-	setOriginFromArray3( t, a ) {
+	setOriginFromArray3( t: AmmoTransform, a: number[] ) {
 
 		t.getOrigin().setValue( a[ 0 ], a[ 1 ], a[ 2 ] );
 
 	}
 
-	setOriginFromThreeVector3( t, v ) {
+	setOriginFromThreeVector3( t: AmmoTransform, v: Vector3 ) {
 
 		t.getOrigin().setValue( v.x, v.y, v.z );
 
 	}
 
-	setBasisFromArray3( t, a ) {
+	setBasisFromArray3( t: AmmoTransform, a: number[] ) {
 
 		var thQ = this.allocThreeQuaternion();
 		var thE = this.allocThreeEuler();
@@ -537,7 +568,7 @@ class ResourceManager {
 
 	}
 
-	setBasisFromThreeQuaternion( t, a ) {
+	setBasisFromThreeQuaternion( t: AmmoTransform, a: Quaternion ) {
 
 		var q = this.allocQuaternion();
 
@@ -551,7 +582,7 @@ class ResourceManager {
 
 	}
 
-	multiplyTransforms( t1, t2 ) {
+	multiplyTransforms( t1: AmmoTransform, t2: AmmoTransform ) {
 
 		var t = this.allocTransform();
 		this.setIdentity( t );
@@ -576,7 +607,7 @@ class ResourceManager {
 
 	}
 
-	inverseTransform( t ) {
+	inverseTransform( t: AmmoTransform ) {
 
 		var t2 = this.allocTransform();
 
@@ -597,7 +628,7 @@ class ResourceManager {
 
 	}
 
-	multiplyMatrices3( m1, m2 ) {
+	multiplyMatrices3( m1: number[], m2: number[] ) {
 
 		var m3 = [];
 
@@ -630,7 +661,7 @@ class ResourceManager {
 
 	}
 
-	addVector3( v1, v2 ) {
+	addVector3( v1: AmmoVector3, v2: AmmoVector3 ) {
 
 		var v = this.allocVector3();
 		v.setValue( v1.x() + v2.x(), v1.y() + v2.y(), v1.z() + v2.z() );
@@ -638,13 +669,13 @@ class ResourceManager {
 
 	}
 
-	dotVectors3( v1, v2 ) {
+	dotVectors3( v1: AmmoVector3, v2: AmmoVector3 ) {
 
 		return v1.x() * v2.x() + v1.y() * v2.y() + v1.z() * v2.z();
 
 	}
 
-	rowOfMatrix3( m, i ) {
+	rowOfMatrix3( m: number[], i: number ) {
 
 		var v = this.allocVector3();
 		v.setValue( m[ i * 3 + 0 ], m[ i * 3 + 1 ], m[ i * 3 + 2 ] );
@@ -652,7 +683,7 @@ class ResourceManager {
 
 	}
 
-	columnOfMatrix3( m, i ) {
+	columnOfMatrix3( m: number[], i: number ) {
 
 		var v = this.allocVector3();
 		v.setValue( m[ i + 0 ], m[ i + 3 ], m[ i + 6 ] );
@@ -660,7 +691,7 @@ class ResourceManager {
 
 	}
 
-	negativeVector3( v ) {
+	negativeVector3( v: AmmoVector3 ) {
 
 		var v2 = this.allocVector3();
 		v2.setValue( - v.x(), - v.y(), - v.z() );
@@ -668,7 +699,7 @@ class ResourceManager {
 
 	}
 
-	multiplyMatrix3ByVector3( m, v ) {
+	multiplyMatrix3ByVector3( m: number[], v: AmmoVector3 ) {
 
 		var v4 = this.allocVector3();
 
@@ -689,7 +720,7 @@ class ResourceManager {
 
 	}
 
-	transposeMatrix3( m ) {
+	transposeMatrix3( m: number[] ) {
 
 		var m2 = [];
 		m2[ 0 ] = m[ 0 ];
@@ -705,7 +736,7 @@ class ResourceManager {
 
 	}
 
-	quaternionToMatrix3( q ) {
+	quaternionToMatrix3( q: AmmoQuaternion ) {
 
 		var m = [];
 
@@ -740,7 +771,7 @@ class ResourceManager {
 
 	}
 
-	matrix3ToQuaternion( m ) {
+	matrix3ToQuaternion( m: number[] ) {
 
 		var t = m[ 0 ] + m[ 4 ] + m[ 8 ];
 		var s, x, y, z, w;
@@ -798,17 +829,21 @@ class ResourceManager {
  */
 class RigidBody {
 
-	constructor( mesh, world, params, manager ) {
+	mesh: SkinnedMesh;
+	world: AmmoWorld;
+	params: RigidBodyParameters;
+	manager: ResourceManager;
+	body!: AmmoBody;
+	bone!: Bone;
+	boneOffsetForm!: AmmoTransform;
+	boneOffsetFormInverse!: AmmoTransform;
+
+	constructor( mesh: SkinnedMesh, world: AmmoWorld, params: RigidBodyParameters, manager: ResourceManager ) {
 
 		this.mesh = mesh;
 		this.world = world;
 		this.params = params;
 		this.manager = manager;
-
-		this.body = null;
-		this.bone = null;
-		this.boneOffsetForm = null;
-		this.boneOffsetFormInverse = null;
 
 		this._init();
 
@@ -880,7 +915,7 @@ class RigidBody {
 
 	_init() {
 
-		function generateShape( p ) {
+		function generateShape( p: RigidBodyParameters ) {
 
 			switch ( p.shapeType ) {
 
@@ -894,7 +929,7 @@ class RigidBody {
 					return new Ammo.btCapsuleShape( p.width, p.height );
 
 				default:
-					throw new Error( 'unknown shape type ' + p.shapeType );
+					throw new Error( 'unknown shape type ' + ( p as { shapeType: number } ).shapeType );
 
 			}
 
@@ -1097,6 +1132,14 @@ class RigidBody {
 
 class Constraint {
 
+	mesh: SkinnedMesh;
+	world: AmmoWorld;
+	bodyA: RigidBody;
+	bodyB: RigidBody;
+	params: ConstraintParameters;
+	manager: ResourceManager;
+	constraint!: AmmoConstraint;
+
 	/**
 	 * @param {THREE.SkinnedMesh} mesh
 	 * @param {Ammo.btDiscreteDynamicsWorld} world
@@ -1105,7 +1148,7 @@ class Constraint {
 	 * @param {Object} params
 	 * @param {ResourceManager} manager
 	 */
-	constructor( mesh, world, bodyA, bodyB, params, manager ) {
+	constructor( mesh: SkinnedMesh, world: AmmoWorld, bodyA: RigidBody, bodyB: RigidBody, params: ConstraintParameters, manager: ResourceManager ) {
 
 		this.mesh = mesh;
 		this.world = world;
@@ -1113,8 +1156,6 @@ class Constraint {
 		this.bodyB = bodyB;
 		this.params = params;
 		this.manager = manager;
-
-		this.constraint = null;
 
 		this._init();
 
@@ -1237,13 +1278,17 @@ const _matrixWorldInv = new Matrix4();
 
 class MMDPhysicsHelper extends Object3D {
 
+	root: SkinnedMesh;
+	physics: MMDPhysics;
+	materials: MeshBasicMaterial[];
+
 	/**
 	 * Visualize Rigid bodies
 	 *
 	 * @param {THREE.SkinnedMesh} mesh
 	 * @param {Physics} physics
 	 */
-	constructor( mesh, physics ) {
+	constructor( mesh: SkinnedMesh, physics: MMDPhysics ) {
 
 		super();
 
@@ -1292,7 +1337,6 @@ class MMDPhysicsHelper extends Object3D {
 
 	}
 
-
 	/**
 	 * Frees the GPU-related resources allocated by this instance. Call this method whenever this instance is no longer used in your app.
 	 */
@@ -1311,7 +1355,7 @@ class MMDPhysicsHelper extends Object3D {
 
 			const child = children[ i ];
 
-			if ( child.isMesh ) child.geometry.dispose();
+			if ( child instanceof Mesh ) child.geometry.dispose();
 
 		}
 
@@ -1320,7 +1364,7 @@ class MMDPhysicsHelper extends Object3D {
 	/**
 	 * Updates Rigid Bodies visualization.
 	 */
-	updateMatrixWorld( force ) {
+	updateMatrixWorld( force?: boolean ) {
 
 		var mesh = this.root;
 
@@ -1372,7 +1416,7 @@ class MMDPhysicsHelper extends Object3D {
 
 		var bodies = this.physics.bodies;
 
-		function createGeometry( param ) {
+		function createGeometry( param: RigidBodyParameters ) {
 
 			switch ( param.shapeType ) {
 
@@ -1395,7 +1439,7 @@ class MMDPhysicsHelper extends Object3D {
 		for ( var i = 0, il = bodies.length; i < il; i ++ ) {
 
 			var param = bodies[ i ].params;
-			this.add( new Mesh( createGeometry( param ), this.materials[ param.type ] ) );
+			this.add( new Mesh( createGeometry( param )!, this.materials[ param.type ] ) );
 
 		}
 

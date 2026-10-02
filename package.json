@@ -3,40 +3,93 @@
   "version": "0.1.0",
   "description": "MMD loader, animation, physics, and export addons for Three.js",
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.js",
-    "./animation/CCDIKSolver.js": "./src/animation/CCDIKSolver.js",
-    "./animation/MMDAnimationHelper.js": "./src/animation/MMDAnimationHelper.js",
-    "./animation/MMDPhysics.js": "./src/animation/MMDPhysics.js",
-    "./exporters/MMDExporter.js": "./src/exporters/MMDExporter.js",
-    "./libs/mmdparser.module.js": "./src/libs/mmdparser.module.js",
-    "./loaders/MMDLoader.js": "./src/loaders/MMDLoader.js",
-    "./shaders/MMDToonShader.js": "./src/shaders/MMDToonShader.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./animation/CCDIKSolver.js": {
+      "types": "./dist/animation/CCDIKSolver.d.ts",
+      "import": "./dist/animation/CCDIKSolver.js",
+      "default": "./dist/animation/CCDIKSolver.js"
+    },
+    "./animation/MMDAnimationHelper.js": {
+      "types": "./dist/animation/MMDAnimationHelper.d.ts",
+      "import": "./dist/animation/MMDAnimationHelper.js",
+      "default": "./dist/animation/MMDAnimationHelper.js"
+    },
+    "./animation/MMDPhysics.js": {
+      "types": "./dist/animation/MMDPhysics.d.ts",
+      "import": "./dist/animation/MMDPhysics.js",
+      "default": "./dist/animation/MMDPhysics.js"
+    },
+    "./exporters/MMDExporter.js": {
+      "types": "./dist/exporters/MMDExporter.d.ts",
+      "import": "./dist/exporters/MMDExporter.js",
+      "default": "./dist/exporters/MMDExporter.js"
+    },
+    "./libs/mmdparser.module.js": {
+      "types": "./dist/libs/mmdparser.module.d.ts",
+      "import": "./dist/libs/mmdparser.module.js",
+      "default": "./dist/libs/mmdparser.module.js"
+    },
+    "./loaders/MMDLoader.js": {
+      "types": "./dist/loaders/MMDLoader.d.ts",
+      "import": "./dist/loaders/MMDLoader.js",
+      "default": "./dist/loaders/MMDLoader.js"
+    },
+    "./shaders/MMDToonShader.js": {
+      "types": "./dist/shaders/MMDToonShader.d.ts",
+      "import": "./dist/shaders/MMDToonShader.js",
+      "default": "./dist/shaders/MMDToonShader.js"
+    }
   },
   "files": [
-    "src",
+    "dist/index.js",
+    "dist/index.d.ts",
+    "dist/types.js",
+    "dist/types.d.ts",
+    "dist/ammo.js",
+    "dist/ammo.d.ts",
+    "dist/animation",
+    "dist/exporters",
+    "dist/loaders",
+    "dist/shaders",
+    "dist/libs",
     "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
+    "build": "node scripts/build-package.js",
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build",
+    "pretest": "npm run build",
     "test": "node --test tests/*.test.js",
     "test:browser": "node --test tests/browser/*.test.js",
     "dev": "node scripts/serve-examples.js",
     "examples:assets": "node scripts/fetch-example-assets.js",
     "build:examples": "npm run examples:assets && node scripts/build-examples.js",
     "setup:pages": "node scripts/setup-pages.js --configure",
-    "test:examples": "node --test tests/browser/examples.test.js"
+    "test:examples": "node --test tests/browser/examples.test.js",
+    "pretest:browser": "npm run build",
+    "pretest:examples": "npm run build",
+    "predev": "npm run build",
+    "prebuild:examples": "npm run build"
   },
   "peerDependencies": {
     "three": "~0.186.0"
   },
   "devDependencies": {
+    "@types/three": "0.186.0",
     "ammojs-typed": "1.1.0",
-    "three": "0.186.1"
+    "three": "0.186.1",
+    "typescript": "7.0.2"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/takahirox/three-mmd-loader.git"
-  }
+  },
+  "types": "./dist/index.d.ts"
 }

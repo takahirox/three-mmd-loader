@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import AmmoFactory from 'ammojs-typed';
 import {
-	Bone, BufferGeometry, DoubleSide, FrontSide, Loader, LoadingManager,
-	MeshBasicMaterial, ShaderChunk, Skeleton, SkinnedMesh, Texture, Vector3
+	Audio, Bone, BufferGeometry, DoubleSide, FrontSide, Loader, LoadingManager,
+	MeshBasicMaterial, PerspectiveCamera, ShaderChunk, Skeleton, SkinnedMesh, Texture, Vector3
 } from 'three';
 import {
 	CCDIKSolver, MMDAnimationHelper, MMDExporter, MMDLoader, MMDParser, MMDPhysics,
@@ -88,6 +88,22 @@ test( 'PMX vertex morphs retain their positions and mesh influences', () => {
 
 } );
 
+test( 'PMX grants are ordered from parents to children', () => {
+
+	const data = new MMDParser.Parser().parsePmx( pmxBuffer(), true );
+	data.bones = [ 'child', 'parent', 'root' ].map( ( name, index ) => ( {
+		name, position: [ 0, 0, 0 ], parentIndex: - 1, transformationClass: 0,
+		...index < 2 ? { grant: {
+			parentIndex: index + 1, ratio: 0.5, isLocal: false,
+			affectRotation: true, affectPosition: false
+		} } : {}
+	} ) );
+	data.metadata.boneCount = data.bones.length;
+	const mesh = modelLoader().meshBuilder.build( data, '' );
+	assert.deepEqual( mesh.geometry.userData.MMD.grants.map( grant => grant.index ), [ 1, 0 ] );
+
+} );
+
 test( 'public loader loads a PMD buffer through Three.js FileLoader', async () => {
 
 	// FileLoader uses this browser event while streaming the response.
@@ -129,6 +145,41 @@ test( 'parsed VMD animates a loaded bone with physics disabled', () => {
 	assert.equal( helper.objects.get( mesh ).physics, undefined );
 	assert.equal( helper.remove( mesh ), helper );
 	assert.equal( helper.meshes.length, 0 );
+
+} );
+
+test( 'helper replaces cameras and audio and advances its audio elapsed time', () => {
+
+	const helper = new MMDAnimationHelper( { sync: false } );
+	const firstCamera = new PerspectiveCamera();
+	const secondCamera = new PerspectiveCamera();
+	helper.add( firstCamera ).add( secondCamera );
+	assert.equal( helper.camera, secondCamera );
+	assert.equal( firstCamera.children.length, 0 );
+	assert.equal( helper.objects.has( firstCamera ), false );
+	assert.equal( helper.cameraTarget.parent, secondCamera );
+	helper.remove( secondCamera );
+	// Audio construction uses a browser AudioContext. Keep the real Audio
+	// prototype and supply only the playback state needed by AudioManager.
+	function audio() {
+
+		return Object.assign( Object.create( Audio.prototype ), {
+			type: 'Audio', name: 'test', buffer: { duration: 1 }, isPlaying: false,
+			play() { this.isPlaying = true; }, stop() { this.isPlaying = false; }
+		} );
+
+	}
+	const firstAudio = audio();
+	const secondAudio = audio();
+	helper.add( firstAudio ).add( secondAudio, { delayTime: 0.25 } );
+	assert.equal( helper.audio, secondAudio );
+	helper.update( 0.125 );
+	assert.equal( helper.audioManager.elapsedTime, 0.125 );
+	assert.equal( secondAudio.isPlaying, false );
+	helper.update( 0.125 );
+	assert.equal( secondAudio.isPlaying, true );
+	helper.remove( secondAudio );
+	assert.equal( helper.audioManager, null );
 
 } );
 
@@ -273,6 +324,14 @@ test( 'MMDPhysics steps real Ammo rigid bodies and updates a Three.js bone', asy
 		mesh.skeleton.bones[ 0 ].position.set( 0, 0, 0 );
 		assert.equal( physics.reset(), physics );
 		assert.equal( physics.update( 1 / 60 ), physics );
+		const animationHelper = new MMDAnimationHelper( { sync: false } );
+		animationHelper.sharedPhysics = true;
+		const secondMesh = buildMesh();
+		animationHelper.add( mesh, { warmup: 0 } ).add( secondMesh, { warmup: 0 } );
+		const firstPhysics = animationHelper.objects.get( mesh ).physics;
+		const secondPhysics = animationHelper.objects.get( secondMesh ).physics;
+		assert.equal( firstPhysics.world, secondPhysics.world );
+		assert.equal( animationHelper.update( 1 / 60 ), animationHelper );
 
 	} finally {
 

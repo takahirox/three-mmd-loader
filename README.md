@@ -74,6 +74,7 @@ Development and validation:
 
 ```sh
 npm ci
+npm run typecheck
 npm test
 npm run test:browser
 npm pack
@@ -98,12 +99,21 @@ for the examples; these assets have separate terms and are excluded from Git
 and the npm package. The deployed site includes the assets and their notices.
 See the examples guide for credits, manual setup, and checks.
 
-The published artifact consists of native ES modules and requires no build
-step. Tests check all public imports, parse generated PMD/PMX/VMD assets,
+The published artifact contains compiled native ES modules and TypeScript
+declarations; consumers need no build step. Maintained sources are TypeScript
+and `npm run build` emits JavaScript and declarations into `dist/`. `npm test`
+and the browser/example commands build the package first; `npm pack` builds it
+through `prepack`. TypeScript consumers should install matching Three.js types
+with `npm install --save-dev @types/three@~0.186.0`. Root and documented `.js`
+subpath imports resolve to the same API in both JavaScript and TypeScript.
+
+The vendored parser remains JavaScript with a typed boundary; see the
+[migration notes](docs/typescript-migration.md) for the rationale. Tests check all public imports, parse generated PMD/PMX/VMD assets,
 exercise animation, IK, VPD round trips, shader chunk compatibility, and real
 Ammo physics. They also pack the package, install the tarball in an isolated
 consumer, and import every public module without access to the repository's
-source files. Node.js 20 or newer is needed to run the tests.
+source files. The isolated consumer also type-checks every public subpath,
+including checks that invalid API calls are rejected. Node.js 20 or newer is needed to run the tests.
 
 The separate browser regression suite requires Google Chrome. Set `CHROME_BIN`
 to its executable if it is not installed at the default location (on Linux,

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,7 +43,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 			'pack', root, '--json', '--pack-destination', consumer, '--ignore-scripts'
 		], options ) );
 		const files = packed.files.map( file => file.path );
-		for ( const target of Object.values( manifest.exports ) ) {
+		for ( const target of Object.values( manifest.exports ).flatMap( conditions => Object.values( conditions ) ) ) {
 
 			assert.ok( files.includes( target.slice( 2 ) ), `Missing package file: ${target}` );
 
@@ -51,7 +51,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		assert.ok( files.includes( 'LICENSE' ) );
 		assert.ok( files.includes( 'THIRD_PARTY_NOTICES.md' ) );
 		assert.ok( files.includes( 'README.md' ) );
-		assert.ok( files.every( path => ! path.startsWith( 'node_modules/' ) && ! path.startsWith( 'tests/' ) ) );
+		assert.ok( files.every( path => ! /^(node_modules|tests|src|dist\/examples)\//.test( path ) ) );
 		// Pack the pinned peer installed by npm ci; resolving a registry version
 		// offline would require metadata that npm ci does not cache.
 		const [ peer ] = JSON.parse( execFileSync( npm, [
@@ -86,6 +86,18 @@ for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )
 }
 ` );
 		execFileSync( process.execPath, [ 'check.mjs' ], options );
+		// Type-check the tarball's declarations in the isolated consumer. Only
+		// external Three.js type dependencies and the compiler come from the checkout.
+		for ( const path of [ '@types', 'fflate', 'meshoptimizer' ] ) {
+
+			cpSync( join( root, 'node_modules', path ), join( consumer, 'node_modules', path ), { recursive: true } );
+
+		}
+		cpSync( join( root, 'tests/types/consumer.ts' ), join( consumer, 'consumer.ts' ) );
+		execFileSync( process.execPath, [
+			join( root, 'node_modules/typescript/bin/tsc' ), '--noEmit', '--strict',
+			'--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', 'consumer.ts'
+		], options );
 		const installed = JSON.parse( readFileSync( join( consumer, 'node_modules/three-mmd-loader/package.json' ), 'utf8' ) );
 		assert.equal( installed.peerDependencies.three, '~0.186.0' );
 		assert.equal( installed.dependencies, undefined );

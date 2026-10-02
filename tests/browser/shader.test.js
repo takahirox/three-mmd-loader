@@ -116,7 +116,7 @@ document.getElementById( 'result' ).textContent = encodeURIComponent( JSON.strin
 		}
 		try {
 
-			const source = await readFile( join( root, path.slice( 1 ) ) );
+			const source = await readFile( join( root, path.slice( 1 ).replace( /^src\//, 'dist/' ) ) );
 			response.setHeader( 'Content-Type', 'text/javascript' );
 			response.end( source );
 
