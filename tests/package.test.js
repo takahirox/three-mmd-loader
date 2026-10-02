@@ -52,16 +52,24 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		assert.ok( files.includes( 'THIRD_PARTY_NOTICES.md' ) );
 		assert.ok( files.includes( 'README.md' ) );
 		assert.ok( files.every( path => ! path.startsWith( 'node_modules/' ) && ! path.startsWith( 'tests/' ) ) );
+		// Pack the pinned peer installed by npm ci; resolving a registry version
+		// offline would require metadata that npm ci does not cache.
+		const [ peer ] = JSON.parse( execFileSync( npm, [
+			'pack', join( root, 'node_modules/three' ), '--json', '--pack-destination', consumer, '--ignore-scripts'
+		], options ) );
+		assert.equal( peer.version, manifest.devDependencies.three );
 		writeFileSync( join( consumer, 'package.json' ), JSON.stringify( {
 			private: true,
 			type: 'module',
 			dependencies: {
 				'three-mmd-loader': `file:./${packed.filename}`,
-				three: manifest.devDependencies.three
+				three: `file:./${peer.filename}`
 			}
 		} ) );
-		// npm ci has already cached the pinned peer; no network is needed here.
-		execFileSync( npm, [ 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund' ], options );
+		// An empty consumer cache keeps this check independent of prior npm runs.
+		execFileSync( npm, [
+			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
+		], options );
 		writeFileSync( join( consumer, 'check.mjs' ), `
 import assert from 'node:assert/strict';
 import { Loader, REVISION } from 'three';
