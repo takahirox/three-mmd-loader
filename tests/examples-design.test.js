@@ -10,7 +10,7 @@ test( 'shared example stylesheet preserves the official Three.js reference blob'
 	assert.equal( hash, 'd496122b4cfb54f811495bd9f80ca48151beeb3b' );
 	const shared = await readFile( new URL( '../examples/common.css', import.meta.url ), 'utf8' );
 	assert.match( shared, /@import url\('\.\/main\.css'\);/ );
-	for ( const name of [ 'index', 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose' ] ) {
+	for ( const name of [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose' ] ) {
 
 		const html = await readFile( new URL( `../examples/${name}.html`, import.meta.url ), 'utf8' );
 		assert.match( html, /<link rel="stylesheet" href="\.\/common\.css">/, name );

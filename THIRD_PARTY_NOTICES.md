@@ -33,6 +33,25 @@ It is copyright © three.js authors and uses the MIT license reproduced in
 [LICENSE](LICENSE). `examples/common.css` shares the light background and blue
 links used by the official MMD examples, plus canvas and status handling.
 
+`examples/browser.css` adapts the examples-browser styles from Three.js
+`files/main.css` (Git blob `eab4263a7a7570bb433cab3048d5735d4782f673`), and
+`examples/index.html` follows its examples index (Git blob
+`7b53cc789e644957e4b3bc8f9ca21b9ca81e5f06`). These references are copyright
+© three.js authors under the same MIT license.
+
+The three JPEG previews in `examples/screenshots/` are copied from
+[`examples/screenshots/` at Three.js r171](https://github.com/mrdoob/three.js/tree/2898f5b1ba10b1e94174c0a62d072f5f7b80442c/examples/screenshots).
+They depict the MMD examples and the Miku character © Crypton Future Media.
+The character and MMD assets retain their individual terms and author credits,
+documented in [examples/README.md](examples/README.md#assets-and-credits).
+
+The Roboto Mono Regular and Medium WOFF2 files in `examples/fonts/` come from
+[`files/` at the same Three.js commit](https://github.com/mrdoob/three.js/tree/2898f5b1ba10b1e94174c0a62d072f5f7b80442c/files).
+Roboto Mono is copyright © 2015 Google Inc. All Rights Reserved. These font
+files identify the Apache License, Version 2.0 in their metadata; the full
+license is included in `examples/fonts/LICENSE.txt`. Previews and fonts are
+examples-site assets and are not included in the npm package.
+
 ## mmd-parser
 
 `src/libs/mmdparser.module.js` contains

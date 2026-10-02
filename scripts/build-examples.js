@@ -23,6 +23,11 @@ export async function buildExamples( {
 		await cp( join( root, 'examples', name ), join( outputDirectory, 'examples', name ) );
 
 	}
+	for ( const name of [ 'screenshots', 'fonts' ] ) {
+
+		await cp( join( root, 'examples', name ), join( outputDirectory, 'examples', name ), { recursive: true } );
+
+	}
 	for ( const { path } of manifest.files ) {
 
 		// Missing assets or notices fail the build instead of producing a partial site.

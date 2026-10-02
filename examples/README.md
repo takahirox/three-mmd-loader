@@ -13,6 +13,26 @@ the official `examples/main.css` (Git blob
 examples' white background and blue links. On narrow screens, the standard
 stylesheet moves the GUI to the bottom left so it remains usable.
 
+The index is a small examples browser: categorized screenshot cards in a fixed
+left panel load the chosen demo into the right viewer. Links such as
+[`#webgl_loader_mmd_pose`](./#webgl_loader_mmd_pose) restore the selected demo;
+browser Back/Forward restores earlier selections. Below 640px, the header's
+menu button opens a sliding panel. Selecting a demo, the Close button, clicking
+the scrim, or pressing Escape closes it. With no selection, the viewer explains
+how to choose a demo and the mobile list opens initially.
+
+`browser.css` adapts the relevant layout, typography, cards, spacing, and
+light/dark colors from the Issue #14 references: Three.js `examples/index.html`
+(blob `7b53cc789e644957e4b3bc8f9ca21b9ca81e5f06`) and `files/main.css`
+(blob `eab4263a7a7570bb433cab3048d5735d4782f673`). It is separate from the demo
+stylesheets. The three committed previews in `screenshots/` are the matching
+official r171 MMD example screenshots, retrieved from the same pinned Three.js
+commit as the models below. They depict the credited Miku character and retain
+the applicable character/asset terms; they do not relicense the models. The
+Roboto Mono fonts in `fonts/` also come from that pinned commit and include
+their Apache 2.0 license. All browser assets are local and copied to the static
+build, so previews and typography need no external requests.
+
 The public examples URL is **https://takahirox.github.io/three-mmd-loader/**.
 Updates to `main` automatically build and publish these same scenes to GitHub
 Pages and verify the public deployment. See [Deployment](#deployment) for the
@@ -221,6 +241,15 @@ disabled controls. Generated PMD/VMD/VPD and silent WAV fixtures
 make this check independent of downloaded third-party assets and network
 access. The audio autoplay flag is used only by tests; the normal page requires
 a Play click.
+
+The index checks cover wide and extra-wide panel/viewer geometry, all three
+decoded preview images, card aspect ratios, selection and iframe scene loading,
+URL hashes and Back/Forward, direct links to every demo, repeated selection,
+empty/unknown hashes, and mobile open/close behavior at the 640px breakpoint.
+They also check light/dark colors, keyboard closing, accessibility state, and
+resizing back to desktop. The same checks run on the local build under the
+repository hosting prefix before merge; no public deployment or human browser
+confirmation is needed.
 
 After downloading the original assets, also run:
 
