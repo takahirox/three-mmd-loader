@@ -6,6 +6,10 @@ They import MMD modules from this checkout's `src/` directory through the
 `three-mmd-loader/` import map. Only retained Three.js utilities such as
 OrbitControls and OutlineEffect come from `three/addons`.
 
+The public examples URL is **https://takahirox.github.io/three-mmd-loader/**.
+Updates to `main` automatically build and publish these same scenes to GitHub
+Pages. See [Deployment](#deployment) for the initial hosting setup.
+
 ## Local development
 
 From the repository root, using Node.js 20 or newer:
@@ -77,6 +81,55 @@ the upstream summary also links to the character guidelines. The examples use
 the already installed `ammojs-typed` development dependency for physics; its
 runtime is not bundled into the standalone MMD package.
 
+## Deployment
+
+The workflow is [`.github/workflows/examples-pages.yml`](https://github.com/takahirox/three-mmd-loader/blob/main/.github/workflows/examples-pages.yml).
+It uses GitHub Actions to build a static site and GitHub Pages to host it.
+Before the first deployment, a repository administrator must set
+**Settings → Pages → Build and deployment → Source → GitHub Actions**, as
+described in the [GitHub Pages setup guide](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site#publishing-with-a-custom-github-actions-workflow).
+Allow `main` in the `github-pages` environment's deployment branch rules and
+leave required reviewers unset for unattended deployment. This is a one-time
+hosting setup; subsequent updates to `main` deploy automatically.
+
+For every push to `main`, the workflow installs the lockfile dependencies with
+`npm ci`, runs `npm test`, and runs `npm run build:examples`. That build command
+downloads and verifies the pinned assets using the existing asset manifest,
+then copies the existing pages, checkout's `src/` modules, Three.js and Ammo
+runtime dependencies, and all asset/license notices to `dist/examples/`.
+It does not bundle or build a second implementation of the scenes. The static
+site uses relative URLs so it works under the repository's Pages path.
+
+Headless Chrome then tests the **built artifact** at `/three-mmd-loader/`,
+including rendering, animation, physics, audio, and poses. Only after all these
+steps succeed is the site uploaded and the dependent deployment job run.
+A failed dependency install, asset download/integrity check, build, or test
+prevents deployment and leaves the currently published site in place.
+Deployments are serialized without cancelling an in-progress run.
+Pull requests targeting `main` run the same build and validation without
+deploying. The workflow also supports **Actions → Deploy browser examples →
+Run workflow**; select `main` to redeploy. Other branches cannot deploy.
+The deployment job reports the published URL in the `github-pages` environment.
+
+To reproduce the deployment build and validation locally:
+
+```sh
+npm ci
+npm test
+npm run build:examples
+MMD_EXAMPLE_SITE=dist/examples npm run test:examples
+```
+
+The last command requires Chrome and supports `CHROME_BIN`. Serve
+`dist/examples/` with any static HTTP server to preview the site. Its root
+redirects to `examples/`; no Node.js server is needed by the hosted site.
+The build output and downloaded assets are Git-ignored, and the npm package
+continues to contain only the standalone addon and its notices.
+The deployed assets retain their individual terms described above; deployment
+does not relicense them. The site includes the
+[asset license summary](assets/mmd/Readme.txt), all author readmes, and runtime
+licenses.
+
 ## Automated validation
 
 ```sh
@@ -102,5 +155,6 @@ MMD_EXAMPLE_ASSETS=1 npm run test:examples
 
 This exercises the same pages with the original Miku model, texture, dance,
 camera, music, and poses. The normal fixture test checks audio playback state;
-listening to the music is an optional manual check. The workflow validates
-local examples only; it does not deploy or publish them.
+listening to the music is an optional manual check. The existing Tests workflow
+validates local examples with fixtures; the deployment workflow additionally
+validates the built site with the pinned original assets before publication.

@@ -79,6 +79,11 @@ npm run test:browser
 npm pack
 ```
 
+Try the [public browser examples](https://takahirox.github.io/three-mmd-loader/).
+They are built from this repository and automatically deployed after updates
+to `main`. See the [examples guide](examples/README.md#deployment) for the
+workflow and one-time GitHub Pages setup.
+
 Run the [browser examples](examples/README.md) locally:
 
 ```sh
@@ -89,8 +94,9 @@ npm run dev
 Open http://127.0.0.1:8080/ for model animation with IK/physics, synchronized
 audio/camera animation, and VPD poses. MMD modules come from this checkout.
 The asset setup downloads the former r171 example assets and their notices
-for local use; these assets have separate terms and are excluded from Git and
-the npm package. See the examples guide for credits, manual setup, and checks.
+for the examples; these assets have separate terms and are excluded from Git
+and the npm package. The deployed site includes the assets and their notices.
+See the examples guide for credits, manual setup, and checks.
 
 The published artifact consists of native ES modules and requires no build
 step. Tests check all public imports, parse generated PMD/PMX/VMD assets,
