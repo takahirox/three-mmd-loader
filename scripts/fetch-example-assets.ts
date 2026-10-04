@@ -1,12 +1,13 @@
+import { assetManifest as manifest } from './assets-manifest.ts';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const manifest = JSON.parse( await readFile( new URL( '../examples/assets-manifest.json', import.meta.url ), 'utf8' ) );
+
 const destination = new URL( '../examples/assets/mmd/', import.meta.url );
 
-function gitHash( bytes ) {
+function gitHash( bytes: Uint8Array ) {
 
 	return createHash( 'sha1' ).update( `blob ${bytes.length}\0` ).update( bytes ).digest( 'hex' );
 

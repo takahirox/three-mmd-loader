@@ -50,8 +50,9 @@ npm run dev
 
 Open **http://127.0.0.1:8080/** and choose a scene. Set `PORT=8081 npm run dev`
 to use a different port. The server binds to loopback and serves the examples
-and their dependencies. There is no build step; all scripts, Three.js, Ammo,
-and assets are served locally. Use the HTTP server rather than opening HTML
+and their dependencies. The `predev` hook compiles the package and browser
+TypeScript; Three.js, Ammo, and assets are served locally. After editing
+TypeScript, run `npm run build` to refresh the served modules. Use the HTTP server rather than opening HTML
 files directly. Stop it with Ctrl+C.
 
 | Page | Demonstrates |
@@ -132,7 +133,7 @@ confirmation is required. Bootstrap requires repository administration access
 See the [Pages API permissions](https://docs.github.com/en/rest/pages/pages#create-a-github-pages-site)
 and [environment API permissions](https://docs.github.com/en/rest/deployments/environments#create-or-update-an-environment).
 
-On every `main` deployment, the `setup` job runs `scripts/setup-pages.js --check`
+On every `main` deployment, the `setup` job runs `node --import tsx scripts/setup-pages.ts --check`
 with the automatic `GITHUB_TOKEN` and read permissions for Pages, Actions, and
 Deployments. It verifies configuration before entering the environment, without
 administration writes or a setup secret. Configuration drift fails before
@@ -155,7 +156,7 @@ including rendering, animation, physics, audio, and poses. Only after all these
 steps succeed is the site uploaded and the dependent deployment job run.
 A failed dependency install, asset download/integrity check, build, or test
 prevents deployment and leaves the currently published site in place.
-Before publishing, `scripts/verify-pages.js` downloads and checks every file of
+Before publishing, `scripts/verify-pages.ts` downloads and checks every file of
 the current public site against its manifest, including the root and examples
 landing URLs. It packages this verified snapshot as a rollback Pages artifact.
 An unavailable, incomplete, or unrecognised existing site blocks publication

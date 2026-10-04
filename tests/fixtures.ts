@@ -1,13 +1,15 @@
 // Small, generated MMD assets keep tests independent of third-party models.
 class Writer {
 
+	bytes: number[];
+
 	constructor() {
 
 		this.bytes = [];
 
 	}
 
-	number( method, size, value ) {
+	number( method: 'setUint8' | 'setUint16' | 'setUint32' | 'setFloat32', size: number, value: number ) {
 
 		const buffer = new ArrayBuffer( size );
 		new DataView( buffer )[ method ]( 0, value, true );
@@ -16,17 +18,17 @@ class Writer {
 
 	}
 
-	u8( value ) { return this.number( 'setUint8', 1, value ); }
-	u16( value ) { return this.number( 'setUint16', 2, value ); }
-	u32( value ) { return this.number( 'setUint32', 4, value ); }
-	f32( ...values ) {
+	u8( value: number ) { return this.number( 'setUint8', 1, value ); }
+	u16( value: number ) { return this.number( 'setUint16', 2, value ); }
+	u32( value: number ) { return this.number( 'setUint32', 4, value ); }
+	f32( ...values: number[] ) {
 
 		for ( const value of values ) this.number( 'setFloat32', 4, value );
 		return this;
 
 	}
 
-	text( value, size ) {
+	text( value: string, size?: number ) {
 
 		const bytes = size === undefined
 			? Buffer.from( value, 'utf16le' )
@@ -101,7 +103,7 @@ export function pmxBuffer() {
 
 }
 
-export function vmdBuffer( { morphs = [] } = {} ) {
+export function vmdBuffer( { morphs = [] }: { morphs?: { morphName: string; frameNum: number; weight: number }[] } = {} ) {
 
 	const w = new Writer();
 	w.text( 'Vocaloid Motion Data 0002', 30 ).text( 'triangle', 20 ).u32( 2 );

@@ -1,7 +1,8 @@
-# TypeScript source migration (Issue #16)
+# TypeScript migration (Issues #16 and #18)
 
 The maintained modules in `src/` use strict TypeScript. `npm run typecheck`
-checks the source without emitting files. `npm run build` emits native ES
+builds the package and examples first, then checks the package source, browser
+examples, scripts, and tests using separate strict configurations. `npm run build` emits native ES
 modules and declarations into `dist/`; Three.js remains an external peer.
 Package exports retain the root and all documented `.js` subpaths, with
 `types` conditions pointing to the corresponding declarations.
@@ -19,12 +20,19 @@ exercise the unchanged implementation.
 
 Browser examples keep their `/src/` URLs: the development server maps them to
 compiled `dist/` modules, and the static build copies those modules to the
-site's `src/` directory. Examples and repository scripts remain JavaScript.
+site's `src/` directory. Issue #18 also migrates examples, scripts, and tests
+to strict TypeScript. Browser modules compile into `dist/example-modules/`
+and keep the same `.js` URLs in development and in the static site. Node 20+
+runs repository scripts and tests with the pinned `tsx` loader. The Pages
+setup and deployment jobs install development tooling before executing these scripts.
 The npm file allowlist excludes the static example site from package tarballs.
 
 Validation before merge:
 
-- `npm run typecheck` checks all maintained implementations with `strict`.
+- `npm run typecheck` checks all maintained implementations with `strict` and
+  runs `check:typescript`. That check rejects repository JavaScript outside
+  `src/libs/mmdparser.module.js` and generated `dist/` output; it considers
+  tracked files and new files, ignoring removed paths during migration.
 - `npm test` builds the package, runs runtime and example-build checks, guards
   the required TypeScript sources, and installs a tarball into an isolated
   JavaScript/TypeScript consumer. The consumer imports every public subpath

@@ -113,7 +113,10 @@ exercise animation, IK, VPD round trips, shader chunk compatibility, and real
 Ammo physics. They also pack the package, install the tarball in an isolated
 consumer, and import every public module without access to the repository's
 source files. The isolated consumer also type-checks every public subpath,
-including checks that invalid API calls are rejected. Node.js 20 or newer is needed to run the tests.
+including checks that invalid API calls are rejected. Examples, scripts, and tests
+also use strict TypeScript. The vendored parser is the sole JavaScript source
+exception, enforced by `npm run check:typescript`. Node.js 20 or newer runs
+the repository scripts and tests through `tsx`.
 
 The separate browser regression suite requires Google Chrome. Set `CHROME_BIN`
 to its executable if it is not installed at the default location (on Linux,

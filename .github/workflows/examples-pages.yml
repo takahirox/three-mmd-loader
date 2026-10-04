@@ -53,11 +53,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: npm ci --ignore-scripts
       # The repository is bootstrapped once with the agent's existing gh
       # authorization. Ongoing runs only inspect configuration, without admin.
       - name: Verify unattended main deployment configuration
         id: setup
-        run: node scripts/setup-pages.js --check
+        run: node --import tsx scripts/setup-pages.ts --check
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
@@ -84,6 +85,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: npm ci --ignore-scripts
       - uses: actions/configure-pages@v5
       - uses: actions/download-artifact@v4
         with:
@@ -95,7 +97,7 @@ jobs:
           tar -xf candidate/artifact.tar -C dist/examples
       - name: Verify and back up the current public site
         id: backup
-        run: node scripts/verify-pages.js backup dist/rollback deployment-evidence/backup.json
+        run: node --import tsx scripts/verify-pages.ts backup dist/rollback deployment-evidence/backup.json
         env:
           PAGE_URL: ${{ needs.setup.outputs.page_url }}
           ALLOW_EMPTY_SITE: ${{ needs.setup.outputs.never_published }}
@@ -110,7 +112,7 @@ jobs:
       - name: Verify deployment result, public commit, and all examples content
         id: verification
         continue-on-error: true
-        run: node scripts/verify-pages.js verify dist/examples deployment-evidence/deployment.json
+        run: node --import tsx scripts/verify-pages.ts verify dist/examples deployment-evidence/deployment.json
         env:
           PAGE_URL: ${{ needs.setup.outputs.page_url }}
           EXPECTED_COMMIT: ${{ github.sha }}
@@ -128,7 +130,7 @@ jobs:
       - name: Verify the restored public site
         if: >-
           !cancelled() && steps.rollback.outcome != 'skipped'
-        run: node scripts/verify-pages.js verify dist/rollback deployment-evidence/rollback.json
+        run: node --import tsx scripts/verify-pages.ts verify dist/rollback deployment-evidence/rollback.json
         env:
           PAGE_URL: ${{ needs.setup.outputs.page_url }}
           DEPLOYMENT_OUTCOME: ${{ steps.rollback.outcome }}

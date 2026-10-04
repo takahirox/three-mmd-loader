@@ -1,3 +1,4 @@
+import type { Readable, Writable } from 'node:stream';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -5,8 +6,20 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve, sep } from 'node:path';
 import { test } from 'node:test';
-import { createExamplesServer } from '../../scripts/serve-examples.js';
-import { cameraVmdBuffer, pmdBuffer, vmdBuffer } from '../fixtures.js';
+import { createExamplesServer } from '../../scripts/serve-examples.ts';
+import { cameraVmdBuffer, pmdBuffer, vmdBuffer } from '../fixtures.ts';
+
+interface BrowserResult { page?: string; checks?: Record<string, boolean>; error?: string }
+interface CDPResults {
+	'Target.createTarget': { targetId: string };
+	'Target.attachToTarget': { sessionId: string };
+	'Page.enable': object;
+	'Emulation.setEmulatedMedia': object;
+	'Page.navigate': object;
+	'Runtime.evaluate': { exceptionDetails?: unknown; result: { value: string } };
+}
+interface Pending { resolve: ( value: unknown ) => void; reject: ( error: Error ) => void }
+interface CDPMessage { id: number; sessionId?: string; method?: string; params?: unknown; result?: unknown; error?: { message: string } }
 
 const chrome = process.env.CHROME_BIN || ( process.platform === 'darwin'
 	? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
@@ -16,7 +29,7 @@ const chrome = process.env.CHROME_BIN || ( process.platform === 'darwin'
 
 // Use Chrome's DevTools pipe so asynchronous audio work can finish on the
 // normal browser clock. A virtual clock can stall AudioContext operations.
-async function runBrowser( url, profile, colorScheme = 'light' ) {
+async function runBrowser( url: string, profile: string, colorScheme = 'light' ): Promise<BrowserResult[]> {
 
 	const browser = spawn( chrome, [
 		'--headless', '--no-first-run', '--no-default-browser-check',
@@ -24,11 +37,11 @@ async function runBrowser( url, profile, colorScheme = 'light' ) {
 		'--autoplay-policy=no-user-gesture-required', '--remote-debugging-pipe',
 		`--user-data-dir=${profile}`
 	], { stdio: [ 'ignore', 'ignore', 'ignore', 'pipe', 'pipe' ] } );
-	const pending = new Map();
-	const events = new Map();
+	const pending = new Map<number, Pending>();
+	const events = new Map<string, Pending>();
 	let nextID = 0;
 	let buffer = '';
-	function rejectPending( error ) {
+	function rejectPending( error: Error ) {
 
 		for ( const { reject } of pending.values() ) reject( error );
 		for ( const { reject } of events.values() ) reject( error );
@@ -38,19 +51,19 @@ async function runBrowser( url, profile, colorScheme = 'light' ) {
 	}
 	browser.on( 'error', rejectPending );
 	browser.on( 'exit', () => rejectPending( new Error( 'Chrome exited before validation finished' ) ) );
-	browser.stdio[ 4 ].setEncoding( 'utf8' );
-	browser.stdio[ 4 ].on( 'data', chunk => {
+	( browser.stdio[ 4 ] as Readable ).setEncoding( 'utf8' );
+	( browser.stdio[ 4 ] as Readable ).on( 'data', chunk => {
 
 		buffer += chunk;
 		let index;
 		while ( ( index = buffer.indexOf( '\0' ) ) !== -1 ) {
 
-			const message = JSON.parse( buffer.slice( 0, index ) );
+			const message: CDPMessage = JSON.parse( buffer.slice( 0, index ) );
 			buffer = buffer.slice( index + 1 );
 			const eventKey = `${message.sessionId}:${message.method}`;
 			if ( events.has( eventKey ) ) {
 
-				events.get( eventKey ).resolve( message.params );
+				events.get( eventKey )!.resolve( message.params );
 				events.delete( eventKey );
 
 			}
@@ -63,15 +76,15 @@ async function runBrowser( url, profile, colorScheme = 'light' ) {
 		}
 
 	} );
-	function send( method, params = {}, sessionId ) {
+	function send<K extends keyof CDPResults>( method: K, params: Record<string, unknown> = {}, sessionId?: string ): Promise<CDPResults[K]> {
 
-		return new Promise( ( resolve, reject ) => {
+		return new Promise<unknown>( ( resolve, reject ) => {
 
 			const id = ++ nextID;
 			pending.set( id, { resolve, reject } );
-			browser.stdio[ 3 ].write( JSON.stringify( { id, method, params, sessionId } ) + '\0' );
+			( browser.stdio[ 3 ] as Writable ).write( JSON.stringify( { id, method, params, sessionId } ) + '\0' );
 
-		} );
+		} ) as Promise<CDPResults[K]>;
 
 	}
 	const timeout = setTimeout( () => {
@@ -500,7 +513,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 
 		if ( request.url === '/test' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness.replaceAll( '/examples/', prefix + '/examples/' ) );
 		else if ( request.url === '/test-dark' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( darkHarness.replaceAll( '/examples/', prefix + '/examples/' ) );
-		else if ( request.headers.referer?.includes( 'missing=1' ) && request.url.startsWith( prefix + '/examples/assets/mmd/' ) ) {
+		else if ( request.headers.referer?.includes( 'missing=1' ) && request.url?.startsWith( prefix + '/examples/assets/mmd/' ) ) {
 
 			response.writeHead( 404 ).end();
 
@@ -511,13 +524,13 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 			// to origin-root dependencies cannot fall back to the source checkout.
 			try {
 
-				let path = decodeURIComponent( new URL( request.url, 'http://localhost' ).pathname );
+				let path = decodeURIComponent( new URL( request.url || '/', 'http://localhost' ).pathname );
 				if ( ! path.startsWith( prefix + '/' ) ) throw new Error( 'Outside site' );
 				if ( path.endsWith( '/' ) ) path += 'index.html';
 				const file = resolve( siteRoot, path.slice( prefix.length + 1 ) );
 				if ( ! file.startsWith( siteRoot + sep ) ) throw new Error( 'Outside site' );
 				const content = await readFile( file );
-				const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.bmp': 'image/bmp', '.mp3': 'audio/mpeg', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
+				const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.bmp': 'image/bmp', '.mp3': 'audio/mpeg', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
 				response.writeHead( 200, { 'Content-Type': types[ extname( file ) ] || 'application/octet-stream' } ).end( content );
 
 			} catch {
@@ -531,20 +544,20 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 	} );
 	try {
 
-		await new Promise( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
 		if ( siteRoot ) {
 
-			const landing = await fetch( `http://127.0.0.1:${server.address().port}${prefix}/` );
+			const landing = await fetch( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}${prefix}/` );
 			assert.equal( landing.status, 200 );
 			assert.match( await landing.text(), /url=\.\/examples\// );
-			const index = await fetch( `http://127.0.0.1:${server.address().port}${prefix}/examples/` );
+			const index = await fetch( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}${prefix}/examples/` );
 			assert.equal( index.status, 200 );
 			assert.match( await index.text(), /webgl_loader_mmd_audio.html/ );
 
 		}
-		const results = await runBrowser( `http://127.0.0.1:${server.address().port}/test`, join( temporary, 'profile' ) );
+		const results = await runBrowser( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test`, join( temporary, 'profile' ) );
 		assert.equal( results.length, 5, JSON.stringify( results ) );
-		const darkResults = await runBrowser( `http://127.0.0.1:${server.address().port}/test-dark`, join( temporary, 'profile-dark' ), 'dark' );
+		const darkResults = await runBrowser( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test-dark`, join( temporary, 'profile-dark' ), 'dark' );
 		assert.equal( darkResults.length, 1, JSON.stringify( darkResults ) );
 		for ( const result of [ ...results, ...darkResults ] ) {
 

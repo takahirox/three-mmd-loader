@@ -61,29 +61,33 @@
     "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
-    "build": "node scripts/build-package.js",
-    "typecheck": "tsc --noEmit",
+    "build": "node --import tsx scripts/build-package.ts",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.examples.json --noEmit && tsc -p tsconfig.tools.json && npm run check:typescript",
     "prepack": "npm run build",
     "pretest": "npm run build",
-    "test": "node --test tests/*.test.js",
-    "test:browser": "node --test tests/browser/*.test.js",
-    "dev": "node scripts/serve-examples.js",
-    "examples:assets": "node scripts/fetch-example-assets.js",
-    "build:examples": "npm run examples:assets && node scripts/build-examples.js",
-    "setup:pages": "node scripts/setup-pages.js --configure",
-    "test:examples": "node --test tests/browser/examples.test.js",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:browser": "node --import tsx --test tests/browser/*.test.ts",
+    "dev": "node --import tsx scripts/serve-examples.ts",
+    "examples:assets": "node --import tsx scripts/fetch-example-assets.ts",
+    "build:examples": "npm run examples:assets && node --import tsx scripts/build-examples.ts",
+    "setup:pages": "node --import tsx scripts/setup-pages.ts --configure",
+    "test:examples": "node --import tsx --test tests/browser/examples.test.ts",
     "pretest:browser": "npm run build",
     "pretest:examples": "npm run build",
     "predev": "npm run build",
-    "prebuild:examples": "npm run build"
+    "prebuild:examples": "npm run build",
+    "pretypecheck": "npm run build",
+    "check:typescript": "node --import tsx scripts/check-typescript.ts"
   },
   "peerDependencies": {
     "three": "~0.186.0"
   },
   "devDependencies": {
+    "@types/node": "20.19.43",
     "@types/three": "0.186.0",
     "ammojs-typed": "1.1.0",
     "three": "0.186.1",
+    "tsx": "4.23.15",
     "typescript": "7.0.2"
   },
   "license": "MIT",
