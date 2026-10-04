@@ -1,12 +1,13 @@
+import { assetManifest as manifest } from '../scripts/assets-manifest.ts';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { buildExamples } from '../scripts/build-examples.js';
-import { manifestName, sha256 } from '../scripts/pages-manifest.js';
+import { buildExamples } from '../scripts/build-examples.ts';
+import { manifestName, sha256 } from '../scripts/pages-manifest.ts';
 
-const manifest = JSON.parse( await readFile( new URL( '../examples/assets-manifest.json', import.meta.url ), 'utf8' ) );
+
 
 test( 'static build includes checkout modules, runtime dependencies, all assets and notices', async () => {
 
@@ -25,7 +26,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		await writeFile( join( outputDirectory, 'stale.html' ), 'old build' );
 		const commit = 'c'.repeat( 40 );
 		await buildExamples( { assetDirectory, outputDirectory, commit } );
-		const deployment = JSON.parse( await readFile( join( outputDirectory, manifestName ) ) );
+		const deployment: import( '../scripts/pages-manifest.ts' ).DeploymentManifest = JSON.parse( await readFile( join( outputDirectory, manifestName ), 'utf8' ) );
 		assert.equal( deployment.commit, commit );
 		for ( const { path, sha256: expected } of deployment.files ) {
 
@@ -58,7 +59,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			'LICENSE', 'THIRD_PARTY_NOTICES.md'
 		] ) {
 
-			assert.deepEqual( await readFile( join( outputDirectory, path ) ), await readFile( new URL( '../' + path.replace( /^src\//, 'dist/' ), import.meta.url ) ), path );
+			assert.deepEqual( await readFile( join( outputDirectory, path ) ), await readFile( new URL( '../' + path.replace( /^src\//, 'dist/' ).replace( /^examples\/(.+\.js)$/, 'dist/example-modules/$1' ), import.meta.url ) ), path );
 
 		}
 		for ( const path of [ 'stale.html', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {

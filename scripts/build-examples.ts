@@ -1,28 +1,29 @@
-import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { assetManifest as manifest } from './assets-manifest.ts';
+import { cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { writeManifest } from './pages-manifest.js';
+import { writeManifest } from './pages-manifest.ts';
 
 const root = fileURLToPath( new URL( '../', import.meta.url ) );
-const manifest = JSON.parse( await readFile( join( root, 'examples/assets-manifest.json' ), 'utf8' ) );
 
 // Preserve the development layout so the same pages run at any hosting prefix.
 export async function buildExamples( {
 	outputDirectory = join( root, 'dist/examples' ),
 	assetDirectory = join( root, 'examples/assets/mmd' ),
 	commit = process.env.GITHUB_SHA
-} = {} ) {
+}: { outputDirectory?: string; assetDirectory?: string; commit?: string } = {} ) {
 
 	await rm( outputDirectory, { recursive: true, force: true } );
 	await mkdir( outputDirectory, { recursive: true } );
 	for ( const name of await readdir( join( root, 'examples' ) ) ) {
 
-		if ( ! /\.(html|js|css|md|json)$/.test( name ) ) continue;
+		if ( ! /\.(html|css|md|json)$/.test( name ) ) continue;
 		await cp( join( root, 'examples', name ), join( outputDirectory, 'examples', name ) );
 
 	}
+	await cp( join( root, 'dist/example-modules' ), join( outputDirectory, 'examples' ), { recursive: true } );
 	for ( const name of [ 'screenshots', 'fonts' ] ) {
 
 		await cp( join( root, 'examples', name ), join( outputDirectory, 'examples', name ), { recursive: true } );

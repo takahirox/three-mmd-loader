@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 const root = resolve( dirname( fileURLToPath( import.meta.url ) ), '..' );
-const manifest = JSON.parse( readFileSync( join( root, 'package.json' ), 'utf8' ) );
+interface PackageManifest { exports: Record<string, Record<string, string>>; devDependencies: { three: string } }
+interface PackedPackage { filename: string; version: string; files: { path: string }[] }
+const manifest: PackageManifest = JSON.parse( readFileSync( join( root, 'package.json' ), 'utf8' ) );
 const publicModules = {
 	'animation/CCDIKSolver.js': [ 'CCDIKHelper', 'CCDIKSolver' ],
 	'animation/MMDAnimationHelper.js': [ 'MMDAnimationHelper' ],
@@ -26,7 +28,7 @@ test( 'root and addon-style subpaths expose every public module', async () => {
 
 		const module = await import( `three-mmd-loader/${path}` );
 		assert.deepEqual( Object.keys( module ).sort(), exports );
-		for ( const name of exports ) assert.equal( module[ name ], entry[ name ] );
+		for ( const name of exports ) assert.equal( module[ name ], ( entry as unknown as Record<string, unknown> )[ name ] );
 
 	}
 
@@ -36,10 +38,10 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 
 	const consumer = mkdtempSync( join( tmpdir(), 'three-mmd-loader-test-' ) );
 	const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-	const options = { cwd: consumer, encoding: 'utf8', timeout: 30000 };
+	const options = { cwd: consumer, encoding: 'utf8' as const, timeout: 30000 };
 	try {
 
-		const [ packed ] = JSON.parse( execFileSync( npm, [
+		const [ packed ]: PackedPackage[] = JSON.parse( execFileSync( npm, [
 			'pack', root, '--json', '--pack-destination', consumer, '--ignore-scripts'
 		], options ) );
 		const files = packed.files.map( file => file.path );
@@ -54,7 +56,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		assert.ok( files.every( path => ! /^(node_modules|tests|src|dist\/examples)\//.test( path ) ) );
 		// Pack the pinned peer installed by npm ci; resolving a registry version
 		// offline would require metadata that npm ci does not cache.
-		const [ peer ] = JSON.parse( execFileSync( npm, [
+		const [ peer ]: PackedPackage[] = JSON.parse( execFileSync( npm, [
 			'pack', join( root, 'node_modules/three' ), '--json', '--pack-destination', consumer, '--ignore-scripts'
 		], options ) );
 		assert.equal( peer.version, manifest.devDependencies.three );
@@ -98,7 +100,7 @@ for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )
 			join( root, 'node_modules/typescript/bin/tsc' ), '--noEmit', '--strict',
 			'--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', 'consumer.ts'
 		], options );
-		const installed = JSON.parse( readFileSync( join( consumer, 'node_modules/three-mmd-loader/package.json' ), 'utf8' ) );
+		const installed: { peerDependencies: { three: string }; dependencies?: Record<string, string> } = JSON.parse( readFileSync( join( consumer, 'node_modules/three-mmd-loader/package.json' ), 'utf8' ) );
 		assert.equal( installed.peerDependencies.three, '~0.186.0' );
 		assert.equal( installed.dependencies, undefined );
 

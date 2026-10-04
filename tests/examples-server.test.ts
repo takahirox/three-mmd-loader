@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createExamplesServer } from '../scripts/serve-examples.js';
+import { createExamplesServer } from '../scripts/serve-examples.ts';
 
 test( 'example server serves local modules with MIME types and limits file access', async () => {
 
 	const server = createExamplesServer();
-	await new Promise( resolve => server.listen( 0, '127.0.0.1', resolve ) );
-	const base = `http://127.0.0.1:${server.address().port}`;
+	await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+	const base = `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}`;
 	try {
 
 		for ( const [ path, type ] of [
@@ -25,7 +25,7 @@ test( 'example server serves local modules with MIME types and limits file acces
 			const response = await fetch( base + path );
 			assert.equal( response.status, 200, path );
 			if ( path === '/' ) assert.equal( new URL( response.url ).pathname, '/examples/' );
-			assert.ok( response.headers.get( 'content-type' ).startsWith( type ), path );
+			assert.ok( response.headers.get( 'content-type' )?.startsWith( type ), path );
 			assert.ok( ( await response.arrayBuffer() ).byteLength > 0, path );
 
 		}

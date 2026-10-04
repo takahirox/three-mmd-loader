@@ -1,12 +1,14 @@
-const panel = document.getElementById( 'panel' );
-const navigation = document.getElementById( 'contentWrapper' );
-const expandButton = document.getElementById( 'expandButton' );
-const viewerArea = document.getElementById( 'viewerArea' );
-const viewer = document.getElementById( 'viewer' );
-const placeholder = document.getElementById( 'placeholder' );
+export {};
+
+const panel = document.getElementById( 'panel' )!;
+const navigation = document.getElementById( 'contentWrapper' )!;
+const expandButton = document.getElementById( 'expandButton' )!;
+const viewerArea = document.getElementById( 'viewerArea' )!;
+const viewer = document.querySelector<HTMLIFrameElement>( '#viewer' )!;
+const placeholder = document.getElementById( 'placeholder' )!;
 const narrow = window.matchMedia( '(max-width: 640px)' );
-const cards = new Map( [ ...document.querySelectorAll( '[data-example]' ) ].map( card => [ card.dataset.example, card ] ) );
-let selected = null;
+const cards = new Map( [ ...document.querySelectorAll<HTMLElement>( '[data-example]' ) ].map( card => [ card.dataset.example!, card ] ) );
+let selected: string | null = null;
 
 function updatePanel() {
 
@@ -17,7 +19,7 @@ function updatePanel() {
 
 }
 
-function setPanelOpen( open ) {
+function setPanelOpen( open: boolean ) {
 
 	panel.classList.toggle( 'open', open );
 	updatePanel();
@@ -32,7 +34,7 @@ function restoreSelection() {
 	for ( const [ name, card ] of cards ) {
 
 		card.classList.toggle( 'selected', name === id );
-		const link = card.querySelector( 'a' );
+		const link = card.querySelector( 'a' )!;
 		if ( name === id ) link.setAttribute( 'aria-current', 'page' );
 		else link.removeAttribute( 'aria-current' );
 
@@ -41,21 +43,21 @@ function restoreSelection() {
 
 		// Keep one history entry per hash change. Assigning iframe.src would
 		// add a second entry to the browser's joint session history.
-		const href = id ? cards.get( id ).querySelector( 'a' ).href : 'about:blank';
-		viewer.contentWindow.location.replace( href );
+		const href = id ? cards.get( id )!.querySelector( 'a' )!.href : 'about:blank';
+		viewer.contentWindow!.location.replace( href );
 
 	}
 	selected = id;
 	viewer.hidden = id === null;
 	placeholder.hidden = id !== null;
-	viewer.title = id ? cards.get( id ).querySelector( '.title' ).textContent : 'Selected MMD example';
+	viewer.title = id ? cards.get( id )!.querySelector( '.title' )!.textContent! : 'Selected MMD example';
 	setPanelOpen( id === null );
 
 }
 
 for ( const [ id, card ] of cards ) {
 
-	card.querySelector( 'a' ).addEventListener( 'click', event => {
+	card.querySelector( 'a' )!.addEventListener( 'click', event => {
 
 		if ( event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey ) return;
 		event.preventDefault();
@@ -75,8 +77,8 @@ function closePanel() {
 
 }
 
-document.getElementById( 'closeButton' ).addEventListener( 'click', closePanel );
-document.getElementById( 'panelScrim' ).addEventListener( 'click', closePanel );
+document.getElementById( 'closeButton' )!.addEventListener( 'click', closePanel );
+document.getElementById( 'panelScrim' )!.addEventListener( 'click', closePanel );
 document.addEventListener( 'keydown', event => {
 
 	if ( event.key === 'Escape' && narrow.matches && panel.classList.contains( 'open' ) ) closePanel();

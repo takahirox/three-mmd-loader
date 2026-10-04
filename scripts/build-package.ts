@@ -13,3 +13,4 @@ for ( const name of await readdir( new URL( '../dist/', import.meta.url ) ) ) {
 }
 execFileSync( process.execPath, [ 'node_modules/typescript/bin/tsc' ], { cwd: root, stdio: 'inherit' } );
 await cp( new URL( '../src/libs/', import.meta.url ), new URL( '../dist/libs/', import.meta.url ), { recursive: true } );
+execFileSync( process.execPath, [ 'node_modules/typescript/bin/tsc', '-p', 'tsconfig.examples.json' ], { cwd: root, stdio: 'inherit' } );

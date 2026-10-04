@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import AmmoFactory from 'ammojs-typed';
+import { createRequire } from 'node:module';
+import type { AnimationClip } from 'three';
+import type { AmmoAPI } from '../dist/ammo.js';
 import {
 	Audio, Bone, BufferGeometry, DoubleSide, FrontSide, Loader, LoadingManager,
 	MeshBasicMaterial, PerspectiveCamera, ShaderChunk, Skeleton, SkinnedMesh, Texture, Vector3
@@ -9,7 +11,10 @@ import {
 	CCDIKSolver, MMDAnimationHelper, MMDExporter, MMDLoader, MMDParser, MMDPhysics,
 	MMDToonShader
 } from 'three-mmd-loader';
-import { pmdBuffer, pmxBuffer, vmdBuffer } from './fixtures.js';
+import { pmdBuffer, pmxBuffer, vmdBuffer } from './fixtures.ts';
+
+const AmmoFactory = createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI>;
+const ammoGlobal = globalThis as typeof globalThis & { Ammo?: AmmoAPI };
 
 function modelLoader() {
 
@@ -51,7 +56,7 @@ for ( const format of [ 'pmd', 'pmx' ] ) {
 		assert.equal( mesh.geometry.attributes.position.count, 3 );
 		assert.equal( mesh.geometry.attributes.position.getZ( 0 ), - 1 );
 		assert.equal( mesh.geometry.attributes.normal.getZ( 0 ), - 1 );
-		assert.deepEqual( Array.from( mesh.geometry.index.array ), [ 2, 1, 0 ] );
+		assert.deepEqual( Array.from( mesh.geometry.index!.array ), [ 2, 1, 0 ] );
 		assert.equal( mesh.geometry.attributes.skinWeight.getX( 0 ), 1 );
 		assert.equal( mesh.geometry.attributes.skinIndex.itemSize, 4 );
 		assert.equal( mesh.skeleton.bones[ 0 ].name, 'root' );
@@ -80,10 +85,10 @@ test( 'PMX vertex morphs retain their positions and mesh influences', () => {
 		elements: [ { index: 0, position: [ 0.25, 0, 0 ] } ]
 	} ];
 	const mesh = modelLoader().meshBuilder.build( data, '' );
-	assert.equal( mesh.geometry.morphAttributes.position.length, 1 );
-	assert.equal( mesh.geometry.morphAttributes.position[ 0 ].getX( 0 ), 0.25 );
-	assert.equal( mesh.geometry.morphAttributes.position[ 0 ].getZ( 0 ), - 1 );
-	assert.equal( mesh.morphTargetDictionary.smile, 0 );
+	assert.equal( mesh.geometry.morphAttributes.position!.length, 1 );
+	assert.equal( mesh.geometry.morphAttributes.position![ 0 ].getX( 0 ), 0.25 );
+	assert.equal( mesh.geometry.morphAttributes.position![ 0 ].getZ( 0 ), - 1 );
+	assert.equal( mesh.morphTargetDictionary!.smile, 0 );
 	assert.deepEqual( mesh.morphTargetInfluences, [ 0 ] );
 
 } );
@@ -110,7 +115,15 @@ test( 'public loader loads a PMD buffer through Three.js FileLoader', async () =
 	const original = globalThis.ProgressEvent;
 	globalThis.ProgressEvent ??= class extends Event {
 
-		constructor( type, properties ) { super( type ); Object.assign( this, properties ); }
+		lengthComputable: boolean;
+		loaded: number;
+		total: number;
+		constructor( type: string, properties: ProgressEventInit = {} ) {
+			super( type );
+			this.lengthComputable = properties.lengthComputable ?? false;
+			this.loaded = properties.loaded ?? 0;
+			this.total = properties.total ?? 0;
+		}
 
 	};
 	try {
@@ -123,7 +136,7 @@ test( 'public loader loads a PMD buffer through Three.js FileLoader', async () =
 
 	} finally {
 
-		if ( original === undefined ) delete globalThis.ProgressEvent;
+		if ( original === undefined ) Reflect.deleteProperty( globalThis, 'ProgressEvent' );
 		else globalThis.ProgressEvent = original;
 
 	}
@@ -142,7 +155,7 @@ test( 'parsed VMD animates a loaded bone with physics disabled', () => {
 	assert.equal( helper.add( mesh, { animation, physics: false } ), helper );
 	helper.update( 0.5 );
 	assert.ok( Math.abs( mesh.skeleton.bones[ 0 ].position.x - 1 ) < 1e-5 );
-	assert.equal( helper.objects.get( mesh ).physics, undefined );
+	assert.equal( helper.objects.get( mesh )!.physics, undefined );
 	assert.equal( helper.remove( mesh ), helper );
 	assert.equal( helper.meshes.length, 0 );
 
@@ -161,11 +174,11 @@ test( 'helper replaces cameras and audio and advances its audio elapsed time', (
 	helper.remove( secondCamera );
 	// Audio construction uses a browser AudioContext. Keep the real Audio
 	// prototype and supply only the playback state needed by AudioManager.
-	function audio() {
+	function audio(): Audio {
 
 		return Object.assign( Object.create( Audio.prototype ), {
 			type: 'Audio', name: 'test', buffer: { duration: 1 }, isPlaying: false,
-			play() { this.isPlaying = true; }, stop() { this.isPlaying = false; }
+			play( this: { isPlaying: boolean } ) { this.isPlaying = true; }, stop( this: { isPlaying: boolean } ) { this.isPlaying = false; }
 		} );
 
 	}
@@ -174,7 +187,7 @@ test( 'helper replaces cameras and audio and advances its audio elapsed time', (
 	helper.add( firstAudio ).add( secondAudio, { delayTime: 0.25 } );
 	assert.equal( helper.audio, secondAudio );
 	helper.update( 0.125 );
-	assert.equal( helper.audioManager.elapsedTime, 0.125 );
+	assert.equal( helper.audioManager!.elapsedTime, 0.125 );
 	assert.equal( secondAudio.isPlaying, false );
 	helper.update( 0.125 );
 	assert.equal( secondAudio.isPlaying, true );
@@ -188,7 +201,15 @@ test( 'public loadAnimation skips VMD morphs on models without morph targets', a
 	const original = globalThis.ProgressEvent;
 	globalThis.ProgressEvent ??= class extends Event {
 
-		constructor( type, properties ) { super( type ); Object.assign( this, properties ); }
+		lengthComputable: boolean;
+		loaded: number;
+		total: number;
+		constructor( type: string, properties: ProgressEventInit = {} ) {
+			super( type );
+			this.lengthComputable = properties.lengthComputable ?? false;
+			this.loaded = properties.loaded ?? 0;
+			this.total = properties.total ?? 0;
+		}
 
 	};
 	try {
@@ -204,7 +225,7 @@ test( 'public loadAnimation skips VMD morphs on models without morph targets', a
 
 				const mesh = buildMesh( format );
 				assert.equal( mesh.morphTargetDictionary, undefined );
-				const animation = await new Promise( ( resolve, reject ) => {
+				const animation = await new Promise<AnimationClip>( ( resolve, reject ) => {
 
 					new MMDLoader().loadAnimation( url, mesh, resolve, undefined, reject );
 
@@ -226,7 +247,7 @@ test( 'public loadAnimation skips VMD morphs on models without morph targets', a
 
 	} finally {
 
-		if ( original === undefined ) delete globalThis.ProgressEvent;
+		if ( original === undefined ) Reflect.deleteProperty( globalThis, 'ProgressEvent' );
 		else globalThis.ProgressEvent = original;
 
 	}
@@ -241,6 +262,7 @@ test( 'VPD exporter round trips a posed bone through the bundled parser', () => 
 	bone.position.set( 1, 2, 3 );
 	const exporter = new MMDExporter();
 	const text = exporter.parseVpd( mesh );
+	assert.ok( text !== null );
 	assert.deepEqual( bone.position.toArray(), [ 1, 2, 3 ] );
 	const parser = new MMDParser.Parser();
 	const pose = parser.parseVpd( text, true );
@@ -279,12 +301,12 @@ test( 'CCDIKSolver moves an effector towards its target', () => {
 
 test( 'toon shader resolves against the targeted Three.js shader chunks', () => {
 
-	function resolve( source ) {
+	function resolve( source: string ): string {
 
-		return source.replace( /#include <(\w+)>/g, ( _, name ) => {
+		return source.replace( /#include <(\w+)>/g, ( _: string, name: string ) => {
 
-			assert.equal( typeof ShaderChunk[ name ], 'string', `Missing shader chunk: ${name}` );
-			return resolve( ShaderChunk[ name ] );
+			assert.equal( typeof ( ShaderChunk as Record<string, string> )[ name ], 'string', `Missing shader chunk: ${name}` );
+			return resolve( ( ShaderChunk as Record<string, string> )[ name ] );
 
 		} );
 
@@ -303,7 +325,7 @@ test( 'MMDPhysics steps real Ammo rigid bodies and updates a Three.js bone', asy
 
 	const mesh = buildMesh();
 	assert.throws( () => new MMDPhysics( mesh, [] ), /Import ammo.js/ );
-	globalThis.Ammo = await AmmoFactory();
+	ammoGlobal.Ammo = await AmmoFactory();
 	try {
 
 		const physics = new MMDPhysics( mesh, [ {
@@ -328,14 +350,14 @@ test( 'MMDPhysics steps real Ammo rigid bodies and updates a Three.js bone', asy
 		animationHelper.sharedPhysics = true;
 		const secondMesh = buildMesh();
 		animationHelper.add( mesh, { warmup: 0 } ).add( secondMesh, { warmup: 0 } );
-		const firstPhysics = animationHelper.objects.get( mesh ).physics;
-		const secondPhysics = animationHelper.objects.get( secondMesh ).physics;
+		const firstPhysics = animationHelper.objects.get( mesh )!.physics!;
+		const secondPhysics = animationHelper.objects.get( secondMesh )!.physics!;
 		assert.equal( firstPhysics.world, secondPhysics.world );
 		assert.equal( animationHelper.update( 1 / 60 ), animationHelper );
 
 	} finally {
 
-		delete globalThis.Ammo;
+		delete ammoGlobal.Ammo;
 
 	}
 

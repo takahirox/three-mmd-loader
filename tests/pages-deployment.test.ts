@@ -1,3 +1,5 @@
+import type { GitHubAPI, PagesSite, PagesEnvironment, BranchPolicy } from '../scripts/setup-pages.ts';
+import type { DeploymentReport } from '../scripts/verify-pages.ts';
 import assert from 'node:assert/strict';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -7,33 +9,33 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { manifestName, requiredPages, validateManifest, writeManifest, writeUnpublishedSite } from '../scripts/pages-manifest.js';
-import { checkPages, githubAPI, neverPublished, setupCredential, setupPages } from '../scripts/setup-pages.js';
-import { backupSite, verifyDeployment, verifySite } from '../scripts/verify-pages.js';
+import { manifestName, requiredPages, validateManifest, writeManifest, writeUnpublishedSite } from '../scripts/pages-manifest.ts';
+import { checkPages, githubAPI, neverPublished, setupCredential, setupPages } from '../scripts/setup-pages.ts';
+import { backupSite, verifyDeployment, verifySite } from '../scripts/verify-pages.ts';
 
 const oldCommit = 'a'.repeat( 40 );
 const newCommit = 'b'.repeat( 40 );
 
 test( 'hosting setup creates Pages, removes approval gates, and restricts deployment to main idempotently', async () => {
 
-	let site;
-	let environment;
+	let site: PagesSite | undefined;
+	let environment: PagesEnvironment | undefined;
 	let failEnvironment = true;
 	let custom = [ { id: 10 } ];
-	let policies = [ { id: 1, name: 'release/*', type: 'branch' }, { id: 2, name: 'main', type: 'tag' } ];
-	const calls = [];
-	const api = async ( method, path, body ) => {
+	let policies: BranchPolicy[] = [ { id: 1, name: 'release/*', type: 'branch' }, { id: 2, name: 'main', type: 'tag' } ];
+	const calls: { method: string; path: string; body?: Record<string, unknown> }[] = [];
+	const api: GitHubAPI = async ( method, path, body ) => {
 
 		calls.push( { method, path, body } );
 		if ( path === 'pages' ) {
 
 			if ( method === 'GET' ) return site ? { status: 200, data: site } : { status: 404 };
-			if ( method === 'POST' || method === 'PUT' ) site = { ...body, status: null, html_url: 'https://example.github.io/repo/' };
+			if ( method === 'POST' || method === 'PUT' ) site = { ...body as { build_type: string }, status: null, html_url: 'https://example.github.io/repo/' };
 
 		} else if ( path === 'environments/github-pages' ) {
 
 			if ( failEnvironment ) throw new Error( 'Environment setup interrupted' );
-			if ( method === 'PUT' ) environment = { ...body, protection_rules: [ { type: 'branch_policy' } ] };
+			if ( method === 'PUT' ) environment = { ...body as Omit<PagesEnvironment, 'protection_rules'>, protection_rules: [ { type: 'branch_policy' } ] };
 			return { data: environment };
 
 		} else if ( path.endsWith( '/deployment_protection_rules' ) ) return { data: { custom_deployment_protection_rules: custom } };
@@ -42,7 +44,7 @@ test( 'hosting setup creates Pages, removes approval gates, and restricts deploy
 
 			if ( method === 'GET' ) return { data: { total_count: policies.length, branch_policies: policies } };
 			if ( method === 'DELETE' ) policies = policies.filter( policy => ! path.endsWith( '/' + policy.id ) );
-			if ( method === 'POST' ) policies.push( { id: 3, ...body } );
+			if ( method === 'POST' ) policies.push( { id: 3, ...body as Omit<BranchPolicy, 'id'> } );
 
 		} else if ( path.startsWith( 'deployments?' ) ) return { data: [] };
 		else throw new Error( `Unexpected ${method} ${path}` );
@@ -50,17 +52,19 @@ test( 'hosting setup creates Pages, removes approval gates, and restricts deploy
 
 	};
 	await assert.rejects( setupPages( api ), /Environment setup interrupted/ );
+	assert.ok( site );
 	assert.equal( site.build_type, 'workflow' );
 	failEnvironment = false;
 	const result = await setupPages( api );
 	assert.equal( result.created, false );
 	assert.equal( result.never_published, true );
 	// Both public URLs are still missing after the interrupted bootstrap.
-	assert.deepEqual( await backupSite( site.html_url, 'unused', {
+	assert.deepEqual( await backupSite( site.html_url!, 'unused', {
 		allowEmpty: result.never_published, fetcher: async () => new Response( '', { status: 404 } )
 	} ), { success: true, exists: false } );
 	assert.equal( result.success, true );
 	assert.deepEqual( policies, [ { id: 3, name: 'main', type: 'branch' } ] );
+	assert.ok( environment );
 	assert.deepEqual( environment.reviewers, [] );
 	assert.equal( environment.wait_timer, 0 );
 	assert.deepEqual( custom, [] );
@@ -68,7 +72,7 @@ test( 'hosting setup creates Pages, removes approval gates, and restricts deploy
 	assert.equal( ( await setupPages( api ) ).created, false );
 	assert.equal( ( await setupPages( api ) ).never_published, true );
 	assert.equal( calls.slice( afterFirst ).some( call => call.method === 'POST' ), false );
-	const readOnly = async ( ...args ) => {
+	const readOnly: GitHubAPI = async ( ...args ) => {
 
 		assert.equal( args[ 0 ], 'GET', 'normal Actions runs must not require administration writes' );
 		return api( ...args );
@@ -113,7 +117,7 @@ test( 'empty-site recovery fails closed for prior publications, active attempts,
 	const site = { build_type: 'workflow', status: null };
 	for ( const states of [ [ 'success' ], [ 'inactive' ], [ 'pending' ], [ 'queued' ], [ 'in_progress' ], [], [ 'failure', 'success' ] ] ) {
 
-		const api = async ( method, path ) => ( { data: path.startsWith( 'deployments?' )
+		const api: GitHubAPI = async ( method, path ) => ( { data: path.startsWith( 'deployments?' )
 			? [ { id: 1 } ] : states.map( state => ( { state } ) ) } );
 		const allowEmpty = await neverPublished( api, site );
 		assert.equal( allowEmpty, false, JSON.stringify( states ) );
@@ -130,7 +134,7 @@ test( 'empty-site recovery fails closed for prior publications, active attempts,
 	await assert.rejects( neverPublished( async () => { throw new Error( 'History unavailable' ); }, site ), /History unavailable/ );
 	for ( const state of [ 'failure', 'error' ] ) {
 
-		const api = async ( method, path ) => ( { data: path.startsWith( 'deployments?' ) ? [ { id: 1 } ] : [ { state } ] } );
+		const api: GitHubAPI = async ( method, path ) => ( { data: path.startsWith( 'deployments?' ) ? [ { id: 1 } ] : [ { state } ] } );
 		assert.equal( await neverPublished( api, site ), true );
 
 	}
@@ -141,14 +145,14 @@ test( 'empty-site recovery checks older pages of deployments and their statuses'
 
 	const site = { build_type: 'workflow', status: null };
 	const deployments = Array.from( { length: 100 }, ( _, id ) => ( { id } ) );
-	const api = async ( method, path ) => {
+	const api: GitHubAPI = async ( method, path ) => {
 
 		if ( path.startsWith( 'deployments?' ) ) return { data: path.endsWith( 'page=1' ) ? deployments : [ { id: 100 } ] };
 		return { data: [ { state: path.startsWith( 'deployments/100/' ) ? 'success' : 'failure' } ] };
 
 	};
 	assert.equal( await neverPublished( api, site ), false );
-	const statusesAPI = async ( method, path ) => {
+	const statusesAPI: GitHubAPI = async ( method, path ) => {
 
 		if ( path.startsWith( 'deployments?' ) ) return { data: [ { id: 1 } ] };
 		return { data: path.endsWith( 'page=1' ) ? Array.from( { length: 100 }, () => ( { state: 'failure' } ) ) : [ { state: 'inactive' } ] };
@@ -158,7 +162,7 @@ test( 'empty-site recovery checks older pages of deployments and their statuses'
 
 } );
 
-async function siteFixture( run ) {
+async function siteFixture( run: ( fixture: { site: string; root: string; base: string; requestCount: () => number } ) => Promise<void> ) {
 
 	const root = await mkdtemp( join( tmpdir(), 'mmd-pages-' ) );
 	const site = join( root, 'live' );
@@ -173,7 +177,7 @@ async function siteFixture( run ) {
 	const server = createServer( async ( request, response ) => {
 
 		requests ++;
-		const path = new URL( request.url, 'http://localhost' ).pathname;
+		const path = new URL( request.url || '/', 'http://localhost' ).pathname;
 		if ( ! path.startsWith( '/repo/' ) ) return response.writeHead( 404 ).end();
 		let relative = path.slice( '/repo/'.length );
 		if ( ! relative || relative.endsWith( '/' ) ) relative += 'index.html';
@@ -184,17 +188,17 @@ async function siteFixture( run ) {
 
 		} catch {
 
-			let bytes = '';
+			let bytes: string | Buffer = '';
 			try { bytes = await readFile( join( site, '404.html' ) ); } catch { /* No custom 404 page. */ }
 			response.writeHead( 404 ).end( bytes );
 
 		}
 
 	} );
-	await new Promise( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+	await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
 	try {
 
-		await run( { site, root, base: `http://127.0.0.1:${server.address().port}/repo/`, requestCount: () => requests } );
+		await run( { site, root, base: `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/repo/`, requestCount: () => requests } );
 
 	} finally {
 
@@ -221,17 +225,17 @@ test( 'public verification checks commit and every file and a saved backup resto
 		assert.equal( ( await verifyDeployment( base, candidate, 'success' ) ).commit, newCommit );
 		await assert.rejects( verifySite( base, previous ), /does not match commit/ );
 		await writeFile( join( site, 'examples/assets/mmd/model.pmd' ), 'truncated download' );
-		const failed = {};
+		const failed: DeploymentReport = {};
 		await assert.rejects( verifyDeployment( base, candidate, 'success', { attempts: 1, report: failed } ), /Public content mismatch/ );
 		assert.equal( failed.success, false );
-		assert.ok( failed.checks.some( check => ! check.success ) );
+		assert.ok( failed.checks!.some( check => ! check.success ) );
 		await rm( site, { recursive: true } );
 		await cp( backup, site, { recursive: true } );
 		const restored = await verifyDeployment( base, previous, 'success' );
 		assert.equal( restored.commit, oldCommit );
 		assert.equal( restored.success, true );
-		assert.ok( restored.checks.some( check => check.path === '/' && check.status === 200 ) );
-		assert.ok( restored.checks.some( check => check.path === 'examples/' && check.status === 200 ) );
+		assert.ok( restored.checks!.some( check => check.path === '/' && check.status === 200 ) );
+		assert.ok( restored.checks!.some( check => check.path === 'examples/' && check.status === 200 ) );
 
 	} );
 
@@ -244,18 +248,18 @@ test( 'first-publication recovery restores only verified HTTP 404 content and ca
 		await rm( site, { recursive: true } );
 		const recovery = join( root, 'recovery' );
 		const evidence = join( root, 'backup.json' );
-		const verify = fileURLToPath( new URL( '../scripts/verify-pages.js', import.meta.url ) );
-		await promisify( execFile )( process.execPath, [ verify, 'backup', recovery, evidence ], {
+		const verify = fileURLToPath( new URL( '../scripts/verify-pages.ts', import.meta.url ) );
+		await promisify( execFile )( process.execPath, [ '--import', fileURLToPath( new URL( '../node_modules/tsx/dist/loader.mjs', import.meta.url ) ), verify, 'backup', recovery, evidence ], {
 			cwd: root, env: { PAGE_URL: base, ALLOW_EMPTY_SITE: 'true', GITHUB_SHA: newCommit }
 		} );
-		assert.equal( JSON.parse( await readFile( evidence ) ).recovery, 'unpublished' );
-		const manifest = JSON.parse( await readFile( join( recovery, manifestName ) ) );
+		assert.equal( JSON.parse( await readFile( evidence, 'utf8' ) ).recovery, 'unpublished' );
+		const manifest: import( '../scripts/pages-manifest.ts' ).DeploymentManifest = JSON.parse( await readFile( join( recovery, manifestName ), 'utf8' ) );
 		assert.equal( manifest.state, 'unpublished' );
 		assert.throws( () => validateManifest( { ...manifest, files: [ ...manifest.files, { path: 'index.html', sha256: 'a'.repeat( 64 ) } ] } ), /must not contain examples/ );
 		await cp( recovery, site, { recursive: true } );
 		const restored = await verifyDeployment( base, await readFile( join( recovery, manifestName ) ), 'success' );
 		assert.equal( restored.success, true );
-		assert.equal( restored.checks.filter( check => check.status === 404 ).length, 6 );
+		assert.equal( restored.checks!.filter( check => check.status === 404 ).length, 6 );
 		const backup = await backupSite( base, join( root, 'next-backup' ) );
 		assert.equal( backup.exists, true );
 		assert.equal( backup.state, 'unpublished' );
@@ -274,7 +278,7 @@ test( 'backup fails closed for existing sites without manifests, missing files, 
 
 	await siteFixture( async ( { site, root, base } ) => {
 
-		const manifest = JSON.parse( await readFile( join( site, manifestName ) ) );
+		const manifest: import( '../scripts/pages-manifest.ts' ).DeploymentManifest = JSON.parse( await readFile( join( site, manifestName ), 'utf8' ) );
 		const unsafe = { ...manifest, files: [ ...manifest.files, { path: '../escape', sha256: 'a'.repeat( 64 ) } ] };
 		assert.throws( () => validateManifest( unsafe ), /Invalid deployment file/ );
 		await writeFile( join( site, manifestName ), JSON.stringify( unsafe ) );
@@ -327,33 +331,33 @@ test( 'workflow scripts persist machine-readable evidence for successful and fai
 
 	await siteFixture( async ( { site, root, base, requestCount } ) => {
 
-		const setup = fileURLToPath( new URL( '../scripts/setup-pages.js', import.meta.url ) );
-		const verify = fileURLToPath( new URL( '../scripts/verify-pages.js', import.meta.url ) );
+		const setup = fileURLToPath( new URL( '../scripts/setup-pages.ts', import.meta.url ) );
+		const verify = fileURLToPath( new URL( '../scripts/verify-pages.ts', import.meta.url ) );
 		const run = promisify( execFile );
-		await assert.rejects( run( process.execPath, [ setup, '--check' ], {
+		await assert.rejects( run( process.execPath, [ '--import', fileURLToPath( new URL( '../node_modules/tsx/dist/loader.mjs', import.meta.url ) ), setup, '--check' ], {
 			cwd: root, env: { GITHUB_ACTIONS: 'true', GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'push', GITHUB_REPOSITORY: 'owner/repo' }
 		} ), { code: 1 } );
-		const setupReport = JSON.parse( await readFile( join( root, 'deployment-evidence/setup.json' ) ) );
+		const setupReport: { success: boolean; error: string } = JSON.parse( await readFile( join( root, 'deployment-evidence/setup.json' ), 'utf8' ) );
 		assert.equal( setupReport.success, false );
 		assert.match( setupReport.error, /GITHUB_TOKEN/ );
 		const evidence = join( root, 'deployment.json' );
 		const env = { PAGE_URL: base, DEPLOYED_PAGE_URL: base, EXPECTED_COMMIT: oldCommit, GITHUB_RUN_ID: '123', DEPLOYMENT_OUTCOME: 'success' };
-		await run( process.execPath, [ verify, 'verify', site, evidence ], { cwd: root, env } );
-		const success = JSON.parse( await readFile( evidence ) );
+		await run( process.execPath, [ '--import', fileURLToPath( new URL( '../node_modules/tsx/dist/loader.mjs', import.meta.url ) ), verify, 'verify', site, evidence ], { cwd: root, env } );
+		const success: DeploymentReport = JSON.parse( await readFile( evidence, 'utf8' ) );
 		assert.equal( success.success, true );
 		assert.equal( success.deployment_outcome, 'success' );
 		assert.equal( success.expected_commit, oldCommit );
 		assert.equal( success.run_id, '123' );
 		assert.equal( success.page_url, base );
-		assert.equal( success.checks.length, requiredPages.length + 4 );
+		assert.equal( success.checks!.length, requiredPages.length + 4 );
 		const before = requestCount();
-		await assert.rejects( run( process.execPath, [ verify, 'verify', site, evidence ], {
+		await assert.rejects( run( process.execPath, [ '--import', fileURLToPath( new URL( '../node_modules/tsx/dist/loader.mjs', import.meta.url ) ), verify, 'verify', site, evidence ], {
 			cwd: root, env: { ...env, DEPLOYMENT_OUTCOME: 'failure' }
 		} ), { code: 1 } );
-		const failed = JSON.parse( await readFile( evidence ) );
+		const failed: DeploymentReport = JSON.parse( await readFile( evidence, 'utf8' ) );
 		assert.equal( failed.success, false );
 		assert.equal( failed.deployment_outcome, 'failure' );
-		assert.match( failed.error, /deployment did not succeed/ );
+		assert.match( failed.error!, /deployment did not succeed/ );
 		assert.equal( requestCount(), before );
 
 	} );

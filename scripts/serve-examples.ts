@@ -4,7 +4,7 @@ import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath( new URL( '../', import.meta.url ) );
-const types = {
+const types: Record<string, string> = {
 	'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
 	'.css': 'text/css; charset=utf-8', '.json': 'application/json',
 	'.txt': 'text/plain', '.md': 'text/plain; charset=utf-8',
@@ -16,7 +16,7 @@ const types = {
 // Serve only example files and their dependencies, including when used by tests.
 export function createExamplesServer( { assetRoot = resolve( root, 'examples/assets/mmd' ) } = {} ) {
 
-	const mounts = [
+	const mounts: [ string, string ][] = [
 		[ '/examples/assets/mmd/', assetRoot ],
 		[ '/examples/', resolve( root, 'examples' ) ],
 		[ '/src/', resolve( root, 'dist' ) ],
@@ -33,7 +33,7 @@ export function createExamplesServer( { assetRoot = resolve( root, 'examples/ass
 		}
 		try {
 
-			let path = decodeURIComponent( new URL( request.url, 'http://localhost' ).pathname );
+			let path = decodeURIComponent( new URL( request.url || '/', 'http://localhost' ).pathname );
 			if ( path === '/' ) {
 
 				response.writeHead( 302, { Location: '/examples/' } ).end();
@@ -43,7 +43,8 @@ export function createExamplesServer( { assetRoot = resolve( root, 'examples/ass
 			if ( path.endsWith( '/' ) ) path += 'index.html';
 			const mount = mounts.find( ( [ prefix ] ) => path.startsWith( prefix ) );
 			if ( ! mount ) throw new Error( 'Not served' );
-			const [ prefix, directory ] = mount;
+			let [ prefix, directory ] = mount;
+			if ( prefix === '/examples/' && path.endsWith( '.js' ) ) directory = resolve( root, 'dist/example-modules' );
 			const base = await realpath( directory );
 			const file = await realpath( resolve( directory, path.slice( prefix.length ) ) );
 			if ( ! file.startsWith( base + sep ) ) throw new Error( 'Outside served directory' );
@@ -71,7 +72,7 @@ if ( process.argv[ 1 ] && resolve( process.argv[ 1 ] ) === fileURLToPath( import
 	server.on( 'error', error => { console.error( error.message ); process.exitCode = 1; } );
 	server.listen( port, '127.0.0.1', () => {
 
-		console.log( `MMD examples: http://127.0.0.1:${server.address().port}/` );
+		console.log( `MMD examples: http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/` );
 
 	} );
 

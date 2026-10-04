@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ]
+  },
+  "include": [
+    "scripts/**/*.ts",
+    "tests/**/*.ts"
+  ]
+}

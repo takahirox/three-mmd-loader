@@ -1,3 +1,7 @@
+import type { AnimationClip } from 'three';
+import type { MMDMesh, VPD } from '../dist/types.js';
+import type { AmmoAPI } from '../dist/ammo.js';
+
 import {
 	AmbientLight, Audio, AudioListener, AudioLoader, Color, DirectionalLight,
 	LoadingManager, PerspectiveCamera, PolarGridHelper, Scene, WebGLRenderer
@@ -8,17 +12,29 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { MMDLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
 import { MMDAnimationHelper } from 'three-mmd-loader/animation/MMDAnimationHelper.js';
 
+interface ExampleContext {
+	mesh: MMDMesh;
+	helper: MMDAnimationHelper;
+	camera: PerspectiveCamera;
+	scene: Scene;
+	renderer: WebGLRenderer;
+	effect: OutlineEffect;
+	gui: GUI;
+	audio?: Audio;
+	poses?: VPD[];
+}
+
 const assets = './assets/mmd/';
 
-export async function initExample( mode ) {
+export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 
-	const status = document.getElementById( 'status' );
-	let gui;
-	let renderer;
-	function fail( error ) {
+	const status = document.getElementById( 'status' )!;
+	let gui: GUI | undefined;
+	let renderer: WebGLRenderer | undefined;
+	function fail( error: unknown ) {
 
 		document.body.dataset.state = 'error';
-		status.textContent = `Could not load the example: ${error.message || error}. Run npm run examples:assets, then reload. See Asset terms and setup.`;
+		status.textContent = `Could not load the example: ${error instanceof Error ? error.message : String( error )}. Run npm run examples:assets, then reload. See Asset terms and setup.`;
 		if ( gui ) {
 
 			gui.controllersRecursive().forEach( controller => controller.disable() );
@@ -70,9 +86,14 @@ export async function initExample( mode ) {
 		resize();
 
 		// The package expects an initialized Ammo runtime on globalThis.
-		if ( mode !== 'pose' ) globalThis.Ammo = await globalThis.Ammo();
+		if ( mode !== 'pose' ) {
+
+			const runtime = globalThis as typeof globalThis & { Ammo: AmmoAPI | ( () => Promise<AmmoAPI> ) };
+			if ( typeof runtime.Ammo === 'function' ) runtime.Ammo = await runtime.Ammo();
+
+		}
 		const manager = new LoadingManager();
-		const resourcesReady = new Promise( ( resolve, reject ) => {
+		const resourcesReady = new Promise<void>( ( resolve, reject ) => {
 
 			manager.onLoad = resolve;
 			manager.onError = url => {
@@ -94,14 +115,14 @@ export async function initExample( mode ) {
 		const loader = new MMDLoader( manager );
 		const helper = new MMDAnimationHelper( { afterglow: mode === 'audio' ? 0 : 2 } );
 		const modelURL = assets + 'miku/miku_v2.pmd';
-		let mesh;
+		let mesh: MMDMesh;
 		if ( mode === 'pose' ) {
 
 			mesh = await loader.loadAsync( modelURL );
 
 		} else {
 
-			const mmd = await new Promise( ( resolve, reject ) => {
+			const mmd = await new Promise<{ mesh: MMDMesh; animation: AnimationClip }>( ( resolve, reject ) => {
 
 				loader.loadWithAnimation( modelURL, [ assets + 'vmds/wavefile_v2.vmd' ], resolve, undefined, reject );
 
@@ -112,25 +133,26 @@ export async function initExample( mode ) {
 		}
 		await resourcesReady;
 		scene.add( mesh );
-		const context = { mesh, helper, camera, scene, renderer, effect, gui };
-		const api = {};
-		function checkbox( name, checked, change ) {
+		const context: ExampleContext = { mesh, helper, camera, scene, renderer, effect, gui };
+		const api = { pose: - 1, play: async () => {} };
+		const toggles: Record<string, boolean> = {};
+		function checkbox( name: string, checked: boolean, change: ( value: boolean ) => void ) {
 
-			api[ name ] = checked;
-			gui.add( api, name ).onChange( change ).disable();
+			toggles[ name ] = checked;
+			gui!.add( toggles, name ).onChange( change ).disable();
 
 		}
 		let running = mode === 'animation';
 		if ( mode === 'animation' ) {
 
-			for ( const name of [ 'animation', 'ik', 'physics' ] ) {
+			for ( const name of [ 'animation', 'ik', 'physics' ] as const ) {
 
 				checkbox( name, true, value => helper.enable( name, value ) );
 
 			}
-			const object = helper.objects.get( mesh );
-			const ik = object.ikSolver.createHelper();
-			const physics = object.physics.createHelper();
+			const object = helper.objects.get( mesh )!;
+			const ik = object.ikSolver!.createHelper();
+			const physics = object.physics!.createHelper();
 			ik.visible = physics.visible = false;
 			scene.add( ik, physics );
 			checkbox( 'show IK bones', false, value => { ik.visible = value; } );
@@ -138,7 +160,7 @@ export async function initExample( mode ) {
 
 		} else if ( mode === 'audio' ) {
 
-			const cameraAnimation = await new Promise( ( resolve, reject ) => {
+			const cameraAnimation = await new Promise<AnimationClip>( ( resolve, reject ) => {
 
 				loader.loadAnimation( [ assets + 'vmds/wavefile_camera.vmd' ], camera, resolve, undefined, reject );
 
@@ -175,14 +197,14 @@ export async function initExample( mode ) {
 		} else {
 
 			// VPD files use Shift_JIS, so isUnicode is false.
-			const poses = await Promise.all( Array.from( { length: 11 }, ( _, i ) => new Promise( ( resolve, reject ) => {
+			const poses = await Promise.all( Array.from( { length: 11 }, ( _, i ) => new Promise<VPD>( ( resolve, reject ) => {
 
 				const file = String( i + 1 ).padStart( 2, '0' ) + '.vpd';
 				loader.loadVPD( assets + 'vpds/' + file, false, resolve, undefined, reject );
 
 			} ) ) );
 			api.pose = - 1;
-			const options = { 'Rest pose': - 1 };
+			const options: Record<string, number> = { 'Rest pose': - 1 };
 			for ( let i = 0; i < poses.length; i ++ ) options[ `Pose ${i + 1}` ] = i;
 			let ik = true;
 			function applyPose() {
@@ -201,7 +223,7 @@ export async function initExample( mode ) {
 		gui.domElement.setAttribute( 'aria-disabled', 'false' );
 		gui.domElement.setAttribute( 'aria-busy', 'false' );
 		status.textContent = mode === 'audio' ? 'Ready — press Play to start.' : 'Ready';
-		let previousTime = null;
+		let previousTime: number | null = null;
 		renderer.setAnimationLoop( time => {
 
 			try {
@@ -220,7 +242,7 @@ export async function initExample( mode ) {
 		} );
 		// Compile and render once before reporting success, even in background tabs.
 		effect.render( scene, camera );
-		if ( document.body.dataset.state === 'error' ) throw new Error( status.textContent );
+		if ( document.body.dataset.state === 'error' ) throw new Error( status.textContent || 'Example failed' );
 		document.body.dataset.state = 'ready';
 		return context;
 

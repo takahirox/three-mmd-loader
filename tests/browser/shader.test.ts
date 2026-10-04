@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
-import { pmdBuffer, pmxBuffer } from '../fixtures.js';
+import { pmdBuffer, pmxBuffer } from '../fixtures.ts';
 
 const root = fileURLToPath( new URL( '../../', import.meta.url ) );
 const chrome = process.env.CHROME_BIN || ( process.platform === 'darwin'
@@ -99,7 +99,7 @@ document.getElementById( 'result' ).textContent = encodeURIComponent( JSON.strin
 </script>`;
 	const server = createServer( async ( request, response ) => {
 
-		const path = new URL( request.url, 'http://localhost' ).pathname;
+		const path = new URL( request.url || '/', 'http://localhost' ).pathname;
 		if ( path === '/' ) {
 
 			response.setHeader( 'Content-Type', 'text/html' );
@@ -130,16 +130,16 @@ document.getElementById( 'result' ).textContent = encodeURIComponent( JSON.strin
 	const profile = await mkdtemp( join( tmpdir(), 'three-mmd-shader-test-' ) );
 	try {
 
-		await new Promise( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
 		const { stdout } = await promisify( execFile )( chrome, [
 			'--headless', '--no-first-run', '--no-default-browser-check',
 			'--use-angle=swiftshader', '--enable-unsafe-swiftshader',
 			'--dump-dom',
-			`--user-data-dir=${profile}`, `http://127.0.0.1:${server.address().port}/`
+			`--user-data-dir=${profile}`, `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/`
 		], { timeout: 45000, maxBuffer: 1024 * 1024 } );
 		const match = stdout.match( /<pre id="result">([^<]+)<\/pre>/ );
 		assert.ok( match && match[ 1 ] !== 'pending', 'Browser did not complete shader validation' );
-		const result = JSON.parse( decodeURIComponent( match[ 1 ] ) );
+		const result: { errors: unknown[]; cases: { format: string; variant: string; programs: { vertex: boolean; fragment: boolean; linked: boolean }[] }[] } = JSON.parse( decodeURIComponent( match[ 1 ] ) );
 		assert.equal( result.errors.length, 0, JSON.stringify( result.errors[ 0 ] ) );
 		assert.equal( result.cases.length, 8 );
 		for ( const { format, variant, programs } of result.cases ) {
