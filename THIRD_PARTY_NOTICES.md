@@ -11,7 +11,6 @@ The following files were restored from the
 - `src/animation/MMDPhysics.ts`
 - `src/exporters/MMDExporter.ts`
 - `src/loaders/MMDLoader.ts`
-- `src/shaders/MMDToonShader.ts`
 
 Their original paths use `.js` relative to `examples/jsm/` instead of `src/`;
 the maintained copies have since been migrated to TypeScript.
@@ -21,9 +20,22 @@ License reproduced in this package's [LICENSE](LICENSE).
 Local changes route TGALoader through the external `three` package, remove
 the obsolete r172 deprecation warnings, and use the external SkeletonUtils
 clone in MMDExporter to avoid resetting the source skeleton when exporting.
-The CCDIK solver and toon shader retain their r171 behavior. The loader and
+The CCDIK solver retains its r171 behavior. The loader and
 exporter now import the external `mmd-parser` dependency. Three.js itself,
 `mmd-parser`, and the Ammo.js physics runtime are not vendored.
+
+## Three.js r186 node material and outlines
+
+`src/materials/MMDToonMaterial.ts` adapts the direct-light toon irradiance and
+Blinn-Phong expressions from Three.js r186 `ToonLightingModel` and
+`PhongLightingModel`, composing Three's `MeshPhongNodeMaterial`, lighting and
+TSL utilities. `src/effects/MMDOutlineEffect.ts` adapts r186
+`src/nodes/display/ToonOutlinePassNode.js` (expanded back-facing hull and
+render-object callback), adding MMD per-material parameters, vertex edge ratios,
+resource cleanup and renderer-state restoration. The package uses external
+Three.js `0.186.1`; these implementations replace the former r171 GLSL toon
+shader and WebGL `OutlineEffect` integration. Three.js is copyright © 2010-2026
+three.js authors, under the MIT license reproduced in [LICENSE](LICENSE).
 
 ## Three.js example stylesheet
 

@@ -9,7 +9,7 @@ const root = fileURLToPath( new URL( '../', import.meta.url ) );
 const required = [
 	'index', 'animation/CCDIKSolver', 'animation/MMDAnimationHelper',
 	'animation/MMDPhysics', 'exporters/MMDExporter', 'loaders/MMDLoader',
-	'shaders/MMDToonShader'
+	'materials/MMDToonMaterial', 'effects/MMDOutlineEffect'
 ];
 
 test( 'maintained runtime sources remain checked TypeScript with built JS and declarations', () => {

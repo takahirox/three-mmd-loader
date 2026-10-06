@@ -1,7 +1,7 @@
 import { AnimationClip, PerspectiveCamera, Vector3 } from 'three';
 import {
 	MMDLoader, MMDAnimationHelper, CCDIKSolver, MMDPhysics, MMDExporter,
-	MMDToonShader
+	MMDToonMaterial, MMDOutlineEffect
 } from 'three-mmd-loader';
 import type { AmmoAPI, IK, MMDMesh } from 'three-mmd-loader';
 import { MMDLoader as SubpathLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
@@ -11,11 +11,13 @@ import { MMDPhysics as SubpathPhysics } from 'three-mmd-loader/animation/MMDPhys
 import { MMDExporter as SubpathExporter } from 'three-mmd-loader/exporters/MMDExporter.js';
 import { Parser, CharsetEncoder } from 'mmd-parser';
 import type { Pmd, Pmx, Vmd, Vpd } from 'mmd-parser';
-import { MMDToonShader as SubpathShader } from 'three-mmd-loader/shaders/MMDToonShader.js';
+import { MMDToonMaterial as SubpathMaterial } from 'three-mmd-loader/materials/MMDToonMaterial.js';
+import { MMDOutlineEffect as SubpathOutline } from 'three-mmd-loader/effects/MMDOutlineEffect.js';
+import { WebGPURenderer } from 'three/webgpu';
 
 const loader: MMDLoader = new SubpathLoader();
 const mesh: MMDMesh = await loader.loadAsync( 'model.pmx' );
-mesh.material[ 0 ].gradientMap = MMDToonShader.uniforms.gradientMap.value;
+mesh.material[ 0 ].gradientMap = null;
 mesh.material[ 0 ].shininess = 30;
 const helper: MMDAnimationHelper = new SubpathHelper( { sync: false, pmxAnimation: true } );
 helper.add( mesh, { physics: false, animation: new AnimationClip() } ).update( 1 / 60 );
@@ -40,7 +42,12 @@ const bytes: Uint8Array | null = exporter.parseVpd( mesh, true );
 if ( text ) helper.pose( mesh, new Parser().parseVpd( text, true ) );
 if ( bytes ) new CharsetEncoder().s2u( bytes );
 new Parser().parsePmx( new ArrayBuffer( 0 ), true );
-SubpathShader.uniforms.diffuse.value.setRGB( 1, 1, 1 );
+const material: MMDToonMaterial = new SubpathMaterial( { shininess: 0, matcapCombine: 0 } );
+material.diffuse.setRGB( 1, 1, 1 );
+material.displacementScale = 0.5;
+const outline: MMDOutlineEffect = new SubpathOutline( new WebGPURenderer( { forceWebGL: true } ) );
+outline.enabled = false;
+outline.dispose();
 
 // The optional Ammo runtime satisfies the structural API without a package
 // runtime import, and declaration consumers need no ammojs-typed dependency.
@@ -64,3 +71,6 @@ new CCDIKSolver( mesh, [ { target: 'target', effector: 1, links: [] } ] );
 import { MMDParser, Parser as RemovedParser, CharsetEncoder as RemovedEncoder } from 'three-mmd-loader';
 // @ts-expect-error the old parser subpath is no longer exported
 import 'three-mmd-loader/libs/mmdparser.module.js';
+
+// @ts-expect-error the GLSL shader subpath was removed by the TSL migration
+import 'three-mmd-loader/shaders/MMDToonShader.js';

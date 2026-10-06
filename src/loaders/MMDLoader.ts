@@ -1,5 +1,5 @@
 import { Camera, LoadingManager } from 'three';
-import type { Texture, TypedArray, KeyframeTrack, ShaderMaterialParameters, Combine, NormalMapTypes, Vector2 } from 'three';
+import type { Texture, TypedArray, KeyframeTrack } from 'three';
 import { Parser } from 'mmd-parser';
 import type { Model, Pmd, Pmx, PmdMorph, PmxVertexMorph, MaterialMorphElement, Vmd, VmdMotion, VmdMorph, Vpd } from 'mmd-parser';
 import type { MMDBone, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
@@ -10,7 +10,6 @@ import {
 	BufferGeometry,
 	Color,
 	CustomBlending,
-	TangentSpaceNormalMap,
 	DoubleSide,
 	DstAlphaFactor,
 	Euler,
@@ -20,8 +19,6 @@ import {
 	Interpolant,
 	Loader,
 	LoaderUtils,
-	UniformsUtils,
-	ShaderMaterial,
 	MultiplyOperation,
 	NearestFilter,
 	NumberKeyframeTrack,
@@ -43,7 +40,8 @@ import {
 	RGB_ETC1_Format,
 	RGB_ETC2_Format
 } from 'three';
-import { MMDToonShader } from '../shaders/MMDToonShader.js';
+import { MMDToonMaterial } from '../materials/MMDToonMaterial.js';
+import type { MMDToonMaterialParameters, MMDOutlineParameters } from '../materials/MMDToonMaterial.js';
 import { TGALoader } from 'three/addons/loaders/TGALoader.js';
 
 // The parser discriminates models through their nested metadata.
@@ -58,10 +56,9 @@ type OnError = ( error: unknown ) => void;
 type MMDTexture = Texture & { readyCallbacks?: ( ( texture: MMDTexture ) => void )[]; transparent?: boolean; isCompressedTexture?: boolean };
 type TextureOptions = { isToonTexture?: boolean; isDefaultToonTexture?: boolean };
 type GrantEntry = { parent: GrantEntry | null; children: GrantEntry[]; param: Grant | null; visited: boolean };
-type MMDMaterialParameters = ShaderMaterialParameters & {
-	diffuse?: Color; specular?: Color; shininess?: number; emissive?: Color;
-	map?: MMDTexture; matcap?: MMDTexture; gradientMap?: MMDTexture; matcapCombine?: Combine;
-	userData: { MMD: { mapFileName?: string; matcapFileName?: string }; outlineParameters?: { thickness: number; color: number[]; alpha: number; visible: boolean } };
+type MMDMaterialParameters = MMDToonMaterialParameters & {
+	map?: MMDTexture;
+	userData: { MMD: { mapFileName?: string; matcapFileName?: string }; outlineParameters?: MMDOutlineParameters };
 };
 
 
@@ -69,7 +66,7 @@ type MMDMaterialParameters = ShaderMaterialParameters & {
  * Dependencies
  *  - mmd-parser https://github.com/takahirox/mmd-parser
  *  - TGALoader
- *  - OutlineEffect
+ *  - MMDToonMaterial (TSL / NodeMaterial)
  *
  * MMDLoader creates Three.js Objects from MMD resources as
  * PMD, PMX, VMD, and VPD files.
@@ -604,6 +601,7 @@ class GeometryBuilder {
 		const bones: MMDBone[] = [];
 		const skinIndices = [];
 		const skinWeights = [];
+		const edgeRatios = [];
 
 		const morphTargets = [];
 		const morphPositions = [];
@@ -623,6 +621,8 @@ class GeometryBuilder {
 		for ( let i = 0; i < data.metadata.vertexCount; i ++ ) {
 
 			const v = data.vertices[ i ];
+			// PMD vertex edgeFlag is inverted: 1 disables an edge.
+			edgeRatios.push( 'edgeRatio' in v ? v.edgeRatio : v.edgeFlag === 0 ? 1 : 0 );
 
 			for ( let j = 0, jl = v.position.length; j < jl; j ++ ) {
 
@@ -1075,6 +1075,7 @@ class GeometryBuilder {
 		geometry.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
 		geometry.setAttribute( 'skinIndex', new Uint16BufferAttribute( skinIndices, 4 ) );
 		geometry.setAttribute( 'skinWeight', new Float32BufferAttribute( skinWeights, 4 ) );
+		geometry.setAttribute( 'mmdEdgeRatio', new Float32BufferAttribute( edgeRatios, 1 ) );
 		geometry.setIndex( indices );
 
 		for ( let i = 0, il = groups.length; i < il; i ++ ) {
@@ -1237,26 +1238,19 @@ class MaterialBuilder {
 
 				if ( material.fileName ) {
 
-					const fileName = material.fileName;
-					const fileNames = fileName.split( '*' );
+					for ( const fileName of material.fileName.split( '*' ) ) {
 
-					// fileNames[ 0 ]: mapFileName
-					// fileNames[ 1 ]: matcapFileName( optional )
+						const extension = fileName.slice( - 4 ).toLowerCase();
+						if ( extension === '.sph' || extension === '.spa' ) {
 
-					params.map = this._loadTexture( fileNames[ 0 ], textures );
+							params.matcap = this._loadTexture( fileName, textures );
+							params.matcapCombine = extension === '.sph' ? MultiplyOperation : AddOperation;
 
-					if ( fileNames.length > 1 ) {
+						} else if ( fileName ) {
 
-						const extension = fileNames[ 1 ].slice( - 4 ).toLowerCase();
+							params.map = this._loadTexture( fileName, textures );
 
-						params.matcap = this._loadTexture(
-							fileNames[ 1 ],
-							textures
-						);
-
-						params.matcapCombine = extension === '.sph'
-							? MultiplyOperation
-							: AddOperation;
+						}
 
 					}
 
@@ -1277,7 +1271,7 @@ class MaterialBuilder {
 					}
 				);
 
-				// parameters for OutlineEffect
+				// parameters for MMDOutlineEffect
 
 				params.userData.outlineParameters = {
 					thickness: material.edgeFlag === 1 ? 0.003 : 0.0,
@@ -1346,7 +1340,7 @@ class MaterialBuilder {
 					}
 				);
 
-				// parameters for OutlineEffect
+				// parameters for MMDOutlineEffect
 				params.userData.outlineParameters = {
 					thickness: material.edgeSize / 300, // TODO: better calculation?
 					color: material.edgeColor.slice( 0, 3 ),
@@ -1356,7 +1350,7 @@ class MaterialBuilder {
 
 			}
 
-			if ( params.map !== undefined ) {
+			if ( params.map ) {
 
 				if ( ! params.transparent ) {
 
@@ -1368,7 +1362,24 @@ class MaterialBuilder {
 
 			}
 
-			materials.push( new MMDToonMaterial( params ) );
+			const toonMaterial = new MMDToonMaterial( params );
+			// The image transparency detector runs before this callback. Preserve
+			// texture alpha in the node material once asynchronous decoding finishes.
+			if ( params.map && ! toonMaterial.transparent ) {
+
+				params.map.readyCallbacks!.push( texture => {
+
+					if ( texture.transparent ) {
+
+						toonMaterial.transparent = true;
+						toonMaterial.needsUpdate = true;
+
+					}
+
+				} );
+
+			}
+			materials.push( toonMaterial );
 
 		}
 
@@ -2169,207 +2180,6 @@ class CubicBezierInterpolation extends Interpolant {
 		}
 
 		return ( sst3 * y1 ) + ( stt3 * y2 ) + ttt;
-
-	}
-
-}
-
-class MMDToonMaterial extends ShaderMaterial {
-
-	declare readonly isMMDToonMaterial: boolean;
-	declare _matcapCombine: Combine;
-	declare matcapCombine: Combine;
-	declare emissiveIntensity: number;
-	declare normalMapType: NormalMapTypes;
-	declare combine: Combine;
-	declare wireframeLinecap: string;
-	declare wireframeLinejoin: string;
-	declare flatShading: boolean;
-	declare _shininess: number;
-	declare shininess: number;
-	declare diffuse: Color;
-	declare color: Color;
-	declare specular: Color;
-	declare emissive: Color;
-	declare map: Texture | null;
-	declare matcap: Texture | null;
-	declare gradientMap: Texture | null;
-	declare lightMap: Texture | null;
-	declare lightMapIntensity: number;
-	declare aoMap: Texture | null;
-	declare aoMapIntensity: number;
-	declare emissiveMap: Texture | null;
-	declare bumpMap: Texture | null;
-	declare bumpScale: number;
-	declare normalMap: Texture | null;
-	declare normalScale: Vector2;
-	declare displacemantBias: number;
-	declare displacemantMap: Texture | null;
-	declare displacemantScale: number;
-	declare specularMap: Texture | null;
-	declare alphaMap: Texture | null;
-	declare reflectivity: number;
-	declare refractionRatio: number;
-
-	constructor( parameters?: MMDMaterialParameters ) {
-
-		super();
-
-		this.isMMDToonMaterial = true;
-
-		this.type = 'MMDToonMaterial';
-
-		this._matcapCombine = AddOperation;
-		this.emissiveIntensity = 1.0;
-		this.normalMapType = TangentSpaceNormalMap;
-
-		this.combine = MultiplyOperation;
-
-		this.wireframeLinecap = 'round';
-		this.wireframeLinejoin = 'round';
-
-		this.flatShading = false;
-
-		this.lights = true;
-
-		this.vertexShader = MMDToonShader.vertexShader;
-		this.fragmentShader = MMDToonShader.fragmentShader;
-
-		this.defines = Object.assign( {}, MMDToonShader.defines );
-		Object.defineProperty( this, 'matcapCombine', {
-
-			get: function () {
-
-				return this._matcapCombine;
-
-			},
-
-			set: function ( value ) {
-
-				this._matcapCombine = value;
-
-				switch ( value ) {
-
-					case MultiplyOperation:
-						this.defines.MATCAP_BLENDING_MULTIPLY = true;
-						delete this.defines.MATCAP_BLENDING_ADD;
-						break;
-
-					default:
-					case AddOperation:
-						this.defines.MATCAP_BLENDING_ADD = true;
-						delete this.defines.MATCAP_BLENDING_MULTIPLY;
-						break;
-
-				}
-
-			},
-
-		} );
-
-		this.uniforms = UniformsUtils.clone( MMDToonShader.uniforms );
-
-		// merged from MeshToon/Phong/MatcapMaterial
-		const exposePropertyNames = [
-			'specular',
-			'opacity',
-			'diffuse',
-
-			'map',
-			'matcap',
-			'gradientMap',
-
-			'lightMap',
-			'lightMapIntensity',
-
-			'aoMap',
-			'aoMapIntensity',
-
-			'emissive',
-			'emissiveMap',
-
-			'bumpMap',
-			'bumpScale',
-
-			'normalMap',
-			'normalScale',
-
-			'displacemantBias',
-			'displacemantMap',
-			'displacemantScale',
-
-			'specularMap',
-
-			'alphaMap',
-
-			'reflectivity',
-			'refractionRatio',
-		];
-		for ( const propertyName of exposePropertyNames ) {
-
-			Object.defineProperty( this, propertyName, {
-
-				get: function () {
-
-					return this.uniforms[ propertyName ].value;
-
-				},
-
-				set: function ( value ) {
-
-					this.uniforms[ propertyName ].value = value;
-
-				},
-
-			} );
-
-		}
-
-		// Special path for shininess to handle zero shininess properly
-		this._shininess = 30;
-		Object.defineProperty( this, 'shininess', {
-
-			get: function () {
-
-				return this._shininess;
-
-			},
-
-			set: function ( value ) {
-
-				this._shininess = value;
-				this.uniforms.shininess.value = Math.max( this._shininess, 1e-4 ); // To prevent pow( 0.0, 0.0 )
-
-			},
-
-		} );
-
-		Object.defineProperty(
-			this,
-			'color',
-			Object.getOwnPropertyDescriptor( this, 'diffuse' )!
-		);
-
-		this.setValues( parameters );
-
-	}
-
-	copy( source: MMDToonMaterial ) {
-
-		super.copy( source );
-
-		this.matcapCombine = source.matcapCombine;
-		this.emissiveIntensity = source.emissiveIntensity;
-		this.normalMapType = source.normalMapType;
-
-		this.combine = source.combine;
-
-		this.wireframeLinecap = source.wireframeLinecap;
-		this.wireframeLinejoin = source.wireframeLinejoin;
-
-		this.flatShading = source.flatShading;
-
-		return this;
 
 	}
 

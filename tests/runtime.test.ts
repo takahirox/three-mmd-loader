@@ -5,12 +5,12 @@ import { createRequire } from 'node:module';
 import type { AnimationClip } from 'three';
 import type { AmmoAPI } from '../dist/ammo.js';
 import {
-	Audio, Bone, BufferGeometry, DoubleSide, FrontSide, Loader, LoadingManager,
-	MeshBasicMaterial, PerspectiveCamera, ShaderChunk, Skeleton, SkinnedMesh, Texture, Vector3
+	AddOperation, Audio, Bone, BufferGeometry, DataTexture, DoubleSide, FrontSide, Loader, LoadingManager,
+	MeshBasicMaterial, MultiplyOperation, PerspectiveCamera, Skeleton, SkinnedMesh, Texture, Vector3
 } from 'three';
 import {
 	CCDIKSolver, MMDAnimationHelper, MMDExporter, MMDLoader, MMDPhysics,
-	MMDToonShader
+	MMDToonMaterial
 } from 'three-mmd-loader';
 import { pmdBuffer, pmxBuffer, vmdBuffer } from './fixtures.ts';
 
@@ -67,9 +67,10 @@ for ( const format of [ 'pmd', 'pmx' ] ) {
 		assert.equal( material.isMMDToonMaterial, true );
 		assert.equal( material.lights, true );
 		assert.equal( material.side, format === 'pmx' ? DoubleSide : FrontSide );
-		assert.equal( material.fragmentShader, MMDToonShader.fragmentShader );
-		assert.equal( material.uniforms.gradientMap.value, material.gradientMap );
-		assert.equal( material.uniforms.shininess.value, 30 );
+		assert.equal( material.isNodeMaterial, true );
+		assert.equal( mesh.geometry.attributes.mmdEdgeRatio.getX( 0 ), 1 );
+		assert.ok( material.gradientMap instanceof Texture );
+		assert.equal( material.shininess, 30 );
 		assert.equal( material.userData.outlineParameters.visible, true );
 		assert.doesNotThrow( () => material.clone() );
 
@@ -300,25 +301,102 @@ test( 'CCDIKSolver moves an effector towards its target', () => {
 
 } );
 
-test( 'toon shader resolves against the targeted Three.js shader chunks', () => {
+test( 'node material clones MMD shading and outline properties independently', () => {
 
-	function resolve( source: string ): string {
+	const source = buildMesh( 'pmx' ).material[ 0 ];
+	source.matcap = new Texture();
+	source.matcapCombine = 0;
+	source.displacementMap = new Texture();
+	source.normalScale.set( 2, 3 );
+	const clone = source.clone();
+	assert.ok( clone instanceof MMDToonMaterial );
+	assert.equal( clone.matcap, source.matcap );
+	assert.equal( clone.gradientMap, source.gradientMap );
+	assert.equal( clone.matcapCombine, source.matcapCombine );
+	assert.equal( clone.displacementMap, source.displacementMap );
+	assert.deepEqual( clone.normalScale.toArray(), [ 2, 3 ] );
+	clone.color.setRGB( 0, 0, 0 );
+	assert.notDeepEqual( clone.color, source.color );
+	clone.userData.outlineParameters.color[ 0 ] = 1;
+	assert.equal( source.userData.outlineParameters.color[ 0 ], 0 );
 
-		return source.replace( /#include <(\w+)>/g, ( _: string, name: string ) => {
+} );
 
-			assert.equal( typeof ( ShaderChunk as Record<string, string> )[ name ], 'string', `Missing shader chunk: ${name}` );
-			return resolve( ( ShaderChunk as Record<string, string> )[ name ] );
+test( 'loader preserves PMD flags and PMX per-vertex edge ratios and per-material edges', () => {
 
-		} );
+	const parser = new Parser();
+	const pmd = parser.parsePmd( pmdBuffer(), true );
+	pmd.vertices[ 0 ].edgeFlag = 1;
+	pmd.materials[ 0 ].edgeFlag = 0;
+	const pmdMesh = modelLoader().meshBuilder.build( pmd, '' );
+	assert.equal( pmdMesh.geometry.attributes.mmdEdgeRatio.getX( 0 ), 0 );
+	assert.equal( pmdMesh.material[ 0 ].userData.outlineParameters.visible, false );
+	const pmx = parser.parsePmx( pmxBuffer(), true );
+	pmx.vertices[ 0 ].edgeRatio = 0;
+	pmx.vertices[ 1 ].edgeRatio = 0.5;
+	pmx.vertices[ 2 ].edgeRatio = 2;
+	pmx.materials[ 0 ].edgeSize = 3;
+	pmx.materials[ 0 ].edgeColor = [ 1, 0.25, 0.5, 0.4 ];
+	pmx.materials.push( { ...pmx.materials[ 0 ], flag: 0, edgeSize: 0, faceCount: 0 } );
+	pmx.metadata.materialCount = 2;
+	const mesh = modelLoader().meshBuilder.build( pmx, '' );
+	assert.deepEqual( Array.from( mesh.geometry.attributes.mmdEdgeRatio.array ), [ 0, 0.5, 2 ] );
+	assert.deepEqual( mesh.material[ 0 ].userData.outlineParameters, {
+		thickness: 0.01, color: [ 1, 0.25, 0.5 ], alpha: 0.4, visible: true
+	} );
+	assert.equal( mesh.material[ 1 ].userData.outlineParameters.visible, false );
+
+} );
+
+test( 'PMD filenames and PMX environment flags select the sphere blend mode', () => {
+
+	const parser = new Parser();
+	for ( const [ fileName, blend, hasMap ] of [
+		[ 'sphere.sph', MultiplyOperation, false ],
+		[ 'sphere.spa', AddOperation, false ],
+		[ 'diffuse.png*sphere.sph', MultiplyOperation, true ],
+		[ 'sphere.spa*diffuse.png', AddOperation, true ]
+	] as const ) {
+
+		const data = parser.parsePmd( pmdBuffer(), true );
+		data.materials[ 0 ].fileName = fileName;
+		const material = modelLoader().meshBuilder.build( data, '' ).material[ 0 ];
+		assert.ok( material.matcap instanceof Texture, fileName );
+		assert.equal( material.matcapCombine, blend, fileName );
+		assert.equal( material.map !== null, hasMap, fileName );
 
 	}
-	assert.ok( resolve( MMDToonShader.vertexShader ).includes( 'gl_Position' ) );
-	const fragment = resolve( MMDToonShader.fragmentShader );
-	assert.match( fragment, /getGradientIrradiance\( geometryNormal, directLight.direction \)/ );
-	assert.match( fragment, /outgoingLight \*= matcapColor.rgb/ );
-	assert.match( fragment, /outgoingLight \+= matcapColor.rgb/ );
-	assert.equal( MMDToonShader.uniforms.matcap.value, null );
-	assert.equal( MMDToonShader.uniforms.gradientMap.value, null );
+	for ( const envFlag of [ 1, 2 ] ) {
+
+		const data = parser.parsePmx( pmxBuffer(), true );
+		data.textures = [ 'sphere.png' ];
+		data.materials[ 0 ].envTextureIndex = 0;
+		data.materials[ 0 ].envFlag = envFlag;
+		const material = modelLoader().meshBuilder.build( data, '' ).material[ 0 ];
+		assert.ok( material.matcap instanceof Texture );
+		assert.equal( material.matcapCombine, envFlag === 1 ? MultiplyOperation : AddOperation );
+
+	}
+
+} );
+
+test( 'decoded diffuse texture alpha enables node material transparency', () => {
+
+	const data = new Parser().parsePmx( pmxBuffer(), true );
+	data.textures = [ 'diffuse.png' ];
+	data.materials[ 0 ].textureIndex = 0;
+	const loader = modelLoader();
+	class FixtureTextureLoader extends Loader<Texture> {
+
+		load() { return new DataTexture( new Uint8Array( [ 255, 255, 255, 128 ] ), 1, 1 ); }
+
+	}
+	loader.manager.addHandler( /diffuse\.png$/, new FixtureTextureLoader() );
+	const material = loader.meshBuilder.build( data, '' ).material[ 0 ];
+	assert.equal( material.transparent, false );
+	const texture = material.map as Texture & { readyCallbacks: ( ( texture: Texture ) => void )[] };
+	for ( const callback of texture.readyCallbacks ) callback( texture );
+	assert.equal( material.transparent, true );
 
 } );
 
