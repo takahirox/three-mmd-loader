@@ -1,6 +1,7 @@
 import type { Audio, Camera, Object3D as ThreeObject } from 'three';
 import type { AnimationAction, AnimationClip, Bone } from 'three';
-import type { MMDMesh, MMDBone, Grant, VPD } from '../types.js';
+import type { Vpd } from 'mmd-parser';
+import type { MMDMesh, MMDBone, Grant } from '../types.js';
 import type { MMDPhysicsParameters } from './MMDPhysics.js';
 import {
 	AnimationMixer,
@@ -223,14 +224,14 @@ class MMDAnimationHelper {
 	 * Changes the pose of SkinnedMesh as VPD specifies.
 	 *
 	 * @param {THREE.SkinnedMesh} mesh
-	 * @param {Object} vpd - VPD content parsed MMDParser
+	 * @param {Object} vpd - VPD content parsed by mmd-parser
 	 * @param {Object} params - (optional)
 	 * @param {boolean} params.resetPose - Default is true.
 	 * @param {boolean} params.ik - Default is true.
 	 * @param {boolean} params.grant - Default is true.
 	 * @return {MMDAnimationHelper}
 	 */
-	pose( mesh: MMDMesh, vpd: VPD, params: MMDPoseParameters = {} ) {
+	pose( mesh: MMDMesh, vpd: Vpd, params: MMDPoseParameters = {} ) {
 
 		if ( params.resetPose !== false ) mesh.pose();
 

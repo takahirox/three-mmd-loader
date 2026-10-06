@@ -22,9 +22,11 @@ test( 'maintained runtime sources remain checked TypeScript with built JS and de
 		assert.ok( existsSync( join( root, `dist/${path}.d.ts` ) ), path );
 
 	}
+	assert.ok( ! existsSync( join( root, 'src/libs' ) ), 'No vendored parser source or declarations' );
+	assert.ok( ! existsSync( join( root, 'dist/libs' ) ), 'No copied parser artifacts' );
 	for ( const entry of readdirSync( join( root, 'src' ), { recursive: true, encoding: 'utf8' } ) ) {
 
-		if ( entry.endsWith( '.js' ) ) assert.equal( entry.replaceAll( '\\', '/' ), 'libs/mmdparser.module.js' );
+		assert.ok( ! /\.(?:c|m)?js$/.test( entry ), entry );
 		if ( ! entry.endsWith( '.ts' ) ) continue;
 		const source = readFileSync( join( root, 'src', entry ), 'utf8' );
 		assert.doesNotMatch( source, /@ts-(?:nocheck|ignore)/, entry );
@@ -33,13 +35,13 @@ test( 'maintained runtime sources remain checked TypeScript with built JS and de
 
 } );
 
-test( 'repository JavaScript is limited to the vendored parser and generated output', () => {
+test( 'repository JavaScript is limited to generated output', () => {
 
 	checkTypeScriptSources();
 	assert.deepEqual( unexpectedJavaScript( [
 		'src/libs/mmdparser.module.js', 'dist/index.js', 'dist/examples/examples/browser.js',
 		'examples/browser.ts', 'scripts/tool.ts', 'tests/unit.test.ts',
 		'examples/regression.js', 'scripts/regression.js', 'tests/regression.js', 'other.js', 'other.mjs', 'other.cjs'
-	] ), [ 'examples/regression.js', 'scripts/regression.js', 'tests/regression.js', 'other.js', 'other.mjs', 'other.cjs' ] );
+	] ), [ 'src/libs/mmdparser.module.js', 'examples/regression.js', 'scripts/regression.js', 'tests/regression.js', 'other.js', 'other.mjs', 'other.cjs' ] );
 
 } );

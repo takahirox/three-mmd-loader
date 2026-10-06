@@ -530,7 +530,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 				const file = resolve( siteRoot, path.slice( prefix.length + 1 ) );
 				if ( ! file.startsWith( siteRoot + sep ) ) throw new Error( 'Outside site' );
 				const content = await readFile( file );
-				const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.bmp': 'image/bmp', '.mp3': 'audio/mpeg', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
+				const types: Record<string, string> = { '.mjs': 'text/javascript', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.bmp': 'image/bmp', '.mp3': 'audio/mpeg', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
 				response.writeHead( 200, { 'Content-Type': types[ extname( file ) ] || 'application/octet-stream' } ).end( content );
 
 			} catch {

@@ -8,7 +8,7 @@ const root = fileURLToPath( new URL( '../', import.meta.url ) );
 export function unexpectedJavaScript( paths: string[] ): string[] {
 
 	return paths.filter( path => /\.(?:c|m)?js$/.test( path ) &&
-		path !== 'src/libs/mmdparser.module.js' && ! path.startsWith( 'dist/' ) );
+		! path.startsWith( 'dist/' ) );
 
 }
 
@@ -25,6 +25,6 @@ export function checkTypeScriptSources(): void {
 if ( process.argv[ 1 ] && resolve( process.argv[ 1 ] ) === fileURLToPath( import.meta.url ) ) {
 
 	checkTypeScriptSources();
-	console.log( 'Repository JavaScript exceptions verified.' );
+	console.log( 'Repository TypeScript sources verified.' );
 
 }

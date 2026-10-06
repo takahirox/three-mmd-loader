@@ -5,7 +5,7 @@ import {
 } from 'three';
 import type { SkinnedMesh } from 'three';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { MMDParser } from '../libs/mmdparser.module.js';
+import { CharsetEncoder } from 'mmd-parser';
 
 /**
  * Dependencies
@@ -162,7 +162,7 @@ function unicodeToShiftjis( str: string ) {
 
 	if ( u2sTable === undefined ) {
 
-		const encoder = new MMDParser.CharsetEncoder();
+		const encoder = new CharsetEncoder();
 		const table = encoder.s2uTable;
 		u2sTable = {};
 
@@ -175,7 +175,7 @@ function unicodeToShiftjis( str: string ) {
 			const value = table[ Number( key ) ];
 			const code = parseInt( key );
 
-			u2sTable[ value ] = code;
+			if ( value !== undefined ) u2sTable[ value ] = code;
 
 		}
 

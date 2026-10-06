@@ -1,4 +1,4 @@
-# TypeScript migration (Issues #16 and #18)
+# TypeScript migration (Issues #16, #18, and #20)
 
 The maintained modules in `src/` use strict TypeScript. `npm run typecheck`
 builds the package and examples first, then checks the package source, browser
@@ -7,21 +7,20 @@ modules and declarations into `dist/`; Three.js remains an external peer.
 Package exports retain the root and all documented `.js` subpaths, with
 `types` conditions pointing to the corresponding declarations.
 
-The vendored `src/libs/mmdparser.module.js` remains unchanged. It contains
-11,530 lines of prototype-based JavaScript, including a large Shift_JIS table.
-Its parsers incrementally construct format-dependent objects. Converting the
-implementation with useful checking would require restructuring those object
-builders and the vendor's binary reader, beyond this source migration. A
-rename with checking disabled or placeholder types would provide little value.
-The adjacent declaration file describes the parser, charset encoder, model,
-motion, and pose APIs used by the maintained modules. The build copies both
-vendor files into `dist/libs/`; runtime parser and export tests continue to
-exercise the unchanged implementation.
+Issue #20 replaces the former local parser with the external runtime dependency
+`mmd-parser ^1.1.1`. MMDLoader imports `Parser`, and MMDExporter imports
+`CharsetEncoder`, directly from the dependency. The loader and helper use its
+public PMD/PMX/VMD/VPD result types. Local types now describe Three.js meshes,
+geometry, IK, grants, and transformed physics parameters rather than duplicate
+raw parser results. The parser subpath and root constructor re-exports have
+been removed; consumers import parser APIs and raw data types from `mmd-parser`.
 
 Browser examples keep their `/src/` URLs: the development server maps them to
 compiled `dist/` modules, and the static build copies those modules to the
-site's `src/` directory. Issue #18 also migrates examples, scripts, and tests
-to strict TypeScript. Browser modules compile into `dist/example-modules/`
+site's `src/` directory. Import maps resolve `mmd-parser` to the installed
+`build/mmdparser.module.mjs` artifact, served locally and copied with its license
+into the static site. No parser source is copied into the addon package.
+Issue #18 also migrates examples, scripts, and tests to strict TypeScript. Browser modules compile into `dist/example-modules/`
 and keep the same `.js` URLs in development and in the static site. Node 20+
 runs repository scripts and tests with the pinned `tsx` loader. The Pages
 setup and deployment jobs install development tooling before executing these scripts.
@@ -31,7 +30,7 @@ Validation before merge:
 
 - `npm run typecheck` checks all maintained implementations with `strict` and
   runs `check:typescript`. That check rejects repository JavaScript outside
-  `src/libs/mmdparser.module.js` and generated `dist/` output; it considers
+  generated `dist/` output; it considers
   tracked files and new files, ignoring removed paths during migration.
 - `npm test` builds the package, runs runtime and example-build checks, guards
   the required TypeScript sources, and installs a tarball into an isolated
@@ -47,5 +46,5 @@ elapsed-time state, and invalid accesses in the experimental shared-physics
 path, plus a grant hierarchy lookup through the wrong object. Those accesses now use the helper's typed state and the physics methods
 already present in the implementation.
 
-No post-merge verification is required by Issue #16. When preparing a PR,
-include the parser exception rationale above and the executed check results.
+No post-merge verification is required by Issues #16 and #20. When preparing
+a PR, include the executed check results.

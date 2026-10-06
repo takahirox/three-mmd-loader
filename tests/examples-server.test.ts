@@ -17,6 +17,7 @@ test( 'example server serves local modules with MIME types and limits file acces
 			[ '/examples/browser.css', 'text/css' ],
 			[ '/examples/screenshots/webgl_loader_mmd.jpg', 'image/jpeg' ],
 			[ '/examples/fonts/RobotoMono-Regular.woff2', 'font/woff2' ],
+			[ '/node_modules/mmd-parser/build/mmdparser.module.mjs', 'text/javascript' ],
 			[ '/src/loaders/MMDLoader.js', 'text/javascript' ],
 			[ '/node_modules/three/build/three.module.js', 'text/javascript' ],
 			[ '/node_modules/ammojs-typed/ammo/ammo.js', 'text/javascript' ]
@@ -29,7 +30,7 @@ test( 'example server serves local modules with MIME types and limits file acces
 			assert.ok( ( await response.arrayBuffer() ).byteLength > 0, path );
 
 		}
-		for ( const path of [ '/package.json', '/.git/config', '/examples/missing.js', '/examples/%2e%2e%2fpackage.json' ] ) {
+		for ( const path of [ '/src/libs/mmdparser.module.js', '/package.json', '/.git/config', '/examples/missing.js', '/examples/%2e%2e%2fpackage.json' ] ) {
 
 			const response = await fetch( base + path );
 			assert.equal( response.status, 404, path );

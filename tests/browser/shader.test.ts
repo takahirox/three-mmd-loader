@@ -21,6 +21,7 @@ test( 'PMD and PMX models without morphs compile toon, textured, and matcap shad
 	const fixtures = { pmd: Array.from( new Uint8Array( pmdBuffer() ) ), pmx: Array.from( new Uint8Array( pmxBuffer() ) ) };
 	const html = `<!doctype html>
 <script type="importmap">{"imports":{
+	"mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs",
 	"three":"/node_modules/three/build/three.module.js",
 	"three/addons/":"/node_modules/three/examples/jsm/"
 }}</script>
@@ -31,7 +32,7 @@ import {
 	PerspectiveCamera, Scene, WebGLRenderer
 } from 'three';
 import { MMDLoader } from '/src/loaders/MMDLoader.js';
-import { MMDParser } from '/src/libs/mmdparser.module.js';
+import { Parser } from 'mmd-parser';
 
 const result = { cases: [], errors: [] };
 try {
@@ -56,7 +57,7 @@ try {
 
 		for ( const variant of [ 'toon', 'textured', 'matcap-add', 'matcap-multiply' ] ) {
 
-			const parser = new MMDParser.Parser();
+			const parser = new Parser();
 			const buffer = new Uint8Array( bytes ).buffer;
 			const data = format === 'pmd' ? parser.parsePmd( buffer, true ) : parser.parsePmx( buffer, true );
 			const mesh = loader.meshBuilder.build( data, '' );
@@ -108,7 +109,7 @@ document.getElementById( 'result' ).textContent = encodeURIComponent( JSON.strin
 
 		}
 		// Serve only the modules required by the regression page.
-		if ( ! /^(\/src\/|\/node_modules\/three\/).+\.js$/.test( path ) ) {
+		if ( ! /^(\/src\/|\/node_modules\/(?:three|mmd-parser)\/).+\.(?:mjs|js)$/.test( path ) ) {
 
 			response.writeHead( 404 ).end();
 			return;

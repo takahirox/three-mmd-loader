@@ -1,15 +1,16 @@
 import { AnimationClip, PerspectiveCamera, Vector3 } from 'three';
 import {
 	MMDLoader, MMDAnimationHelper, CCDIKSolver, MMDPhysics, MMDExporter,
-	MMDParser, MMDToonShader
+	MMDToonShader
 } from 'three-mmd-loader';
-import type { AmmoAPI, IK, MMDMesh, VMD, VPD } from 'three-mmd-loader';
+import type { AmmoAPI, IK, MMDMesh } from 'three-mmd-loader';
 import { MMDLoader as SubpathLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
 import { MMDAnimationHelper as SubpathHelper } from 'three-mmd-loader/animation/MMDAnimationHelper.js';
 import { CCDIKHelper } from 'three-mmd-loader/animation/CCDIKSolver.js';
 import { MMDPhysics as SubpathPhysics } from 'three-mmd-loader/animation/MMDPhysics.js';
 import { MMDExporter as SubpathExporter } from 'three-mmd-loader/exporters/MMDExporter.js';
-import { Parser, CharsetEncoder } from 'three-mmd-loader/libs/mmdparser.module.js';
+import { Parser, CharsetEncoder } from 'mmd-parser';
+import type { Pmd, Pmx, Vmd, Vpd } from 'mmd-parser';
 import { MMDToonShader as SubpathShader } from 'three-mmd-loader/shaders/MMDToonShader.js';
 
 const loader: MMDLoader = new SubpathLoader();
@@ -23,10 +24,10 @@ helper.onBeforePhysics = model => { model.skeleton.bones[ 0 ].position.x = 1; };
 helper.enable( 'ik', false );
 loader.loadAnimation( [ 'a.vmd', 'b.vmd' ], mesh, clip => { helper.add( mesh, { animation: clip } ); } );
 loader.loadWithAnimation( 'model.pmd', 'motion.vmd', result => { helper.add( result.mesh, { animation: result.animation } ); } );
-loader.loadPMD( 'model.pmd', data => { loader.meshBuilder.build( data, '' ); } );
-loader.loadPMX( 'model.pmx', data => { loader.meshBuilder.build( data, '' ); } );
-loader.loadVMD( 'motion.vmd', ( motion: VMD ) => { loader.animationBuilder.build( motion, mesh ); } );
-loader.loadVPD( 'pose.vpd', true, ( pose: VPD ) => { helper.pose( mesh, pose, { ik: false } ); } );
+loader.loadPMD( 'model.pmd', ( data: Pmd ) => { loader.meshBuilder.build( data, '' ); } );
+loader.loadPMX( 'model.pmx', ( data: Pmx ) => { loader.meshBuilder.build( data, '' ); } );
+loader.loadVMD( 'motion.vmd', ( motion: Vmd ) => { loader.animationBuilder.build( motion, mesh ); } );
+loader.loadVPD( 'pose.vpd', true, ( pose: Vpd ) => { helper.pose( mesh, pose, { ik: false } ); } );
 
 const iks: IK[] = [ { target: 2, effector: 1, links: [ { index: 0, limitation: new Vector3( 1, 0, 0 ) } ] } ];
 new CCDIKSolver( mesh, iks ).update().createHelper().dispose();
@@ -38,7 +39,7 @@ const text: string | null = exporter.parseVpd( mesh );
 const bytes: Uint8Array | null = exporter.parseVpd( mesh, true );
 if ( text ) helper.pose( mesh, new Parser().parseVpd( text, true ) );
 if ( bytes ) new CharsetEncoder().s2u( bytes );
-new MMDParser.Parser().parsePmx( new ArrayBuffer( 0 ), true );
+new Parser().parsePmx( new ArrayBuffer( 0 ), true );
 SubpathShader.uniforms.diffuse.value.setRGB( 1, 1, 1 );
 
 // The optional Ammo runtime satisfies the structural API without a package
@@ -58,3 +59,8 @@ const clip: AnimationClip = await loader.loadAsync( 'model.pmx' );
 new Parser().parsePmx( 'model.pmx' );
 // @ts-expect-error IK bone indices are numeric
 new CCDIKSolver( mesh, [ { target: 'target', effector: 1, links: [] } ] );
+
+// @ts-expect-error parser constructors belong to mmd-parser
+import { MMDParser, Parser as RemovedParser, CharsetEncoder as RemovedEncoder } from 'three-mmd-loader';
+// @ts-expect-error the old parser subpath is no longer exported
+import 'three-mmd-loader/libs/mmdparser.module.js';

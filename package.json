@@ -30,11 +30,6 @@
       "import": "./dist/exporters/MMDExporter.js",
       "default": "./dist/exporters/MMDExporter.js"
     },
-    "./libs/mmdparser.module.js": {
-      "types": "./dist/libs/mmdparser.module.d.ts",
-      "import": "./dist/libs/mmdparser.module.js",
-      "default": "./dist/libs/mmdparser.module.js"
-    },
     "./loaders/MMDLoader.js": {
       "types": "./dist/loaders/MMDLoader.d.ts",
       "import": "./dist/loaders/MMDLoader.js",
@@ -57,7 +52,6 @@
     "dist/exporters",
     "dist/loaders",
     "dist/shaders",
-    "dist/libs",
     "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
@@ -95,5 +89,8 @@
     "type": "git",
     "url": "git+https://github.com/takahirox/three-mmd-loader.git"
   },
-  "types": "./dist/index.d.ts"
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "mmd-parser": "^1.1.1"
+  }
 }
