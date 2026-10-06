@@ -27,7 +27,7 @@ test( 'MMD TSL shading and inverted hull outlines render on WebGL2 and available
 <script type="module">
 import {
 	AddOperation, Bone, Color, DataTexture, DirectionalLight, DoubleSide,
-	Float32BufferAttribute, Mesh, MultiplyOperation, NearestFilter, OrthographicCamera,
+	Float32BufferAttribute, Fog, Mesh, MultiplyOperation, NearestFilter, OrthographicCamera,
 	PlaneGeometry, Scene, Skeleton, SkinnedMesh, SphereGeometry, Uint16BufferAttribute
 } from 'three';
 import { RenderTarget, WebGPURenderer } from 'three/webgpu';
@@ -179,6 +179,35 @@ try {
 		const red = colored(both,0), blue = colored(both,2);
 		check(red.length>20 && blue.length>red.length, 'different outline color/thickness missing');
 		check(blue.every(p => p[2]<230), 'outline alpha ignored');
+		// Reuse the cached outline through shader-affecting setting changes.
+		materials[0].userData.outlineParameters.alpha=0.5;
+		const faded = colored(await pixels(),0);
+		check(faded.length>20 && faded.every(p => p[2]<230), 'cached outline opaque-to-transparent alpha ignored: '+backend);
+		materials[0].userData.outlineParameters.alpha=1;
+		const opaque = colored(await pixels(),0);
+		check(opaque.length===red.length && opaque.every(p => p[2]===255), 'cached outline transparent-to-opaque alpha ignored: '+backend);
+		materials[0].transparent=true; materials[0].needsUpdate=true;
+		await pixels();
+		materials[0].userData.outlineParameters.alpha=0.5;
+		const sourceTransparent = colored(await pixels(),0);
+		check(sourceTransparent.length>20 && sourceTransparent.every(p => p[2]<230), 'cached outline source transparency ignored: '+backend);
+		materials[0].transparent=false; materials[0].needsUpdate=true;
+		materials[0].userData.outlineParameters.alpha=1;
+		const displacement = solid(255,255,255);
+		materials[0].displacementMap=displacement; materials[0].displacementScale=0.15; materials[0].needsUpdate=true;
+		const displaced = colored(await pixels(),0);
+		check(displaced.length>20 && displaced.length!==red.length, 'cached outline displacement map addition failed: '+backend);
+		materials[0].displacementScale=0;
+		check(colored(await pixels(),0).length===red.length, 'cached outline displacement scale update failed: '+backend);
+		materials[0].displacementMap=null; materials[0].needsUpdate=true;
+		check(colored(await pixels(),0).length===red.length, 'cached outline displacement map removal failed: '+backend);
+		displacement.dispose();
+		scene.fog = new Fog(0xffffff,0,0.1);
+		materials[0].fog=false;
+		check(colored(await pixels(),0).length>20, 'cached outline fog disable failed: '+backend);
+		materials[0].fog=true;
+		check(colored(await pixels(),0).length===0, 'cached outline fog enable failed: '+backend);
+		scene.fog=null;
 		materials[1].userData.outlineParameters.visible=false;
 		const disabled = await pixels();
 		check(colored(disabled,2).length===0 && colored(disabled,0).length>20, 'per-material visibility ignored');

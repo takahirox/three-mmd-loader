@@ -35,7 +35,7 @@ function createOutline() {
 	} )();
 	material.colorNode = color;
 	material.opacityNode = alpha;
-	return { material, color, thickness, alpha };
+	return { material, color, thickness, alpha, sourceVersion: - 1 };
 
 }
 
@@ -81,7 +81,13 @@ class MMDOutlineEffect {
 					entry.thickness.value = parameters.thickness;
 					entry.alpha.value = parameters.alpha;
 					const outline = entry.material;
-					outline.transparent = parameters.alpha < 1 || material.transparent;
+					const transparent = parameters.alpha < 1 || material.transparent;
+					// These settings affect the generated nodes, not just uniform values.
+					// Forward source invalidation too (e.g. changed texture sampler settings).
+					const needsUpdate = entry.sourceVersion !== material.version ||
+						outline.transparent !== transparent || outline.fog !== material.fog ||
+						outline.displacementMap !== material.displacementMap;
+					outline.transparent = transparent;
 					outline.depthWrite = material.depthWrite;
 					outline.clippingPlanes = material.clippingPlanes;
 					outline.clipIntersection = material.clipIntersection;
@@ -89,6 +95,8 @@ class MMDOutlineEffect {
 					outline.displacementMap = material.displacementMap;
 					outline.displacementScale = material.displacementScale;
 					outline.displacementBias = material.displacementBias;
+					if ( needsUpdate ) outline.needsUpdate = true;
+					entry.sourceVersion = material.version;
 					renderer.renderObject( object, scene, camera, geometry, outline, group, lights, clipping, 'mmd-outline' );
 
 				}
