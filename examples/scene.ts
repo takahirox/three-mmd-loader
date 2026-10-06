@@ -5,10 +5,11 @@ import type { AmmoAPI } from '../dist/ammo.js';
 
 import {
 	AmbientLight, Audio, AudioListener, AudioLoader, Color, DirectionalLight,
-	LoadingManager, PerspectiveCamera, PolarGridHelper, Scene, WebGLRenderer
+	LoadingManager, PerspectiveCamera, PolarGridHelper, Scene
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
+import { WebGPURenderer } from 'three/webgpu';
+import { MMDOutlineEffect } from 'three-mmd-loader/effects/MMDOutlineEffect.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { MMDLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
 import { MMDAnimationHelper } from 'three-mmd-loader/animation/MMDAnimationHelper.js';
@@ -18,8 +19,8 @@ interface ExampleContext {
 	helper: MMDAnimationHelper;
 	camera: PerspectiveCamera;
 	scene: Scene;
-	renderer: WebGLRenderer;
-	effect: OutlineEffect;
+	renderer: WebGPURenderer;
+	effect: MMDOutlineEffect;
 	gui: GUI;
 	audio?: Audio;
 	poses?: Vpd[];
@@ -31,7 +32,7 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 
 	const status = document.getElementById( 'status' )!;
 	let gui: GUI | undefined;
-	let renderer: WebGLRenderer | undefined;
+	let renderer: WebGPURenderer | undefined;
 	function fail( error: unknown ) {
 
 		document.body.dataset.state = 'error';
@@ -64,11 +65,12 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 		camera.position.set( 0, 12, 35 );
 		camera.lookAt( 0, 10, 0 );
 		scene.add( camera );
-		renderer = new WebGLRenderer( { antialias: true } );
+		renderer = new WebGPURenderer( { antialias: true, forceWebGL: new URLSearchParams( location.search ).get( 'backend' ) === 'webgl' } );
+		await renderer.init();
 		renderer.setPixelRatio( Math.min( devicePixelRatio, 2 ) );
 		document.body.appendChild( renderer.domElement );
 		renderer.debug.onShaderError = () => fail( new Error( 'Shader compilation failed' ) );
-		const effect = new OutlineEffect( renderer );
+		const effect = new MMDOutlineEffect( renderer );
 		const orbit = mode === 'audio' ? null : new OrbitControls( camera, renderer.domElement );
 		if ( orbit ) {
 
@@ -80,7 +82,7 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 
 			camera.aspect = innerWidth / innerHeight;
 			camera.updateProjectionMatrix();
-			effect.setSize( innerWidth, innerHeight );
+			renderer!.setSize( innerWidth, innerHeight );
 
 		}
 		addEventListener( 'resize', resize );
@@ -225,7 +227,7 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 		gui.domElement.setAttribute( 'aria-busy', 'false' );
 		status.textContent = mode === 'audio' ? 'Ready — press Play to start.' : 'Ready';
 		let previousTime: number | null = null;
-		renderer.setAnimationLoop( time => {
+		await renderer.setAnimationLoop( time => {
 
 			try {
 

@@ -35,10 +35,15 @@
       "import": "./dist/loaders/MMDLoader.js",
       "default": "./dist/loaders/MMDLoader.js"
     },
-    "./shaders/MMDToonShader.js": {
-      "types": "./dist/shaders/MMDToonShader.d.ts",
-      "import": "./dist/shaders/MMDToonShader.js",
-      "default": "./dist/shaders/MMDToonShader.js"
+    "./materials/MMDToonMaterial.js": {
+      "types": "./dist/materials/MMDToonMaterial.d.ts",
+      "import": "./dist/materials/MMDToonMaterial.js",
+      "default": "./dist/materials/MMDToonMaterial.js"
+    },
+    "./effects/MMDOutlineEffect.js": {
+      "types": "./dist/effects/MMDOutlineEffect.d.ts",
+      "import": "./dist/effects/MMDOutlineEffect.js",
+      "default": "./dist/effects/MMDOutlineEffect.js"
     }
   },
   "files": [
@@ -51,8 +56,9 @@
     "dist/animation",
     "dist/exporters",
     "dist/loaders",
-    "dist/shaders",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "dist/materials",
+    "dist/effects"
   ],
   "scripts": {
     "build": "node --import tsx scripts/build-package.ts",

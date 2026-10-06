@@ -20,7 +20,8 @@ Use native ES module imports, either from the package root or from addon-style
 subpaths:
 
 ```js
-import { MMDLoader, MMDAnimationHelper } from 'three-mmd-loader';
+import { MMDLoader, MMDAnimationHelper, MMDOutlineEffect } from 'three-mmd-loader';
+import { WebGPURenderer } from 'three/webgpu';
 
 // Equivalent individual imports:
 // import { MMDLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
@@ -31,7 +32,12 @@ const mesh = await loader.loadAsync( 'model.pmx' );
 const helper = new MMDAnimationHelper();
 helper.add( mesh, { physics: false } );
 
-// Add mesh to your Three.js scene and call helper.update(deltaSeconds) each frame.
+const renderer = new WebGPURenderer( { antialias: true } );
+await renderer.init(); // WebGPU, with Three.js WebGL2 fallback when unavailable
+const outlines = new MMDOutlineEffect( renderer );
+
+// Add mesh to your scene, call helper.update(deltaSeconds), then:
+// outlines.render(scene, camera);
 ```
 
 The public subpaths are:
@@ -43,10 +49,11 @@ The public subpaths are:
 | `animation/CCDIKSolver.js` | `CCDIKSolver`, `CCDIKHelper` |
 | `animation/MMDPhysics.js` | `MMDPhysics` |
 | `exporters/MMDExporter.js` | `MMDExporter` |
-| `shaders/MMDToonShader.js` | `MMDToonShader` |
+| `materials/MMDToonMaterial.js` | `MMDToonMaterial` |
+| `effects/MMDOutlineEffect.js` | `MMDOutlineEffect` |
 
 All named exports are also available from `three-mmd-loader`. The APIs follow
-the r171 addons. For parser APIs and raw model/motion/pose types, import
+the r171 addons except for the migrated rendering path described below. For parser APIs and raw model/motion/pose types, import
 directly from `mmd-parser`:
 
 ```js
@@ -77,8 +84,31 @@ rendering require a browser environment. The `mmd-parser` dependency
 supports PMX UTF-16LE text and retains limitations such as SDEF being treated
 as BDEF2.
 
-For outlines, use `OutlineEffect` from `three/addons/effects/OutlineEffect.js`;
-the loader sets the material's `userData.outlineParameters` as in r171.
+MMD rendering uses **TSL / NodeMaterial**. `MMDToonMaterial` extends Three.js
+`MeshPhongNodeMaterial`, with toon direct irradiance, Phong specular and MMD
+sphere mapping (`matcap` plus `matcapCombine`: `MultiplyOperation` for `.sph`,
+`AddOperation` for `.spa`). Standard color/opacity, diffuse and alpha textures,
+emissive, normal/bump/displacement maps, sidedness and transparency use Three's
+node material facilities. `diffuse` remains an alias for `color`. Set
+`material.needsUpdate = true` after changing texture presence or sphere blend
+mode, as with other Three.js material shader configuration changes.
+
+Use `WebGPURenderer` from `three/webgpu`; `{ forceWebGL: true }` selects the
+WebGL2 TSL backend explicitly. Both backends use the same MMD material and
+outline implementation. The legacy GLSL `MMDToonShader` export/subpath and
+WebGL-only `OutlineEffect` integration have been removed.
+
+`MMDOutlineEffect` wraps `renderer.render(scene, camera)` with an inverted,
+expanded `BackSide` hull, adapted from Three.js r186 `ToonOutlinePassNode`.
+`effect.enabled` toggles outlines globally; `effect.dispose()` releases its
+cached materials (also released when source materials are disposed).
+Per-material `userData.outlineParameters` retains `visible`, `thickness`,
+`color` (RGB array), and `alpha`. PMD edge flags and PMX edge size/color/alpha
+remain independent across material groups. The `mmdEdgeRatio` geometry
+attribute includes PMX per-vertex `edgeRatio` and PMD per-vertex edge disable
+flags, multiplying extrusion thickness. Outlines use the same mesh and Three's
+morphing/skinning/displacement setup as the surface, so animation requires no
+separate outline mesh or skeleton synchronization.
 
 Development and validation:
 
@@ -121,7 +151,7 @@ The loader and animation helper use public result types from `mmd-parser`;
 Three.js geometry, IK, and other transformed data keep their local types. See
 the [migration notes](docs/typescript-migration.md). Tests check all public
 imports, parse generated PMD/PMX/VMD assets,
-exercise animation, IK, VPD round trips, shader chunk compatibility, and real
+exercise animation, IK, VPD round trips, node material properties and edge ratios, and real
 Ammo physics. They also pack the package, install the tarball in an isolated
 consumer, and import every public module without access to the repository's
 source files. The isolated consumer also type-checks every public subpath,
@@ -133,9 +163,14 @@ the repository scripts and tests through `tsx`.
 The separate browser regression suite requires Google Chrome. Set `CHROME_BIN`
 to its executable if it is not installed at the default location (on Linux,
 the default command is `google-chrome`). It uses headless Chrome with software
-WebGL to compile, link, and render toon, textured, and additive/multiplicative
-matcap materials for generated PMD/PMX models without morph targets. Generated
-textures keep this check independent of external assets and image decoding.
+WebGL2 through `WebGPURenderer({ forceWebGL: true })` to test actual rendered
+pixels for toon gradients, diffuse textures, Phong specular, emissive, alpha,
+sidedness and additive/multiplicative sphere mapping. It verifies per-material
+outline visibility/thickness/color/alpha, per-vertex edge ratios and combined
+skinning/morphing. Generated textures and PMD/PMX models keep these checks
+independent of external assets and image decoding. When Chrome supplies a
+WebGPU adapter, the same assertions run on native WebGPU; otherwise the suite
+reports that capability-gated rendering was skipped.
 It also validates the actual example pages using generated MMD/audio fixtures,
 including rendering, animation, controls, audio playback, and VPD poses.
 

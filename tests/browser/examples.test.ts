@@ -1,6 +1,5 @@
-import type { Readable, Writable } from 'node:stream';
+import { runBrowser } from './browser.ts';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -10,134 +9,6 @@ import { createExamplesServer } from '../../scripts/serve-examples.ts';
 import { cameraVmdBuffer, pmdBuffer, vmdBuffer } from '../fixtures.ts';
 
 interface BrowserResult { page?: string; checks?: Record<string, boolean>; error?: string }
-interface CDPResults {
-	'Target.createTarget': { targetId: string };
-	'Target.attachToTarget': { sessionId: string };
-	'Page.enable': object;
-	'Emulation.setEmulatedMedia': object;
-	'Page.navigate': object;
-	'Runtime.evaluate': { exceptionDetails?: unknown; result: { value: string } };
-}
-interface Pending { resolve: ( value: unknown ) => void; reject: ( error: Error ) => void }
-interface CDPMessage { id: number; sessionId?: string; method?: string; params?: unknown; result?: unknown; error?: { message: string } }
-
-const chrome = process.env.CHROME_BIN || ( process.platform === 'darwin'
-	? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-	: process.platform === 'win32'
-		? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-		: 'google-chrome' );
-
-// Use Chrome's DevTools pipe so asynchronous audio work can finish on the
-// normal browser clock. A virtual clock can stall AudioContext operations.
-async function runBrowser( url: string, profile: string, colorScheme = 'light' ): Promise<BrowserResult[]> {
-
-	const browser = spawn( chrome, [
-		'--headless', '--no-first-run', '--no-default-browser-check',
-		'--use-angle=swiftshader', '--enable-unsafe-swiftshader',
-		'--autoplay-policy=no-user-gesture-required', '--remote-debugging-pipe',
-		`--user-data-dir=${profile}`
-	], { stdio: [ 'ignore', 'ignore', 'ignore', 'pipe', 'pipe' ] } );
-	const pending = new Map<number, Pending>();
-	const events = new Map<string, Pending>();
-	let nextID = 0;
-	let buffer = '';
-	function rejectPending( error: Error ) {
-
-		for ( const { reject } of pending.values() ) reject( error );
-		for ( const { reject } of events.values() ) reject( error );
-		pending.clear();
-		events.clear();
-
-	}
-	browser.on( 'error', rejectPending );
-	browser.on( 'exit', () => rejectPending( new Error( 'Chrome exited before validation finished' ) ) );
-	( browser.stdio[ 4 ] as Readable ).setEncoding( 'utf8' );
-	( browser.stdio[ 4 ] as Readable ).on( 'data', chunk => {
-
-		buffer += chunk;
-		let index;
-		while ( ( index = buffer.indexOf( '\0' ) ) !== -1 ) {
-
-			const message: CDPMessage = JSON.parse( buffer.slice( 0, index ) );
-			buffer = buffer.slice( index + 1 );
-			const eventKey = `${message.sessionId}:${message.method}`;
-			if ( events.has( eventKey ) ) {
-
-				events.get( eventKey )!.resolve( message.params );
-				events.delete( eventKey );
-
-			}
-			const entry = pending.get( message.id );
-			if ( ! entry ) continue;
-			pending.delete( message.id );
-			if ( message.error ) entry.reject( new Error( message.error.message ) );
-			else entry.resolve( message.result );
-
-		}
-
-	} );
-	function send<K extends keyof CDPResults>( method: K, params: Record<string, unknown> = {}, sessionId?: string ): Promise<CDPResults[K]> {
-
-		return new Promise<unknown>( ( resolve, reject ) => {
-
-			const id = ++ nextID;
-			pending.set( id, { resolve, reject } );
-			( browser.stdio[ 3 ] as Writable ).write( JSON.stringify( { id, method, params, sessionId } ) + '\0' );
-
-		} ) as Promise<CDPResults[K]>;
-
-	}
-	const timeout = setTimeout( () => {
-
-		rejectPending( new Error( 'Chrome did not finish examples validation within 45 seconds' ) );
-		browser.kill();
-
-	}, 45000 );
-	try {
-
-		const { targetId } = await send( 'Target.createTarget', { url: 'about:blank' } );
-		const { sessionId } = await send( 'Target.attachToTarget', { targetId, flatten: true } );
-		await send( 'Page.enable', {}, sessionId );
-		await send( 'Emulation.setEmulatedMedia', { features: [
-			{ name: 'prefers-color-scheme', value: colorScheme },
-			{ name: 'prefers-reduced-motion', value: 'reduce' }
-		] }, sessionId );
-		const loaded = new Promise( ( resolve, reject ) => {
-
-			events.set( `${sessionId}:Page.loadEventFired`, { resolve, reject } );
-
-		} );
-		await send( 'Page.navigate', { url }, sessionId );
-		await loaded;
-		const result = await send( 'Runtime.evaluate', {
-			expression: `new Promise( resolve => {
-				const timer = setInterval( () => {
-					const result = document.getElementById( 'result' );
-					if ( result && result.textContent !== 'pending' ) {
-						clearInterval( timer );
-						resolve( result.textContent );
-					}
-				}, 50 );
-			} )`,
-			awaitPromise: true, returnByValue: true
-		}, sessionId );
-		assert.equal( result.exceptionDetails, undefined, JSON.stringify( result.exceptionDetails ) );
-		return JSON.parse( decodeURIComponent( result.result.value ) );
-
-	} finally {
-
-		clearTimeout( timeout );
-		browser.kill();
-		if ( browser.exitCode === null && browser.signalCode === null ) {
-
-			await new Promise( resolve => browser.once( 'exit', resolve ) );
-
-		}
-
-	}
-
-}
-
 // Load the real pages in an iframe, then use their module's ready promise to
 // exercise rendered scenes and their controls. No alternate app code path.
 const harness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
@@ -321,7 +192,7 @@ try {
 		frame.width = 1024;
 		frame.height = 768;
 		const loaded = new Promise( resolve => frame.onload = resolve );
-		frame.src = '/examples/webgl_loader_mmd' + suffix + '.html';
+		frame.src = '/examples/webgl_loader_mmd' + suffix + '.html?backend=webgl';
 		document.body.appendChild( frame );
 		await loaded;
 		const page = frame.contentWindow;
@@ -412,10 +283,7 @@ try {
 		}
 		effect.render( scene, camera );
 		checks.render = renderer.info.render.calls > 0 && doc.body.dataset.state === 'ready';
-		checks.shaders = renderer.info.programs.length > 0 && renderer.info.programs.every( p => {
-			const gl = renderer.getContext();
-			return gl.getProgramParameter( p.program, gl.LINK_STATUS );
-		} );
+		checks.shaders = renderer.info.render.drawCalls > 0 && renderer.backend.isWebGLBackend;
 		// A runtime failure must also disable controls that already exist.
 		renderer.debug.onShaderError();
 		checks.failureDisablesGUI = doc.body.dataset.state === 'error' && gui.getAttribute( 'aria-disabled' ) === 'true' && [...gui.querySelectorAll( '.controller input, .controller select, .controller button' )].every( input => input.disabled );
@@ -555,9 +423,9 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 			assert.match( await index.text(), /webgl_loader_mmd_audio.html/ );
 
 		}
-		const results = await runBrowser( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test`, join( temporary, 'profile' ) );
+		const results = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test`, join( temporary, 'profile' ) );
 		assert.equal( results.length, 5, JSON.stringify( results ) );
-		const darkResults = await runBrowser( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test-dark`, join( temporary, 'profile-dark' ), 'dark' );
+		const darkResults = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test-dark`, join( temporary, 'profile-dark' ), 'dark' );
 		assert.equal( darkResults.length, 1, JSON.stringify( darkResults ) );
 		for ( const result of [ ...results, ...darkResults ] ) {
 

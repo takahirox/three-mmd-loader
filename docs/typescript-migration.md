@@ -4,7 +4,7 @@ The maintained modules in `src/` use strict TypeScript. `npm run typecheck`
 builds the package and examples first, then checks the package source, browser
 examples, scripts, and tests using separate strict configurations. `npm run build` emits native ES
 modules and declarations into `dist/`; Three.js remains an external peer.
-Package exports retain the root and all documented `.js` subpaths, with
+Package exports expose the root and documented `.js` subpaths, with
 `types` conditions pointing to the corresponding declarations.
 
 Issue #20 replaces the former local parser with the external runtime dependency
@@ -48,3 +48,12 @@ already present in the implementation.
 
 No post-merge verification is required by Issues #16 and #20. When preparing
 a PR, include the executed check results.
+
+Issue #22 replaces the GLSL `MMDToonShader` export with `MMDToonMaterial`
+(`materials/MMDToonMaterial.js`) and adds `MMDOutlineEffect`
+(`effects/MMDOutlineEffect.js`). The material inherits Three.js Phong node
+material properties; `MMDToonMaterialParameters` and `MMDOutlineParameters`
+describe MMD additions. Use `WebGPURenderer` for WebGPU or its `forceWebGL`
+backend for WebGL2. Browser import maps and static builds include
+`three.webgpu.js` and `three.tsl.js`. See the README for rendering migration
+and automated backend coverage.

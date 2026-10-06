@@ -17,13 +17,15 @@ const publicModules = {
 	'animation/MMDPhysics.js': [ 'MMDPhysics' ],
 	'exporters/MMDExporter.js': [ 'MMDExporter' ],
 	'loaders/MMDLoader.js': [ 'MMDLoader' ],
-	'shaders/MMDToonShader.js': [ 'MMDToonShader' ]
+	'materials/MMDToonMaterial.js': [ 'MMDToonMaterial' ],
+	'effects/MMDOutlineEffect.js': [ 'MMDOutlineEffect' ]
 };
 
 test( 'root and addon-style subpaths expose every public module', async () => {
 
 	const entry = await import( 'three-mmd-loader' );
 	assert.deepEqual( Object.keys( entry ).sort(), Object.values( publicModules ).flat().sort() );
+	await assert.rejects( import( 'three-mmd-loader/' + 'shaders/MMDToonShader.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
 	await assert.rejects( import( 'three-mmd-loader/' + 'libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
 	for ( const [ path, exports ] of Object.entries( publicModules ) ) {
 

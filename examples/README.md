@@ -4,7 +4,9 @@ These scenes follow the model/animation, audio/camera, and VPD pose examples
 from [Three.js r171](https://github.com/mrdoob/three.js/tree/r171/examples).
 They import compiled MMD modules from this checkout's `dist/` directory through the
 `three-mmd-loader/` import map. Only retained Three.js utilities such as
-OrbitControls, OutlineEffect, and lil-gui come from `three/addons`. The
+OrbitControls and lil-gui come from `three/addons`. MMD shading uses TSL
+`MMDToonMaterial` and per-material inverted hulls use `MMDOutlineEffect` from
+this package. `WebGPURenderer` comes from `three/webgpu`. The
 `mmd-parser` import map points to the installed dependency's native ESM build
 at `../node_modules/mmd-parser/build/mmdparser.module.mjs`. The local server
 serves this artifact, and the static build copies it and its license at the
@@ -67,7 +69,9 @@ files directly. Stop it with Ctrl+C.
 
 Drag to orbit and scroll to zoom in the animation and pose scenes. The audio
 scene uses its animated camera. Failed asset requests are reported on the page
-with the setup command. Loading the scenes requires a browser with WebGL;
+with the setup command. Scenes select WebGPU when available and fall back to
+WebGL2 through the same TSL backend architecture. Append `?backend=webgl` to
+any scene URL to exercise WebGL2 explicitly. Loading requires WebGPU or WebGL2;
 audio playback also needs browser audio support.
 
 ## Assets and credits
@@ -234,12 +238,12 @@ artifact before any deployment. All presentation checks can run before merge,
 without a deployed site or human visual confirmation.
 
 The browser suite requires Google Chrome, with the same `CHROME_BIN` override
-as the existing shader suite. `npm run test:examples` runs only the examples
+as the TSL rendering suite. `npm run test:examples` runs only the examples
 check. It serves the actual pages and repository modules in headless Chrome,
 checks the index and scene DOM, computed typography/colors/spacing, overlay
 positioning, link behavior, desktop/mobile GUI placement, viewport canvas sizing,
-and resizing from desktop to mobile and back. It renders and checks shader
-links, exercises animation/IK/physics/outline
+and resizing from desktop to mobile and back. It renders with the WebGL2 TSL
+backend, exercises animation/IK/physics/outline
 controls, advances model and camera animation, starts decoded audio through
 Play, applies/resets VPD poses, and verifies loading/runtime error status and
 disabled controls. Generated PMD/VMD/VPD and silent WAV fixtures

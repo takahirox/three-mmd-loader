@@ -40,6 +40,8 @@ export async function buildExamples( {
 		'node_modules/mmd-parser/build/mmdparser.module.mjs',
 		'node_modules/mmd-parser/LICENSE',
 		'node_modules/three/build/three.module.js',
+		'node_modules/three/build/three.webgpu.js',
+		'node_modules/three/build/three.tsl.js',
 		'node_modules/three/build/three.core.js',
 		'node_modules/three/examples/jsm',
 		'node_modules/three/LICENSE',
@@ -51,7 +53,7 @@ export async function buildExamples( {
 
 	}
 	// Keep the browser import-map paths stable while serving compiled modules.
-	for ( const name of [ 'index.js', 'animation', 'exporters', 'loaders', 'shaders' ] ) {
+	for ( const name of [ 'index.js', 'animation', 'exporters', 'loaders', 'materials', 'effects' ] ) {
 
 		await cp( join( root, 'dist', name ), join( outputDirectory, 'src', name ), { recursive: true, filter: source => ! source.endsWith( '.d.ts' ) } );
 

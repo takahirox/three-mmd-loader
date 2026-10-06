@@ -52,6 +52,8 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			'src/loaders/MMDLoader.js',
 			'node_modules/mmd-parser/build/mmdparser.module.mjs', 'node_modules/mmd-parser/LICENSE',
 			'node_modules/three/build/three.module.js', 'node_modules/three/build/three.core.js',
+			'node_modules/three/build/three.webgpu.js', 'node_modules/three/build/three.tsl.js',
+			'src/materials/MMDToonMaterial.js', 'src/effects/MMDOutlineEffect.js',
 			'node_modules/three/examples/jsm/controls/OrbitControls.js',
 			'node_modules/three/examples/jsm/loaders/TGALoader.js',
 			'node_modules/three/examples/jsm/libs/lil-gui.module.min.js',
