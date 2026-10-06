@@ -1,7 +1,8 @@
 import { Camera, LoadingManager } from 'three';
 import type { Texture, TypedArray, KeyframeTrack, ShaderMaterialParameters, Combine, NormalMapTypes, Vector2 } from 'three';
-import type { Parser } from '../libs/mmdparser.module.js';
-import type { ModelData, ModelMorph, MorphElement, MMDBone, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters, VMD, VMDMotion, VMDMorph, VPD } from '../types.js';
+import { Parser } from 'mmd-parser';
+import type { Model, Pmd, Pmx, PmdMorph, PmxVertexMorph, MaterialMorphElement, Vmd, VmdMotion, VmdMorph, Vpd } from 'mmd-parser';
+import type { MMDBone, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
 import {
 	AddOperation,
 	AnimationClip,
@@ -44,7 +45,13 @@ import {
 } from 'three';
 import { MMDToonShader } from '../shaders/MMDToonShader.js';
 import { TGALoader } from 'three/addons/loaders/TGALoader.js';
-import { MMDParser } from '../libs/mmdparser.module.js';
+
+// The parser discriminates models through their nested metadata.
+function isPmd( data: Model ): data is Pmd {
+
+	return data.metadata.format === 'pmd';
+
+}
 
 type OnProgress = ( event: ProgressEvent ) => void;
 type OnError = ( error: unknown ) => void;
@@ -244,7 +251,7 @@ class MMDLoader extends Loader<MMDMesh> {
 
 	}
 
-	// Load MMD assets as Object data parsed by MMDParser
+	// Load MMD assets as Object data parsed by mmd-parser
 
 	/**
 	 * Loads .pmd file as an Object.
@@ -254,7 +261,7 @@ class MMDLoader extends Loader<MMDMesh> {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadPMD( url: string, onLoad: ( data: ModelData ) => void, onProgress?: OnProgress, onError?: OnError ) {
+	loadPMD( url: string, onLoad: ( data: Pmd ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const parser = this._getParser();
 
@@ -288,7 +295,7 @@ class MMDLoader extends Loader<MMDMesh> {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadPMX( url: string, onLoad: ( data: ModelData ) => void, onProgress?: OnProgress, onError?: OnError ) {
+	loadPMX( url: string, onLoad: ( data: Pmx ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const parser = this._getParser();
 
@@ -323,11 +330,11 @@ class MMDLoader extends Loader<MMDMesh> {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadVMD( url: string | string[], onLoad: ( data: VMD ) => void, onProgress?: OnProgress, onError?: OnError ) {
+	loadVMD( url: string | string[], onLoad: ( data: Vmd ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const urls = Array.isArray( url ) ? url : [ url ];
 
-		const vmds: VMD[] = [];
+		const vmds: Vmd[] = [];
 		const vmdNum = urls.length;
 
 		const parser = this._getParser();
@@ -370,7 +377,7 @@ class MMDLoader extends Loader<MMDMesh> {
 	 * @param {function} onProgress
 	 * @param {function} onError
 	 */
-	loadVPD( url: string, isUnicode: boolean, onLoad: ( data: VPD ) => void, onProgress?: OnProgress, onError?: OnError ) {
+	loadVPD( url: string, isUnicode: boolean, onLoad: ( data: Vpd ) => void, onProgress?: OnProgress, onError?: OnError ) {
 
 		const parser = this._getParser();
 
@@ -410,7 +417,7 @@ class MMDLoader extends Loader<MMDMesh> {
 
 		if ( this.parser === null ) {
 
-			this.parser = new MMDParser.Parser();
+			this.parser = new Parser();
 
 		}
 
@@ -454,7 +461,7 @@ const NON_ALPHA_CHANNEL_FORMATS: number[] = [
 	RGB_ETC2_Format
 ];
 
-// Builders. They build Three.js object from Object data parsed by MMDParser.
+// Builders. They build Three.js object from Object data parsed by mmd-parser.
 
 /**
  * @param {THREE.LoadingManager} manager
@@ -491,7 +498,7 @@ class MeshBuilder {
 	 * @param {function} onError
 	 * @return {SkinnedMesh}
 	 */
-	build( data: ModelData, resourcePath: string, onProgress?: OnProgress, onError?: OnError ) {
+	build( data: Model, resourcePath: string, onProgress?: OnProgress, onError?: OnError ) {
 
 		const geometry = this.geometryBuilder.build( data );
 		const material = this.materialBuilder
@@ -583,7 +590,7 @@ class GeometryBuilder {
 	 * @param {Object} data - parsed PMD/PMX data
 	 * @return {BufferGeometry}
 	 */
-	build( data: ModelData ) {
+	build( data: Model ) {
 
 		// for geometry
 		const positions: number[] = [];
@@ -698,7 +705,7 @@ class GeometryBuilder {
 
 			const bone: MMDBone = {
 				index: i,
-				transformationClass: boneData.transformationClass,
+				transformationClass: 'transformationClass' in boneData ? boneData.transformationClass : undefined,
 				parent: boneData.parentIndex,
 				name: boneData.name,
 				pos: boneData.position.slice( 0, 3 ),
@@ -722,11 +729,11 @@ class GeometryBuilder {
 		// iks
 
 		// TODO: remove duplicated codes between PMD and PMX
-		if ( data.metadata.format === 'pmd' ) {
+		if ( isPmd( data ) ) {
 
-			for ( let i = 0; i < data.metadata.ikCount!; i ++ ) {
+			for ( let i = 0; i < data.metadata.ikCount; i ++ ) {
 
-				const ik = data.iks![ i ];
+				const ik = data.iks[ i ];
 
 				const param: IK = {
 					target: ik.target,
@@ -785,7 +792,7 @@ class GeometryBuilder {
 						const rotationMax = ik.links[ j ].upperLimitationAngle!;
 
 						// Convert Left to Right coordinate by myself because
-						// MMDParser doesn't convert. It's a MMDParser's bug
+						// mmd-parser doesn't convert these angle limits.
 
 						const tmp1 = - rotationMax[ 0 ];
 						const tmp2 = - rotationMax[ 1 ];
@@ -815,7 +822,7 @@ class GeometryBuilder {
 
 		// grants
 
-		if ( data.metadata.format === 'pmx' ) {
+		if ( ! isPmd( data ) ) {
 
 			// bone index -> grant entry map
 			const grantEntryMap: Record<string, GrantEntry> = {};
@@ -890,7 +897,7 @@ class GeometryBuilder {
 
 		// morph
 
-		function updateAttributes( attribute: Float32BufferAttribute, morph: ModelMorph, ratio: number ) {
+		function updateAttributes( attribute: Float32BufferAttribute, morph: PmdMorph | PmxVertexMorph, ratio: number ) {
 
 			for ( let i = 0; i < morph.elementCount; i ++ ) {
 
@@ -898,7 +905,7 @@ class GeometryBuilder {
 
 				let index;
 
-				if ( data.metadata.format === 'pmd' ) {
+				if ( isPmd( data ) ) {
 
 					index = data.morphs[ 0 ].elements[ element.index ].index;
 
@@ -908,9 +915,9 @@ class GeometryBuilder {
 
 				}
 
-				attribute.array[ index * 3 + 0 ] += element.position![  0 ] * ratio;
-				attribute.array[ index * 3 + 1 ] += element.position![  1 ] * ratio;
-				attribute.array[ index * 3 + 2 ] += element.position![  2 ] * ratio;
+				attribute.array[ index * 3 + 0 ] += element.position[  0 ] * ratio;
+				attribute.array[ index * 3 + 1 ] += element.position[  1 ] * ratio;
+				attribute.array[ index * 3 + 2 ] += element.position[  2 ] * ratio;
 
 			}
 
@@ -918,11 +925,10 @@ class GeometryBuilder {
 
 		for ( let i = 0; i < data.metadata.morphCount; i ++ ) {
 
-			const morph = data.morphs[ i ];
-			const params = { name: morph.name };
+			const params = { name: data.morphs[ i ].name };
 
 			const attribute = new Float32BufferAttribute( data.metadata.vertexCount * 3, 3 );
-			attribute.name = morph.name;
+			attribute.name = params.name;
 
 			for ( let j = 0; j < data.metadata.vertexCount * 3; j ++ ) {
 
@@ -930,7 +936,9 @@ class GeometryBuilder {
 
 			}
 
-			if ( data.metadata.format === 'pmd' ) {
+			if ( isPmd( data ) ) {
+
+				const morph = data.morphs[ i ];
 
 				if ( i !== 0 ) {
 
@@ -940,12 +948,14 @@ class GeometryBuilder {
 
 			} else {
 
+				const morph = data.morphs[ i ];
+
 				if ( morph.type === 0 ) { // group
 
 					for ( let j = 0; j < morph.elementCount; j ++ ) {
 
 						const morph2 = data.morphs[ morph.elements[ j ].index ];
-						const ratio = morph.elements[ j ].ratio!;
+						const ratio = morph.elements[ j ].ratio;
 
 						if ( morph2.type === 1 ) {
 
@@ -1005,14 +1015,15 @@ class GeometryBuilder {
 		for ( let i = 0; i < data.metadata.rigidBodyCount; i ++ ) {
 
 			const rigidBody = data.rigidBodies[ i ];
-			const params = { ...rigidBody };
+			// MMD physics supports sphere, box, and capsule shape codes.
+			const params = { ...rigidBody, shapeType: rigidBody.shapeType as 0 | 1 | 2 };
 
 			/*
 				 * RigidBody position parameter in PMX seems global position
 				 * while the one in PMD seems offset from corresponding bone.
 				 * So unify being offset.
 				 */
-			if ( data.metadata.format === 'pmx' ) {
+			if ( ! isPmd( data ) ) {
 
 				if ( params.boneIndex !== - 1 ) {
 
@@ -1154,7 +1165,7 @@ class MaterialBuilder {
 	 * @param {function} onError
 	 * @return {Array<MMDToonMaterial>}
 	 */
-	build( data: ModelData, geometry: MMDGeometry, _onProgress?: OnProgress, _onError?: OnError ) {
+	build( data: Model, geometry: MMDGeometry, _onProgress?: OnProgress, _onError?: OnError ) {
 
 		const materials = [];
 
@@ -1170,7 +1181,7 @@ class MaterialBuilder {
 
 			const params: MMDMaterialParameters = { userData: { MMD: {} } };
 
-			if ( material.name !== undefined ) params.name = material.name;
+			if ( 'name' in material ) params.name = material.name;
 
 			/*
 				 * Color
@@ -1208,7 +1219,7 @@ class MaterialBuilder {
 
 			// side
 
-			if ( data.metadata.format === 'pmx' && ( material.flag! & 0x1 ) === 1 ) {
+			if ( ! isPmd( data ) && ( data.materials[ i ].flag & 0x1 ) === 1 ) {
 
 				params.side = DoubleSide;
 
@@ -1218,7 +1229,9 @@ class MaterialBuilder {
 
 			}
 
-			if ( data.metadata.format === 'pmd' ) {
+			if ( isPmd( data ) ) {
+
+				const material = data.materials[ i ];
 
 				// map, matcap
 
@@ -1253,7 +1266,7 @@ class MaterialBuilder {
 
 				const toonFileName = ( material.toonIndex === - 1 )
 					? 'toon00.bmp'
-					: data.toonTextures![ material.toonIndex ].fileName;
+					: data.toonTextures[ material.toonIndex ].fileName;
 
 				params.gradientMap = this._loadTexture(
 					toonFileName,
@@ -1275,30 +1288,32 @@ class MaterialBuilder {
 
 			} else {
 
+				const material = data.materials[ i ];
+
 				// map
 
-				if ( material.textureIndex! !== - 1 ) {
+				if ( material.textureIndex !== - 1 ) {
 
-					params.map = this._loadTexture( data.textures![ material.textureIndex! ], textures );
+					params.map = this._loadTexture( data.textures[ material.textureIndex ], textures );
 
 					// Since PMX spec don't have standard to list map files except color map and env map,
 					// we need to save file name for further mapping, like matching normal map file names after model loaded.
 					// ref: https://gist.github.com/felixjones/f8a06bd48f9da9a4539f#texture
-					params.userData.MMD.mapFileName = data.textures![ material.textureIndex! ];
+					params.userData.MMD.mapFileName = data.textures[ material.textureIndex ];
 
 				}
 
 				// matcap TODO: support m.envFlag === 3
 
-				if ( material.envTextureIndex! !== - 1 && ( material.envFlag === 1 || material.envFlag == 2 ) ) {
+				if ( material.envTextureIndex !== - 1 && ( material.envFlag === 1 || material.envFlag == 2 ) ) {
 
 					params.matcap = this._loadTexture(
-						data.textures![ material.envTextureIndex! ],
+						data.textures[ material.envTextureIndex ],
 						textures
 					);
 
 					// Same as color map above, keep file name in userData for further usage.
-					params.userData.MMD.matcapFileName = data.textures![ material.envTextureIndex! ];
+					params.userData.MMD.matcapFileName = data.textures[ material.envTextureIndex ];
 
 					params.matcapCombine = material.envFlag === 1
 						? MultiplyOperation
@@ -1317,7 +1332,7 @@ class MaterialBuilder {
 
 				} else {
 
-					toonFileName = data.textures![ material.toonIndex ];
+					toonFileName = data.textures[ material.toonIndex ];
 					isDefaultToon = false;
 
 				}
@@ -1333,10 +1348,10 @@ class MaterialBuilder {
 
 				// parameters for OutlineEffect
 				params.userData.outlineParameters = {
-					thickness: material.edgeSize! / 300, // TODO: better calculation?
-					color: material.edgeColor!.slice( 0, 3 ),
-					alpha: material.edgeColor![ 3 ],
-					visible: ( material.flag! & 0x10 ) !== 0 && material.edgeSize! > 0.0
+					thickness: material.edgeSize / 300, // TODO: better calculation?
+					color: material.edgeColor.slice( 0, 3 ),
+					alpha: material.edgeColor[ 3 ],
+					visible: ( material.flag & 0x10 ) !== 0 && material.edgeSize > 0.0
 				};
 
 			}
@@ -1357,11 +1372,11 @@ class MaterialBuilder {
 
 		}
 
-		if ( data.metadata.format === 'pmx' ) {
+		if ( ! isPmd( data ) ) {
 
 			// set transparent true if alpha morph is defined.
 
-			function checkAlphaMorph( elements: MorphElement[], materials: MMDToonMaterial[] ) {
+			function checkAlphaMorph( elements: MaterialMorphElement[], materials: MMDToonMaterial[] ) {
 
 				for ( let i = 0, il = elements.length; i < il; i ++ ) {
 
@@ -1371,7 +1386,7 @@ class MaterialBuilder {
 
 					const material = materials[ element.index ];
 
-					if ( material.opacity !== element.diffuse![ 3 ] ) {
+					if ( material.opacity !== element.diffuse[ 3 ] ) {
 
 						material.transparent = true;
 
@@ -1400,7 +1415,7 @@ class MaterialBuilder {
 
 				} else if ( morph.type === 8 ) {
 
-					checkAlphaMorph( elements, materials );
+					checkAlphaMorph( morph.elements, materials );
 
 				}
 
@@ -1669,7 +1684,7 @@ class AnimationBuilder {
 	 * @param {SkinnedMesh} mesh - tracks will be fitting to mesh
 	 * @return {AnimationClip}
 	 */
-	build( vmd: VMD, mesh: SkinnedMesh ) {
+	build( vmd: Vmd, mesh: SkinnedMesh ) {
 
 		// combine skeletal and morph animations
 
@@ -1691,7 +1706,7 @@ class AnimationBuilder {
 	 * @param {SkinnedMesh} mesh - tracks will be fitting to mesh
 	 * @return {AnimationClip}
 	 */
-	buildSkeletalAnimation( vmd: VMD, mesh: SkinnedMesh ) {
+	buildSkeletalAnimation( vmd: Vmd, mesh: SkinnedMesh ) {
 
 		function pushInterpolation( array: number[], interpolation: number[], index: number ) {
 
@@ -1704,7 +1719,7 @@ class AnimationBuilder {
 
 		const tracks = [];
 
-		const motions: Record<string, VMDMotion[]> = {};
+		const motions: Record<string, VmdMotion[]> = {};
 		const bones = mesh.skeleton.bones;
 		const boneNameDictionary: Record<string, boolean> = {};
 
@@ -1777,11 +1792,11 @@ class AnimationBuilder {
 	 * @param {SkinnedMesh} mesh - tracks will be fitting to mesh
 	 * @return {AnimationClip}
 	 */
-	buildMorphAnimation( vmd: VMD, mesh: SkinnedMesh ) {
+	buildMorphAnimation( vmd: Vmd, mesh: SkinnedMesh ) {
 
 		const tracks = [];
 
-		const morphs: Record<string, VMDMorph[]> = {};
+		const morphs: Record<string, VmdMorph[]> = {};
 		const morphTargetDictionary = mesh.morphTargetDictionary;
 
 		for ( let i = 0; i < vmd.metadata.morphCount; i ++ ) {
@@ -1828,7 +1843,7 @@ class AnimationBuilder {
 	 * @param {Object} vmd - parsed VMD data
 	 * @return {AnimationClip}
 	 */
-	buildCameraAnimation( vmd: VMD ) {
+	buildCameraAnimation( vmd: Vmd ) {
 
 		function pushVector3( array: number[], vec: Vector3 ) {
 

@@ -1,3 +1,4 @@
+import { Parser, CharsetEncoder } from 'mmd-parser';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createRequire } from 'node:module';
@@ -8,7 +9,7 @@ import {
 	MeshBasicMaterial, PerspectiveCamera, ShaderChunk, Skeleton, SkinnedMesh, Texture, Vector3
 } from 'three';
 import {
-	CCDIKSolver, MMDAnimationHelper, MMDExporter, MMDLoader, MMDParser, MMDPhysics,
+	CCDIKSolver, MMDAnimationHelper, MMDExporter, MMDLoader, MMDPhysics,
 	MMDToonShader
 } from 'three-mmd-loader';
 import { pmdBuffer, pmxBuffer, vmdBuffer } from './fixtures.ts';
@@ -27,7 +28,7 @@ function modelLoader() {
 
 function buildMesh( format = 'pmd' ) {
 
-	const parser = new MMDParser.Parser();
+	const parser = new Parser();
 	const data = format === 'pmd'
 		? parser.parsePmd( pmdBuffer(), true )
 		: parser.parsePmx( pmxBuffer(), true );
@@ -78,10 +79,10 @@ for ( const format of [ 'pmd', 'pmx' ] ) {
 
 test( 'PMX vertex morphs retain their positions and mesh influences', () => {
 
-	const data = new MMDParser.Parser().parsePmx( pmxBuffer(), true );
+	const data = new Parser().parsePmx( pmxBuffer(), true );
 	data.metadata.morphCount = 1;
 	data.morphs = [ {
-		name: 'smile', type: 1, elementCount: 1,
+		name: 'smile', englishName: '', panel: 1, type: 1, elementCount: 1,
 		elements: [ { index: 0, position: [ 0.25, 0, 0 ] } ]
 	} ];
 	const mesh = modelLoader().meshBuilder.build( data, '' );
@@ -95,9 +96,9 @@ test( 'PMX vertex morphs retain their positions and mesh influences', () => {
 
 test( 'PMX grants are ordered from parents to children', () => {
 
-	const data = new MMDParser.Parser().parsePmx( pmxBuffer(), true );
+	const data = new Parser().parsePmx( pmxBuffer(), true );
 	data.bones = [ 'child', 'parent', 'root' ].map( ( name, index ) => ( {
-		name, position: [ 0, 0, 0 ], parentIndex: - 1, transformationClass: 0,
+		name, englishName: '', flag: 0, position: [ 0, 0, 0 ], parentIndex: - 1, transformationClass: 0,
 		...index < 2 ? { grant: {
 			parentIndex: index + 1, ratio: 0.5, isLocal: false,
 			affectRotation: true, affectPosition: false
@@ -146,7 +147,7 @@ test( 'public loader loads a PMD buffer through Three.js FileLoader', async () =
 test( 'parsed VMD animates a loaded bone with physics disabled', () => {
 
 	const mesh = buildMesh();
-	const vmd = new MMDParser.Parser().parseVmd( vmdBuffer(), true );
+	const vmd = new Parser().parseVmd( vmdBuffer(), true );
 	const animation = new MMDLoader().animationBuilder.build( vmd, mesh );
 	assert.equal( animation.duration, 1 );
 	assert.equal( animation.tracks.length, 2 );
@@ -254,7 +255,7 @@ test( 'public loadAnimation skips VMD morphs on models without morph targets', a
 
 } );
 
-test( 'VPD exporter round trips a posed bone through the bundled parser', () => {
+test( 'VPD exporter round trips a posed bone through the installed mmd-parser', () => {
 
 	const mesh = buildMesh();
 	const bone = mesh.skeleton.bones[ 0 ];
@@ -264,13 +265,13 @@ test( 'VPD exporter round trips a posed bone through the bundled parser', () => 
 	const text = exporter.parseVpd( mesh );
 	assert.ok( text !== null );
 	assert.deepEqual( bone.position.toArray(), [ 1, 2, 3 ] );
-	const parser = new MMDParser.Parser();
+	const parser = new Parser();
 	const pose = parser.parseVpd( text, true );
 	assert.equal( pose.bones[ 0 ].name, 'センター' );
 	assert.deepEqual( pose.bones[ 0 ].translation, [ 1, 2, 3 ] );
 	const bytes = exporter.parseVpd( mesh, true );
 	assert.ok( bytes instanceof Uint8Array );
-	assert.equal( new MMDParser.CharsetEncoder().s2u( bytes ), text );
+	assert.equal( new CharsetEncoder().s2u( bytes ), text );
 	bone.position.set( 0, 0, 0 );
 	new MMDAnimationHelper().pose( mesh, pose, { ik: false, grant: false } );
 	assert.deepEqual( bone.position.toArray(), [ 1, 2, 3 ] );

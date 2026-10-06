@@ -5,9 +5,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
+import { pmdBuffer, pmxBuffer, vmdBuffer } from './fixtures.ts';
 
 const root = resolve( dirname( fileURLToPath( import.meta.url ) ), '..' );
-interface PackageManifest { exports: Record<string, Record<string, string>>; devDependencies: { three: string } }
+interface PackageManifest { exports: Record<string, Record<string, string>>; devDependencies: { three: string }; dependencies: { 'mmd-parser': string } }
 interface PackedPackage { filename: string; version: string; files: { path: string }[] }
 const manifest: PackageManifest = JSON.parse( readFileSync( join( root, 'package.json' ), 'utf8' ) );
 const publicModules = {
@@ -15,7 +16,6 @@ const publicModules = {
 	'animation/MMDAnimationHelper.js': [ 'MMDAnimationHelper' ],
 	'animation/MMDPhysics.js': [ 'MMDPhysics' ],
 	'exporters/MMDExporter.js': [ 'MMDExporter' ],
-	'libs/mmdparser.module.js': [ 'CharsetEncoder', 'MMDParser', 'Parser' ],
 	'loaders/MMDLoader.js': [ 'MMDLoader' ],
 	'shaders/MMDToonShader.js': [ 'MMDToonShader' ]
 };
@@ -24,6 +24,7 @@ test( 'root and addon-style subpaths expose every public module', async () => {
 
 	const entry = await import( 'three-mmd-loader' );
 	assert.deepEqual( Object.keys( entry ).sort(), Object.values( publicModules ).flat().sort() );
+	await assert.rejects( import( 'three-mmd-loader/' + 'libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
 	for ( const [ path, exports ] of Object.entries( publicModules ) ) {
 
 		const module = await import( `three-mmd-loader/${path}` );
@@ -50,6 +51,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 			assert.ok( files.includes( target.slice( 2 ) ), `Missing package file: ${target}` );
 
 		}
+		assert.ok( files.every( path => ! /(?:mmdparser|dist\/libs\/)/.test( path ) ) );
 		assert.ok( files.includes( 'LICENSE' ) );
 		assert.ok( files.includes( 'THIRD_PARTY_NOTICES.md' ) );
 		assert.ok( files.includes( 'README.md' ) );
@@ -60,9 +62,17 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 			'pack', join( root, 'node_modules/three' ), '--json', '--pack-destination', consumer, '--ignore-scripts'
 		], options ) );
 		assert.equal( peer.version, manifest.devDependencies.three );
+		// Supply the installed parser tarball through an override. The consumer
+		// declares only the loader and its Three.js peer, so npm must install the
+		// parser through the loader's runtime dependency, with no registry/cache.
+		const [ parser ]: PackedPackage[] = JSON.parse( execFileSync( npm, [
+			'pack', join( root, 'node_modules/mmd-parser' ), '--json', '--pack-destination', consumer, '--ignore-scripts'
+		], options ) );
+		assert.equal( parser.version, '1.1.1' );
 		writeFileSync( join( consumer, 'package.json' ), JSON.stringify( {
 			private: true,
 			type: 'module',
+			overrides: { 'mmd-parser': `file:./${parser.filename}` },
 			dependencies: {
 				'three-mmd-loader': `file:./${packed.filename}`,
 				three: `file:./${peer.filename}`
@@ -72,15 +82,52 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		execFileSync( npm, [
 			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
 		], options );
+		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer() ], [ 'motion.vmd', vmdBuffer() ] ] as const ) {
+
+			writeFileSync( join( consumer, name ), Buffer.from( buffer ) );
+
+		}
 		writeFileSync( join( consumer, 'check.mjs' ), `
 import assert from 'node:assert/strict';
-import { Loader, REVISION } from 'three';
+import { readFileSync } from 'node:fs';
+import { Loader, REVISION, Texture } from 'three';
+import { Parser, CharsetEncoder } from 'mmd-parser';
 import * as entry from 'three-mmd-loader';
+// Three.js FileLoader uses this browser event when streaming responses.
+globalThis.ProgressEvent ??= class extends Event {
+  constructor( type, properties = {} ) { super( type ); Object.assign( this, properties ); }
+};
 assert.equal( REVISION, '186' );
 assert.ok( new entry.MMDLoader() instanceof Loader );
 new entry.MMDAnimationHelper();
 new entry.MMDExporter();
-new entry.MMDParser.Parser();
+assert.deepEqual( Object.keys( entry ).sort(), ${JSON.stringify( Object.values( publicModules ).flat().sort() )} );
+for ( const name of [ 'MMDParser', 'Parser', 'CharsetEncoder' ] ) assert.ok( ! ( name in entry ) );
+await assert.rejects( import( 'three-mmd-loader/libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
+const loader = new entry.MMDLoader();
+assert.ok( loader._getParser() instanceof Parser );
+loader.meshBuilder.materialBuilder.textureLoader.load = () => new Texture();
+for ( const format of [ 'pmd', 'pmx' ] ) {
+  const bytes = readFileSync( 'model.' + format );
+  const mesh = await loader.loadAsync( 'data:application/octet-stream;base64,' + bytes.toString( 'base64' ) );
+  assert.equal( mesh.geometry.userData.MMD.format, format );
+  assert.equal( mesh.geometry.attributes.position.count, 3 );
+  const animation = await new Promise( ( resolve, reject ) => loader.loadAnimation(
+    'data:application/octet-stream;base64,' + readFileSync( 'motion.vmd' ).toString( 'base64' ), mesh, resolve, undefined, reject
+  ) );
+  const helper = new entry.MMDAnimationHelper();
+  helper.add( mesh, { physics: false, animation } ).update( 0.5 );
+  assert.ok( mesh.skeleton.bones[ 0 ].position.x > 0 );
+  mesh.skeleton.bones[ 0 ].name = 'センター';
+  const exporter = new entry.MMDExporter();
+  const text = exporter.parseVpd( mesh );
+  const pose = new Parser().parseVpd( text, true );
+  assert.equal( pose.bones[ 0 ].name, 'センター' );
+  assert.equal( new CharsetEncoder().s2u( exporter.parseVpd( mesh, true ) ), text );
+  helper.pose( mesh, pose, { ik: false } );
+  mesh.geometry.dispose();
+  mesh.material.forEach( material => material.dispose() );
+}
 assert.throws( () => new entry.MMDPhysics( null, [] ), /Import ammo.js/ );
 for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )} ) ) {
   const module = await import( 'three-mmd-loader/' + path );
@@ -102,7 +149,10 @@ for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )
 		], options );
 		const installed: { peerDependencies: { three: string }; dependencies?: Record<string, string> } = JSON.parse( readFileSync( join( consumer, 'node_modules/three-mmd-loader/package.json' ), 'utf8' ) );
 		assert.equal( installed.peerDependencies.three, '~0.186.0' );
-		assert.equal( installed.dependencies, undefined );
+		assert.deepEqual( installed.dependencies, { 'mmd-parser': '^1.1.1' } );
+		assert.equal( installed.dependencies[ 'mmd-parser' ], manifest.dependencies[ 'mmd-parser' ] );
+		const installedParser = JSON.parse( readFileSync( join( consumer, 'node_modules/mmd-parser/package.json' ), 'utf8' ) );
+		assert.equal( installedParser.version, '1.1.1' );
 
 	} finally {
 

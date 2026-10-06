@@ -1,5 +1,6 @@
 import type { AnimationClip } from 'three';
-import type { MMDMesh, VPD } from '../dist/types.js';
+import type { Vpd } from 'mmd-parser';
+import type { MMDMesh } from '../dist/types.js';
 import type { AmmoAPI } from '../dist/ammo.js';
 
 import {
@@ -21,7 +22,7 @@ interface ExampleContext {
 	effect: OutlineEffect;
 	gui: GUI;
 	audio?: Audio;
-	poses?: VPD[];
+	poses?: Vpd[];
 }
 
 const assets = './assets/mmd/';
@@ -197,7 +198,7 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 		} else {
 
 			// VPD files use Shift_JIS, so isUnicode is false.
-			const poses = await Promise.all( Array.from( { length: 11 }, ( _, i ) => new Promise<VPD>( ( resolve, reject ) => {
+			const poses = await Promise.all( Array.from( { length: 11 }, ( _, i ) => new Promise<Vpd>( ( resolve, reject ) => {
 
 				const file = String( i + 1 ).padStart( 2, '0' ) + '.vpd';
 				loader.loadVPD( assets + 'vpds/' + file, false, resolve, undefined, reject );

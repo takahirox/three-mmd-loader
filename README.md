@@ -7,6 +7,8 @@ and VPD poses, with animation, IK, physics, toon shading, and VPD export.
 The package targets **Three.js r186** (`three ~0.186.0`) and is tested with
 `three 0.186.1`. Three.js is a peer dependency: the addons use the application's
 Three.js instance, including its retained TGALoader and SkeletonUtils addons.
+`mmd-parser ^1.1.1` is an external runtime dependency installed automatically
+with this package; its implementation and public types come from that package.
 
 Install the package alongside the supported Three.js version:
 
@@ -41,11 +43,18 @@ The public subpaths are:
 | `animation/CCDIKSolver.js` | `CCDIKSolver`, `CCDIKHelper` |
 | `animation/MMDPhysics.js` | `MMDPhysics` |
 | `exporters/MMDExporter.js` | `MMDExporter` |
-| `libs/mmdparser.module.js` | `MMDParser`, `Parser`, `CharsetEncoder` |
 | `shaders/MMDToonShader.js` | `MMDToonShader` |
 
 All named exports are also available from `three-mmd-loader`. The APIs follow
-the r171 addons; `MMDParser` exposes `Parser` and `CharsetEncoder` constructors.
+the r171 addons. For parser APIs and raw model/motion/pose types, import
+directly from `mmd-parser`:
+
+```js
+import { Parser, CharsetEncoder } from 'mmd-parser';
+```
+
+The old `three-mmd-loader/libs/mmdparser.module.js` subpath and package-root
+`MMDParser`, `Parser`, and `CharsetEncoder` exports have been removed.
 `MMDExporter` exports VPD poses, not PMD/PMX models or VMD animations.
 
 Physics requires an initialized [Ammo.js](https://github.com/kripken/ammo.js)
@@ -64,8 +73,9 @@ helper.add( anotherMesh );
 Install that optional distribution separately (`npm install ammojs-typed`), or
 initialize your own compatible Ammo.js build. Pass `{ physics: false }` when
 adding a mesh to use animation without Ammo. Model texture decoding and
-rendering require a browser environment. The restored parser retains the r171
-PMX UTF-16LE text support and limitations such as SDEF being treated as BDEF2.
+rendering require a browser environment. The `mmd-parser` dependency
+supports PMX UTF-16LE text and retains limitations such as SDEF being treated
+as BDEF2.
 
 For outlines, use `OutlineEffect` from `three/addons/effects/OutlineEffect.js`;
 the loader sets the material's `userData.outlineParameters` as in r171.
@@ -107,15 +117,17 @@ through `prepack`. TypeScript consumers should install matching Three.js types
 with `npm install --save-dev @types/three@~0.186.0`. Root and documented `.js`
 subpath imports resolve to the same API in both JavaScript and TypeScript.
 
-The vendored parser remains JavaScript with a typed boundary; see the
-[migration notes](docs/typescript-migration.md) for the rationale. Tests check all public imports, parse generated PMD/PMX/VMD assets,
+The loader and animation helper use public result types from `mmd-parser`;
+Three.js geometry, IK, and other transformed data keep their local types. See
+the [migration notes](docs/typescript-migration.md). Tests check all public
+imports, parse generated PMD/PMX/VMD assets,
 exercise animation, IK, VPD round trips, shader chunk compatibility, and real
 Ammo physics. They also pack the package, install the tarball in an isolated
 consumer, and import every public module without access to the repository's
 source files. The isolated consumer also type-checks every public subpath,
 including checks that invalid API calls are rejected. Examples, scripts, and tests
-also use strict TypeScript. The vendored parser is the sole JavaScript source
-exception, enforced by `npm run check:typescript`. Node.js 20 or newer runs
+also use strict TypeScript. `npm run check:typescript` rejects JavaScript
+sources outside generated `dist/` output. Node.js 20 or newer runs
 the repository scripts and tests through `tsx`.
 
 The separate browser regression suite requires Google Chrome. Set `CHROME_BIN`

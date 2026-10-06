@@ -4,7 +4,11 @@ These scenes follow the model/animation, audio/camera, and VPD pose examples
 from [Three.js r171](https://github.com/mrdoob/three.js/tree/r171/examples).
 They import compiled MMD modules from this checkout's `dist/` directory through the
 `three-mmd-loader/` import map. Only retained Three.js utilities such as
-OrbitControls, OutlineEffect, and lil-gui come from `three/addons`.
+OrbitControls, OutlineEffect, and lil-gui come from `three/addons`. The
+`mmd-parser` import map points to the installed dependency's native ESM build
+at `../node_modules/mmd-parser/build/mmdparser.module.mjs`. The local server
+serves this artifact, and the static build copies it and its license at the
+same relative paths.
 
 The pages use a full-viewport canvas, the standard Three.js `#info` overlay,
 and lil-gui controls. Their shared `common.css` imports an unmodified copy of
@@ -51,7 +55,7 @@ npm run dev
 Open **http://127.0.0.1:8080/** and choose a scene. Set `PORT=8081 npm run dev`
 to use a different port. The server binds to loopback and serves the examples
 and their dependencies. The `predev` hook compiles the package and browser
-TypeScript; Three.js, Ammo, and assets are served locally. After editing
+TypeScript; Three.js, mmd-parser, Ammo, and assets are served locally. After editing
 TypeScript, run `npm run build` to refresh the served modules. Use the HTTP server rather than opening HTML
 files directly. Stop it with Ctrl+C.
 
@@ -144,7 +148,7 @@ paths use only the workflow token's Pages write and OIDC permissions.
 For every push to `main`, the workflow installs the lockfile dependencies with
 `npm ci`, runs `npm test`, and runs `npm run build:examples`. That build command
 downloads and verifies the pinned assets using the existing asset manifest,
-then copies the existing pages, compiled `dist/` modules, Three.js and Ammo
+then copies the existing pages, compiled `dist/` modules, Three.js, mmd-parser, and Ammo
 runtime dependencies, and all asset/license notices to `dist/examples/`.
 It does not bundle or build a second implementation of the scenes. The static
 site uses relative URLs so it works under the repository's Pages path. A

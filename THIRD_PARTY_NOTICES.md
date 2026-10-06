@@ -6,23 +6,24 @@ The following files were restored from the
 [Three.js r171 source](https://github.com/mrdoob/three.js/tree/r171/examples/jsm)
 (commit `2898f5b1ba10b1e94174c0a62d072f5f7b80442c`):
 
-- `src/animation/CCDIKSolver.js`
-- `src/animation/MMDAnimationHelper.js`
-- `src/animation/MMDPhysics.js`
-- `src/exporters/MMDExporter.js`
-- `src/libs/mmdparser.module.js`
-- `src/loaders/MMDLoader.js`
-- `src/shaders/MMDToonShader.js`
+- `src/animation/CCDIKSolver.ts`
+- `src/animation/MMDAnimationHelper.ts`
+- `src/animation/MMDPhysics.ts`
+- `src/exporters/MMDExporter.ts`
+- `src/loaders/MMDLoader.ts`
+- `src/shaders/MMDToonShader.ts`
 
-Their original paths are the same relative to `examples/jsm/` instead of `src/`.
+Their original paths use `.js` relative to `examples/jsm/` instead of `src/`;
+the maintained copies have since been migrated to TypeScript.
 Three.js is copyright © 2010-2024 three.js authors, licensed under the MIT
 License reproduced in this package's [LICENSE](LICENSE).
 
 Local changes route TGALoader through the external `three` package, remove
 the obsolete r172 deprecation warnings, and use the external SkeletonUtils
 clone in MMDExporter to avoid resetting the source skeleton when exporting.
-The parser, CCDIK solver, and toon shader retain their r171 implementations.
-Three.js itself and the Ammo.js physics runtime are not vendored.
+The CCDIK solver and toon shader retain their r171 behavior. The loader and
+exporter now import the external `mmd-parser` dependency. Three.js itself,
+`mmd-parser`, and the Ammo.js physics runtime are not vendored.
 
 ## Three.js example stylesheet
 
@@ -54,9 +55,12 @@ examples-site assets and are not included in the npm package.
 
 ## mmd-parser
 
-`src/libs/mmdparser.module.js` contains
-[mmd-parser](https://github.com/takahirox/mmd-parser), including its Shift_JIS
-charset table. Its MIT license is reproduced below:
+[mmd-parser](https://github.com/takahirox/mmd-parser) (`^1.1.1`) is an external
+runtime dependency for parsing MMD resources and Shift_JIS encoding. Its public
+TypeScript types describe the raw parser results consumed by this package.
+The browser examples use the installed `build/mmdparser.module.mjs` artifact;
+the static site copies that artifact and the dependency's `LICENSE`. Its MIT
+license is reproduced below:
 
 MIT License
 

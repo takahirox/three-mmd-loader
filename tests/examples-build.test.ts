@@ -49,7 +49,8 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			'examples/fonts/LICENSE.txt',
 			'examples/webgl_loader_mmd.html', 'examples/webgl_loader_mmd_audio.html',
 			'examples/webgl_loader_mmd_pose.html',
-			'src/loaders/MMDLoader.js', 'src/libs/mmdparser.module.js',
+			'src/loaders/MMDLoader.js',
+			'node_modules/mmd-parser/build/mmdparser.module.mjs', 'node_modules/mmd-parser/LICENSE',
 			'node_modules/three/build/three.module.js', 'node_modules/three/build/three.core.js',
 			'node_modules/three/examples/jsm/controls/OrbitControls.js',
 			'node_modules/three/examples/jsm/loaders/TGALoader.js',
@@ -62,7 +63,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			assert.deepEqual( await readFile( join( outputDirectory, path ) ), await readFile( new URL( '../' + path.replace( /^src\//, 'dist/' ).replace( /^examples\/(.+\.js)$/, 'dist/example-modules/$1' ), import.meta.url ) ), path );
 
 		}
-		for ( const path of [ 'stale.html', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {
+		for ( const path of [ 'src/libs/mmdparser.module.js', 'node_modules/mmd-parser/build/mmdparser.js', 'stale.html', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {
 
 			await assert.rejects( readFile( join( outputDirectory, path ) ), { code: 'ENOENT' }, path );
 
