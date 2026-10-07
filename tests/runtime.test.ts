@@ -78,6 +78,34 @@ for ( const format of [ 'pmd', 'pmx' ] ) {
 
 }
 
+test( 'installed mmd-parser reads PMX additional UV morphs without losing following data alignment', () => {
+
+	const data = new Parser().parsePmx( pmxBuffer( { additionalUvMorphs: true } ) );
+	assert.equal( data.metadata.additionalUvNum, 4 );
+	assert.equal( data.metadata.morphCount, 5 );
+	assert.deepEqual( data.morphs.slice( 0, 4 ), [ 4, 5, 6, 7 ].map( type => ( {
+		name: `additional-uv-${type}`, englishName: '', panel: 4, type, elementCount: 2,
+		elements: [
+			{ index: 0, uv: [ type / 4, - 0.5, 0.25, 1 ] },
+			{ index: 2, uv: [ - 1, type / 2, 0.5, - 0.25 ] }
+		]
+	} ) ) );
+	assert.deepEqual( data.morphs[ 4 ], {
+		name: 'following-vertex', englishName: '', panel: 1, type: 1, elementCount: 1,
+		elements: [ { index: 1, position: [ 0.25, 0.5, 0.75 ] } ]
+	} );
+	assert.equal( data.metadata.frameCount, 1 );
+	assert.deepEqual( data.frames, [ {
+		name: 'following-frame', englishName: '', type: 0, elementCount: 2,
+		elements: [ { target: 0, index: 0 }, { target: 1, index: 4 } ]
+	} ] );
+	assert.equal( data.metadata.rigidBodyCount, 0 );
+	assert.equal( data.metadata.constraintCount, 0 );
+	assert.deepEqual( data.rigidBodies, [] );
+	assert.deepEqual( data.constraints, [] );
+
+} );
+
 test( 'PMX vertex morphs retain their positions and mesh influences', () => {
 
 	const data = new Parser().parsePmx( pmxBuffer(), true );

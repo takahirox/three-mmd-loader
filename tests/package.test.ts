@@ -70,7 +70,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		const [ parser ]: PackedPackage[] = JSON.parse( execFileSync( npm, [
 			'pack', join( root, 'node_modules/mmd-parser' ), '--json', '--pack-destination', consumer, '--ignore-scripts'
 		], options ) );
-		assert.equal( parser.version, '1.1.1' );
+		assert.equal( parser.version, '1.1.2' );
 		writeFileSync( join( consumer, 'package.json' ), JSON.stringify( {
 			private: true,
 			type: 'module',
@@ -84,7 +84,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		execFileSync( npm, [
 			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
 		], options );
-		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer() ], [ 'motion.vmd', vmdBuffer() ] ] as const ) {
+		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ] ] as const ) {
 
 			writeFileSync( join( consumer, name ), Buffer.from( buffer ) );
 
@@ -109,6 +109,19 @@ await assert.rejects( import( 'three-mmd-loader/libs/mmdparser.module.js' ), { c
 const loader = new entry.MMDLoader();
 assert.ok( loader._getParser() instanceof Parser );
 loader.meshBuilder.materialBuilder.textureLoader.load = () => new Texture();
+const pmxBytes = readFileSync( 'model.pmx' );
+const pmx = new Parser().parsePmx( pmxBytes.buffer.slice( pmxBytes.byteOffset, pmxBytes.byteOffset + pmxBytes.byteLength ) );
+assert.deepEqual( pmx.morphs.slice( 0, 4 ).map( morph => morph.type ), [ 4, 5, 6, 7 ] );
+for ( const morph of pmx.morphs.slice( 0, 4 ) ) {
+  assert.deepEqual( morph.elements, [
+    { index: 0, uv: [ morph.type / 4, - 0.5, 0.25, 1 ] },
+    { index: 2, uv: [ - 1, morph.type / 2, 0.5, - 0.25 ] }
+  ] );
+}
+assert.equal( pmx.morphs[ 4 ].name, 'following-vertex' );
+assert.deepEqual( pmx.morphs[ 4 ].elements, [ { index: 1, position: [ 0.25, 0.5, 0.75 ] } ] );
+assert.equal( pmx.frames[ 0 ].name, 'following-frame' );
+assert.deepEqual( pmx.frames[ 0 ].elements, [ { target: 0, index: 0 }, { target: 1, index: 4 } ] );
 for ( const format of [ 'pmd', 'pmx' ] ) {
   const bytes = readFileSync( 'model.' + format );
   const mesh = await loader.loadAsync( 'data:application/octet-stream;base64,' + bytes.toString( 'base64' ) );
@@ -151,10 +164,10 @@ for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )
 		], options );
 		const installed: { peerDependencies: { three: string }; dependencies?: Record<string, string> } = JSON.parse( readFileSync( join( consumer, 'node_modules/three-mmd-loader/package.json' ), 'utf8' ) );
 		assert.equal( installed.peerDependencies.three, '~0.186.0' );
-		assert.deepEqual( installed.dependencies, { 'mmd-parser': '^1.1.1' } );
+		assert.deepEqual( installed.dependencies, { 'mmd-parser': '^1.1.2' } );
 		assert.equal( installed.dependencies[ 'mmd-parser' ], manifest.dependencies[ 'mmd-parser' ] );
 		const installedParser = JSON.parse( readFileSync( join( consumer, 'node_modules/mmd-parser/package.json' ), 'utf8' ) );
-		assert.equal( installedParser.version, '1.1.1' );
+		assert.equal( installedParser.version, '1.1.2' );
 
 	} finally {
 

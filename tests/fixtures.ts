@@ -74,17 +74,23 @@ export function pmdBuffer() {
 
 }
 
-export function pmxBuffer() {
+export function pmxBuffer( { additionalUvMorphs = false }: { additionalUvMorphs?: boolean } = {} ) {
 
 	const w = new Writer();
 	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
-	// UTF-16LE, no additional UVs, one-byte indices.
-	for ( const value of [ 0, 0, 1, 1, 1, 1, 1, 1 ] ) w.u8( value );
+	// UTF-16LE, optional additional UV channels, one-byte indices.
+	for ( const value of [ 0, additionalUvMorphs ? 4 : 0, 1, 1, 1, 1, 1, 1 ] ) w.u8( value );
 	w.text( 'triangle' ).text( '' ).text( '' ).text( '' );
 	w.u32( 3 );
 	for ( const position of vertices ) {
 
-		w.f32( ...position, 0, 0, 1, 0, 0 ).u8( 0 ).u8( 0 ).f32( 1 ); // BDEF1
+		w.f32( ...position, 0, 0, 1, 0, 0 );
+		if ( additionalUvMorphs ) {
+
+			for ( let channel = 0; channel < 4; channel ++ ) w.f32( 0, 0, 0, 0 );
+
+		}
+		w.u8( 0 ).u8( 0 ).f32( 1 ); // BDEF1
 
 	}
 	w.u32( 3 ).u8( 0 ).u8( 1 ).u8( 2 );
@@ -98,7 +104,28 @@ export function pmxBuffer() {
 	w.u32( 1 ); // bone
 	w.text( 'root' ).text( '' ).f32( 0, 0, 0 ).u8( 255 ).u32( 0 ).u16( 0 );
 	w.f32( 0, 1, 0 ); // tail offset
-	w.u32( 0 ).u32( 0 ).u32( 0 ).u32( 0 ); // morphs, display frames, physics
+	if ( additionalUvMorphs ) {
+
+		w.u32( 5 ); // four additional UV morphs followed by a vertex morph
+		for ( const type of [ 4, 5, 6, 7 ] ) {
+
+			w.text( `additional-uv-${type}` ).text( '' ).u8( 4 ).u8( type ).u32( 2 );
+			w.u8( 0 ).f32( type / 4, - 0.5, 0.25, 1 );
+			w.u8( 2 ).f32( - 1, type / 2, 0.5, - 0.25 );
+
+		}
+		w.text( 'following-vertex' ).text( '' ).u8( 1 ).u8( 1 ).u32( 1 );
+		w.u8( 1 ).f32( 0.25, 0.5, 0.75 );
+		w.u32( 1 ); // a display frame after the morph payloads
+		w.text( 'following-frame' ).text( '' ).u8( 0 ).u32( 2 );
+		w.u8( 0 ).u8( 0 ).u8( 1 ).u8( 4 ); // root bone, vertex morph
+
+	} else {
+
+		w.u32( 0 ).u32( 0 ); // morphs, display frames
+
+	}
+	w.u32( 0 ).u32( 0 ); // rigid bodies, constraints
 	return w.buffer();
 
 }
