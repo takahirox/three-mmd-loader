@@ -7,7 +7,7 @@ and VPD poses, with animation, IK, physics, toon shading, and VPD export.
 The package targets **Three.js r186** (`three ~0.186.0`) and is tested with
 `three 0.186.1`. Three.js is a peer dependency: the addons use the application's
 Three.js instance, including its retained TGALoader and SkeletonUtils addons.
-`mmd-parser ^1.1.1` is an external runtime dependency installed automatically
+`mmd-parser ^1.1.2` is an external runtime dependency installed automatically
 with this package; its implementation and public types come from that package.
 
 Install the package alongside the supported Three.js version:
