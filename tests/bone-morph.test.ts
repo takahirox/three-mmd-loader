@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import type { Pmx, Vpd } from 'mmd-parser';
-import { Quaternion, Texture, Vector3 } from 'three';
+import { LoopOnce, Quaternion, Texture, Vector3 } from 'three';
 import { MMDAnimationHelper, MMDLoader } from 'three-mmd-loader';
 import type { AmmoAPI, MMDMesh } from 'three-mmd-loader';
 import { authoredBoneMorphs, sdefPmxBuffer, vmdBuffer } from './fixtures.ts';
@@ -72,6 +72,46 @@ test( 'published parser converts bone morph translation/quaternions exactly once
 } );
 
 for ( const pmxAnimation of [ false, true ] ) {
+
+	for ( const stop of [ 'stopAllAction', 'stop', 'uncacheAction', 'uncacheRoot', 'restart' ] ) {
+
+		test( `mixer ${stop} preserves a reset pose equal to the previous morph output (pmxAnimation=${pmxAnimation})`, () => {
+
+			const data = new Parser().parsePmx( sdefPmxBuffer( { boneMorphs: true } ), true );
+			data.morphs[ 1 ] = { name: 'bone-a', englishName: '', panel: 4, type: 2, elementCount: 1,
+				elements: [ { index: 0, position: [ - 2, 0, 0 ], rotation: [ 0, 0, - 1, 0 ] } ] };
+			const { mesh, loader } = setup( data );
+			const clip = loader.animationBuilder.build( new Parser().parseVmd( vmdBuffer( {
+				boneName: 'bone0', rotation: [ 0, 0, 1, 0 ],
+				morphs: [ { morphName: 'bone-a', frameNum: 0, weight: 0 }, { morphName: 'bone-a', frameNum: 30, weight: 1 } ]
+			} ), true ), mesh );
+			const helper = new MMDAnimationHelper( { pmxAnimation, sync: false } );
+			helper.add( mesh, { animation: clip, physics: false } );
+			const mixer = helper.objects.get( mesh )!.mixer!;
+			const action = mixer.clipAction( clip ).setLoop( LoopOnce, 1 ); action.clampWhenFinished = true;
+			const rest = snapshot( mesh );
+			helper.update( 1 );
+			assert.equal( mesh.morphTargetInfluences![ 1 ], 1 );
+			assert.deepEqual( snapshot( mesh ), rest ); // Animation and morph cancel exactly.
+			if ( stop === 'stopAllAction' ) mixer.stopAllAction();
+			else if ( stop === 'uncacheAction' ) mixer.uncacheAction( clip );
+			else if ( stop === 'uncacheRoot' ) mixer.uncacheRoot( mesh );
+			else action.stop();
+			assert.equal( mesh.morphTargetInfluences![ 1 ], 0 );
+			assert.deepEqual( snapshot( mesh ), rest );
+			if ( stop === 'restart' ) action.reset().play();
+			for ( let i = 0; i < 10; i ++ ) {
+
+				helper.update( 0 );
+				if ( stop === 'restart' ) checkPose( mesh, rest, 1e-5 );
+				else assert.deepEqual( snapshot( mesh ), rest );
+				assert.equal( mesh.morphTargetInfluences![ 1 ], 0 );
+
+			}
+
+		} );
+
+	}
 
 	test( `direct bone morphs match scalar reference without drift, reset or disable accumulation (pmxAnimation=${pmxAnimation})`, () => {
 

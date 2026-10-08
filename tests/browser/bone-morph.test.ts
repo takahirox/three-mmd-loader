@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,7 +8,7 @@ import { Matrix4, Quaternion, Vector3 } from 'three';
 import { referenceBonePose, weightedRotation } from '../bone-morph-reference.ts';
 import { referenceBdef, referenceSdef } from '../sdef-reference.ts';
 import { authoredBoneMorphs, sdefCenter, sdefMorph, sdefNormal, sdefPmxBuffer, sdefProbeVertices, sdefR0, sdefR1, vmdBuffer } from '../fixtures.ts';
-import { runBrowser } from './browser.ts';
+import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
 const flip = ( values: number[] ) => values.map( ( v, i ) => Math.fround( i === 2 ? - v : v ) );
 const animationRotation = authoredBoneMorphs[ 0 ].elements[ 1 ].rotation;
@@ -131,6 +131,6 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 		if ( result.webgpu === 'available' ) assert.equal( result.backends[ 1 ]?.backend, 'webgpu' );
 		else t.diagnostic( 'Native WebGPU unavailable; mandatory WebGL2 passed.' );
 
-	} finally { await new Promise( resolve => server.close( resolve ) ); await rm( profile, { recursive: true, force: true } ); }
+	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
 
 } );

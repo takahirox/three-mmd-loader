@@ -1,6 +1,6 @@
-import { runBrowser } from './browser.ts';
+import { removeBrowserDirectory, runBrowser } from './browser.ts';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve, sep } from 'node:path';
@@ -443,7 +443,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 
 		server.closeAllConnections();
 		await new Promise( resolve => server.close( resolve ) );
-		await rm( temporary, { recursive: true, force: true } );
+		await removeBrowserDirectory( temporary );
 
 	}
 

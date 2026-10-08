@@ -12,12 +12,36 @@ export class MMDBoneMorphController {
 	private rotation = new Quaternion();
 	private weightedRotation = new Quaternion();
 	private offsets: Quaternion[];
+	private watchedBindings = new WeakSet<object>();
 
 	constructor( private mesh: MMDMesh ) {
 
 		this.base = new Float64Array( mesh.skeleton.bones.length * 7 );
 		this.result = new Float64Array( this.base.length );
 		this.offsets = mesh.skeleton.bones.map( () => new Quaternion() );
+
+	}
+
+	watchAnimationBindings( bindings: { restoreOriginalState(): void }[] ) {
+
+		// Three.js has no stop/reset event. Observe the actual restoration used
+		// by action.stop(), stopAllAction() and mixer uncache operations. Remove
+		// the procedural pass BEFORE the mixer writes originals, even when those
+		// originals happen to equal our last output (value comparison is ambiguous).
+		for ( const binding of bindings ) {
+
+			if ( this.watchedBindings.has( binding ) ) continue;
+			this.watchedBindings.add( binding );
+			const restoreOriginalState = binding.restoreOriginalState;
+			const controller = this;
+			binding.restoreOriginalState = function () {
+
+				controller.restore();
+				restoreOriginalState.call( this );
+
+			};
+
+		}
 
 	}
 

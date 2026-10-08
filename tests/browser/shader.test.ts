@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { runBrowser } from './browser.ts';
+import { removeBrowserDirectory, runBrowser } from './browser.ts';
 import { pmdBuffer, pmxBuffer } from '../fixtures.ts';
 
 const root = fileURLToPath( new URL( '../../', import.meta.url ) );
@@ -287,7 +287,7 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 	} finally {
 
 		await new Promise( resolve => server.close( resolve ) );
-		await rm( profile, { recursive: true, force: true } );
+		await removeBrowserDirectory( profile );
 
 	}
 

@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { createSdefServer } from '../../scripts/serve-sdef.ts';
 import { sdefPmxBuffer } from '../fixtures.ts';
 import { referenceBonePose } from '../bone-morph-reference.ts';
-import { runBrowser } from './browser.ts';
+import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
 test( 'private viewer loads generated PMX with MMDLoader and exposes bend and comparison controls', { timeout: 60000 }, async () => {
 
@@ -54,7 +54,7 @@ try {
 	} finally {
 
 		await new Promise( resolve => server.close( resolve ) );
-		await rm( directory, { recursive: true, force: true } ); await rm( profile, { recursive: true, force: true } );
+		await rm( directory, { recursive: true, force: true } ); await removeBrowserDirectory( profile );
 
 	}
 
@@ -118,7 +118,7 @@ try {
 	} finally {
 
 		await new Promise( resolve => server.close( resolve ) );
-		await rm( directory, { recursive: true, force: true } ); await rm( profile, { recursive: true, force: true } );
+		await rm( directory, { recursive: true, force: true } ); await removeBrowserDirectory( profile );
 
 	}
 
