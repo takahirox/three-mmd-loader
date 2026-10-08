@@ -70,7 +70,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		const [ parser ]: PackedPackage[] = JSON.parse( execFileSync( npm, [
 			'pack', join( root, 'node_modules/mmd-parser' ), '--json', '--pack-destination', consumer, '--ignore-scripts'
 		], options ) );
-		assert.equal( parser.version, '1.1.3' );
+		assert.equal( parser.version, '1.1.4' );
 		writeFileSync( join( consumer, 'package.json' ), JSON.stringify( {
 			private: true,
 			type: 'module',
@@ -84,7 +84,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		execFileSync( npm, [
 			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
 		], options );
-		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer() ] ] as const ) {
+		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { boneMorphs: true } ) ] ] as const ) {
 
 			writeFileSync( join( consumer, name ), Buffer.from( buffer ) );
 
@@ -148,6 +148,17 @@ const sdefMesh = await loader.loadAsync( 'data:application/octet-stream;base64,'
 assert.equal( Array.from( { length: sdefMesh.geometry.attributes.mmdSkinningType.count }, ( _, i ) => sdefMesh.geometry.attributes.mmdSkinningType.getX( i ) ).filter( type => type === 3 ).length, 9 );
 assert.equal( sdefMesh.geometry.attributes.mmdSdefC.getZ( 0 ), Math.fround( -0.3 ) );
 assert.ok( sdefMesh.material[0].isMMDToonMaterial );
+assert.equal(sdefMesh.geometry.userData.MMD.boneMorphs.length, 3);
+const morphHelper = new entry.MMDAnimationHelper();
+morphHelper.add(sdefMesh, {physics:false});
+sdefMesh.morphTargetInfluences[sdefMesh.morphTargetDictionary['bone-a']]=1;
+morphHelper.update(0);
+assert.ok(Math.abs(sdefMesh.skeleton.bones[0].position.z + 0.4)<1e-6);
+const transformed=sdefMesh.skeleton.bones[0].quaternion.toArray();
+morphHelper.update(0);
+assert.deepEqual(sdefMesh.skeleton.bones[0].quaternion.toArray(), transformed);
+morphHelper.enable('boneMorph',false).update(0);
+assert.deepEqual(sdefMesh.skeleton.bones[0].position.toArray(),[0,0,0]);
 sdefMesh.geometry.dispose(); sdefMesh.material.forEach( material => material.dispose() );
 assert.throws( () => new entry.MMDPhysics( null, [] ), /Import ammo.js/ );
 for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )} ) ) {
@@ -170,10 +181,10 @@ for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )
 		], options );
 		const installed: { peerDependencies: { three: string }; dependencies?: Record<string, string> } = JSON.parse( readFileSync( join( consumer, 'node_modules/three-mmd-loader/package.json' ), 'utf8' ) );
 		assert.equal( installed.peerDependencies.three, '~0.186.0' );
-		assert.deepEqual( installed.dependencies, { 'mmd-parser': '^1.1.3' } );
+		assert.deepEqual( installed.dependencies, { 'mmd-parser': '^1.1.4' } );
 		assert.equal( installed.dependencies[ 'mmd-parser' ], manifest.dependencies[ 'mmd-parser' ] );
 		const installedParser = JSON.parse( readFileSync( join( consumer, 'node_modules/mmd-parser/package.json' ), 'utf8' ) );
-		assert.equal( installedParser.version, '1.1.3' );
+		assert.equal( installedParser.version, '1.1.4' );
 
 	} finally {
 

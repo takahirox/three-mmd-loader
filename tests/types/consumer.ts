@@ -3,7 +3,7 @@ import {
 	MMDLoader, MMDAnimationHelper, CCDIKSolver, MMDPhysics, MMDExporter,
 	MMDToonMaterial, MMDOutlineEffect
 } from 'three-mmd-loader';
-import type { AmmoAPI, IK, MMDMesh } from 'three-mmd-loader';
+import type { AmmoAPI, IK, MMDMesh, MMDBoneMorph } from 'three-mmd-loader';
 import { MMDLoader as SubpathLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
 import { MMDAnimationHelper as SubpathHelper } from 'three-mmd-loader/animation/MMDAnimationHelper.js';
 import { CCDIKHelper } from 'three-mmd-loader/animation/CCDIKSolver.js';
@@ -23,7 +23,9 @@ const helper: MMDAnimationHelper = new SubpathHelper( { sync: false, pmxAnimatio
 helper.add( mesh, { physics: false, animation: new AnimationClip() } ).update( 1 / 60 );
 helper.add( new PerspectiveCamera(), { animation: new AnimationClip() } );
 helper.onBeforePhysics = model => { model.skeleton.bones[ 0 ].position.x = 1; };
-helper.enable( 'ik', false );
+helper.enable( 'ik', false ).enable( 'boneMorph', true );
+const boneMorphs: MMDBoneMorph[] = mesh.geometry.userData.MMD.boneMorphs ?? [];
+for ( const morph of boneMorphs ) mesh.morphTargetInfluences![ morph.index ] = 0.5;
 loader.loadAnimation( [ 'a.vmd', 'b.vmd' ], mesh, clip => { helper.add( mesh, { animation: clip } ); } );
 loader.loadWithAnimation( 'model.pmd', 'motion.vmd', result => { helper.add( result.mesh, { animation: result.animation } ); } );
 loader.loadPMD( 'model.pmd', ( data: Pmd ) => { loader.meshBuilder.build( data, '' ); } );

@@ -7,12 +7,14 @@ import { createExamplesServer } from './serve-examples.ts';
 
 const root = fileURLToPath( new URL( '../', import.meta.url ) );
 const assetRoot = resolve( root, 'examples/assets/private/yyb-miku-10th' );
-const assetPrefix = '/private-assets/yyb-miku-10th/';
-const types: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.bmp': 'image/bmp', '.pmx': 'application/octet-stream', '.vmd': 'application/octet-stream', '.tga': 'application/octet-stream', '.sph': 'image/bmp', '.spa': 'image/bmp' };
+const boneMorphRoot = resolve( root, 'examples/assets/private/bone-morph' );
+const types: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.bmp': 'image/bmp', '.gif': 'image/gif', '.webp': 'image/webp', '.pmx': 'application/octet-stream', '.vmd': 'application/octet-stream', '.tga': 'application/octet-stream', '.sph': 'image/bmp', '.spa': 'image/bmp' };
 
 // A separate loopback-only entry. Public builds copy neither scripts nor
 // local-viewer/, and npm's file allowlist excludes both and all example assets.
-export function createSdefServer( { privateDirectory = assetRoot }: { privateDirectory?: string } = {} ) {
+export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirectory = boneMorphRoot }: { privateDirectory?: string; boneMorphDirectory?: string } = {} ) {
+
+	const directories: Record<string, string> = { 'yyb-miku-10th': privateDirectory, 'bone-morph': boneMorphDirectory };
 
 	const dependencies = createExamplesServer();
 	return createServer( async ( request, response ) => {
@@ -37,10 +39,12 @@ export function createSdefServer( { privateDirectory = assetRoot }: { privateDir
 				content = ( await transform( await readFile( resolve( root, 'local-viewer/viewer.ts' ), 'utf8' ), { loader: 'ts', target: 'es2022', format: 'esm' } ) ).code;
 				type = 'text/javascript; charset=utf-8';
 
-			} else if ( path.startsWith( assetPrefix ) ) {
+			} else if ( path.startsWith( '/private-assets/' ) ) {
 
-				const base = await realpath( privateDirectory );
-				const file = await realpath( resolve( base, path.slice( assetPrefix.length ) ) );
+				const match = /^\/private-assets\/([^/]+)\/(.+)$/.exec( path );
+				if ( ! match || ! directories[ match[ 1 ] ] ) throw new Error( 'Not a private directory' );
+				const base = await realpath( directories[ match[ 1 ] ] );
+				const file = await realpath( resolve( base, match[ 2 ] ) );
 				if ( ! file.startsWith( base + sep ) || ! types[ extname( file ).toLowerCase() ] ) throw new Error( 'Not a local model asset' );
 				content = await readFile( file ); type = types[ extname( file ).toLowerCase() ];
 

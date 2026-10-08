@@ -83,6 +83,9 @@ accounts for GPU floating-point and transcendental-operation precision. Raster t
 toon surfaces, outlines and shadow occluders with independently CPU-baked
 geometry. Existing PMD, material, animation and example tests remain in place.
 
+The viewer also supports direct type 2 morph inspection from a separate
+`bone-morph/` private directory; see [bone morph playback](bone-morphs.md).
+
 ## Local YYB Miku viewing
 
 Manually obtain **YYB式初音ミク 10th v1.02** only from the author's

@@ -22,7 +22,6 @@ const helper = new MMDAnimationHelper();
 const clock = new Clock();
 let mesh: MMDMesh | undefined;
 let baseRotations: Quaternion[] = [];
-let basePositions: Vector3[] = [];
 let originalTypes: Float32Array | undefined;
 let animation = false;
 let count = 0;
@@ -30,12 +29,17 @@ const bend = element<HTMLInputElement>( 'bend' );
 const bone = element<HTMLSelectElement>( 'bone' );
 const axis = element<HTMLSelectElement>( 'axis' );
 const comparison = element<HTMLInputElement>( 'bdef' );
+const assetDirectory = element<HTMLSelectElement>( 'asset-directory' );
+const morph = element<HTMLSelectElement>( 'morph' );
+const weight = element<HTMLInputElement>( 'weight' );
+const morphInfo = element<HTMLPreElement>( 'morph-info' );
+let loadedDirectory = '';
 
-function privateURL( path: string ) {
+function privateURL( path: string, directory = assetDirectory.value ) {
 
 	const parts = path.replaceAll( '\\', '/' ).split( '/' );
-	if ( ! path || parts.some( p => ! p || p === '..' || p === '.' ) ) throw new Error( 'Use a relative path inside yyb-miku-10th/.' );
-	return '/private-assets/yyb-miku-10th/' + parts.map( encodeURIComponent ).join( '/' );
+	if ( ! path || parts.some( p => ! p || p === '..' || p === '.' ) ) throw new Error( 'Use a relative path inside the selected private directory.' );
+	return '/private-assets/' + encodeURIComponent( directory ) + '/' + parts.map( encodeURIComponent ).join( '/' );
 
 }
 function report( message = '' ) {
@@ -45,15 +49,18 @@ function report( message = '' ) {
 }
 function stop() {
 
-	if ( mesh && animation ) helper.remove( mesh );
+	if ( mesh && animation ) { helper.remove( mesh ); helper.add( mesh, { physics: false } ); }
+	helper.enable( 'ik', false ).enable( 'grant', false );
 	animation = false;
 
 }
 function reset() {
 
 	stop();
-	mesh?.skeleton.bones.forEach( ( b, i ) => { b.quaternion.copy( baseRotations[ i ] ); b.position.copy( basePositions[ i ] ); } );
+	if ( mesh ) helper.pose( mesh, { metadata: { boneCount: 0, parentFile: '', coordinateSystem: 'right' }, bones: [] }, { ik: false, grant: false } );
 	bend.value = '0'; element( 'degrees' ).textContent = '0°';
+	mesh?.morphTargetInfluences?.fill( 0 );
+	helper.update( 0 ); reportMorphs();
 
 }
 function applyBend() {
@@ -68,17 +75,52 @@ function applyBend() {
 	report( `Bending ${mesh.skeleton.bones[ index ].name}. Drag to orbit; scroll to zoom.` );
 
 }
+function reportMorphs() {
+
+	const boneMorphs = mesh?.geometry.userData.MMD.boneMorphs ?? [];
+	if ( ! boneMorphs.length ) {
+
+		morphInfo.textContent = mesh ? 'No type 2 bone morph is present in this PMX. Group, UV and material morphs are not implemented by this viewer.' : 'Load a PMX to enumerate its actual type 2 bone morphs.';
+		weight.value = '0'; element( 'weight-value' ).textContent = '0.00'; return;
+
+	}
+	const selected = Number( morph.value );
+	const selectedWeight = mesh!.morphTargetInfluences![ selected ];
+	weight.value = String( selectedWeight ); element( 'weight-value' ).textContent = selectedWeight.toFixed( 2 );
+	morphInfo.textContent = boneMorphs.map( m => {
+
+		const lines = m.elements.map( e => `  Bone ${e.index}: ${mesh!.skeleton.bones[ e.index ]?.name ?? 'missing'}\n    translation: [${e.position.join( ', ' )}]\n    rotation (xyzw): [${e.rotation.join( ', ' )}]` );
+		return `${m.index}: ${m.name} — weight ${mesh!.morphTargetInfluences![ m.index ].toFixed( 2 )}\n${lines.join( '\n' )}`;
+
+	} ).join( '\n\n' ) + '\n\nDirect type 2 only. Group composition, UV and material morph dispatch are unsupported. Values are in right-handed local space.';
+
+}
+morph.onchange = reportMorphs;
+weight.oninput = () => {
+
+	const value = Number( weight.value ); stop();
+	if ( ! mesh || morph.disabled ) return;
+	mesh.morphTargetInfluences![ Number( morph.value ) ] = value;
+	helper.update( 0 ); reportMorphs();
+	report( `Bone morph ${morph.selectedOptions[ 0 ].text}: weight ${value.toFixed( 2 )}.` );
+
+};
 element( 'load' ).onclick = async () => {
 
 	try {
 
 		status.textContent = 'Loading local PMX and textures…';
-		const next = await loader.loadAsync( privateURL( element<HTMLInputElement>( 'model' ).value ) );
+		const directory = assetDirectory.value;
+		const next = await loader.loadAsync( privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
 		reset();
-		if ( mesh ) { scene.remove( mesh ); mesh.geometry.dispose(); mesh.skeleton.dispose(); mesh.material.forEach( m => m.dispose() ); }
-		mesh = next; mesh.frustumCulled = false; scene.add( mesh );
+		if ( mesh ) { helper.remove( mesh ); scene.remove( mesh ); mesh.geometry.dispose(); mesh.skeleton.dispose(); mesh.material.forEach( m => m.dispose() ); }
+		mesh = next; mesh.frustumCulled = false; scene.add( mesh ); loadedDirectory = directory;
+		helper.add( mesh, { physics: false } );
+		const boneMorphs = mesh.geometry.userData.MMD.boneMorphs ?? [];
+		morph.replaceChildren( ...boneMorphs.map( m => new Option( `${m.index}: ${m.name}`, String( m.index ) ) ) );
+		morph.disabled = weight.disabled = boneMorphs.length === 0;
+		reportMorphs();
 		baseRotations = mesh.skeleton.bones.map( b => b.quaternion.clone() );
-		basePositions = mesh.skeleton.bones.map( b => b.position.clone() );
 		const types = mesh.geometry.getAttribute( 'mmdSkinningType' ) as BufferAttribute | InterleavedBufferAttribute;
 		originalTypes = Float32Array.from( { length: types.count }, ( _, i ) => types.getX( i ) );
 		count = Array.from( originalTypes ).filter( type => type === 3 ).length;
@@ -111,8 +153,9 @@ element( 'play' ).onclick = async () => {
 	try {
 
 		if ( ! mesh ) throw new Error( 'Load a model first.' );
-		const motion = await new Promise<AnimationClip>( ( resolve, reject ) => loader.loadAnimation( privateURL( element<HTMLInputElement>( 'motion' ).value ), mesh!, resolve, undefined, reject ) );
+		const motion = await new Promise<AnimationClip>( ( resolve, reject ) => loader.loadAnimation( privateURL( element<HTMLInputElement>( 'motion' ).value, loadedDirectory ), mesh!, resolve, undefined, reject ) );
 		reset();
+		helper.remove( mesh ); helper.enable( 'ik', true ).enable( 'grant', true );
 		helper.add( mesh, { animation: motion, physics: false } ); animation = true;
 		report( 'Playing private motion with IK and grants; physics disabled. Stop before adjusting bones.' );
 
@@ -122,4 +165,4 @@ element( 'play' ).onclick = async () => {
 element( 'stop' ).onclick = reset;
 function resize() { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize( innerWidth, innerHeight ); }
 addEventListener( 'resize', resize ); resize();
-renderer.setAnimationLoop( () => { const delta = clock.getDelta(); if ( animation ) helper.update( delta ); controls.update(); effect.render( scene, camera ); } );
+renderer.setAnimationLoop( () => { const delta = clock.getDelta(); if ( mesh ) helper.update( animation ? delta : 0 ); reportMorphs(); controls.update(); effect.render( scene, camera ); } );

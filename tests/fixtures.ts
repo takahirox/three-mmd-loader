@@ -130,13 +130,13 @@ export function pmxBuffer( { additionalUvMorphs = false }: { additionalUvMorphs?
 
 }
 
-export function vmdBuffer( { morphs = [] }: { morphs?: { morphName: string; frameNum: number; weight: number }[] } = {} ) {
+export function vmdBuffer( { morphs = [], boneName = 'root', rotation = [ 0, 0, 0, 1 ] }: { rotation?: number[]; boneName?: string; morphs?: { morphName: string; frameNum: number; weight: number }[] } = {} ) {
 
 	const w = new Writer();
 	w.text( 'Vocaloid Motion Data 0002', 30 ).text( 'triangle', 20 ).u32( 2 );
 	for ( const frame of [ 0, 30 ] ) {
 
-		w.text( 'root', 15 ).u32( frame ).f32( frame / 30 * 2, 0, 0, 0, 0, 0, 1 );
+		w.text( boneName, 15 ).u32( frame ).f32( frame / 30 * 2, 0, 0, ...frame === 0 ? [ 0, 0, 0, 1 ] : rotation );
 		// Linear Bezier interpolation for position and rotation.
 		for ( let i = 0; i < 64; i ++ ) w.u8( i % 16 < 8 ? 0 : 127 );
 
@@ -184,7 +184,7 @@ export const sdefR1 = [ - 0.3, 0.5, - 0.1 ];
 export const sdefNormal = [ 0.36, 0.48, 0.8 ];
 export const sdefMorph = [ 0.15, - 0.2, 0.25 ];
 
-export function sdefPmxBuffer() {
+export function sdefPmxBuffer( { boneMorphs = false, texturePath }: { boneMorphs?: boolean; texturePath?: string } = {} ) {
 
 	const w = new Writer();
 	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
@@ -207,9 +207,11 @@ export function sdefPmxBuffer() {
 	}
 	w.u32( sdefProbeVertices.length * 3 );
 	for ( let i = 0; i < sdefProbeVertices.length * 3; i ++ ) w.u8( i );
-	w.u32( 0 ).u32( 1 );
+	w.u32( texturePath ? 1 : 0 );
+	if ( texturePath ) w.text( texturePath );
+	w.u32( 1 );
 	w.text( 'probes' ).text( '' ).f32( 0.8, 0.6, 0.4, 1, 0, 0, 0, 30, 0, 0, 0 );
-	w.u8( 0x11 ).f32( 1, 0, 0, 1, 1 ).u8( 255 ).u8( 255 ).u8( 0 ).u8( 1 ).u8( 0 );
+	w.u8( 0x11 ).f32( 1, 0, 0, 1, 1 ).u8( texturePath ? 0 : 255 ).u8( 255 ).u8( 0 ).u8( 1 ).u8( 0 );
 	w.text( '' ).u32( sdefProbeVertices.length * 3 );
 	w.u32( 4 );
 	for ( let i = 0; i < 4; i ++ ) {
@@ -217,9 +219,37 @@ export function sdefPmxBuffer() {
 		w.text( `bone${i}` ).text( '' ).f32( i * 0.2, i * 0.1, i * - 0.15 ).u8( 255 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
 
 	}
-	w.u32( 1 ).text( 'vertex-morph' ).text( '' ).u8( 1 ).u8( 1 ).u32( sdefProbeVertices.length * 3 );
+	w.u32( boneMorphs ? 6 : 1 ).text( 'vertex-morph' ).text( '' ).u8( 1 ).u8( 1 ).u32( sdefProbeVertices.length * 3 );
 	for ( let i = 0; i < sdefProbeVertices.length * 3; i ++ ) w.u8( i ).f32( ...sdefMorph );
+	if ( boneMorphs ) {
+
+		for ( const morph of authoredBoneMorphs ) {
+
+			w.text( morph.name ).text( '' ).u8( 4 ).u8( 2 ).u32( morph.elements.length );
+			for ( const e of morph.elements ) w.u8( e.index ).f32( ...e.position, ...e.rotation );
+
+		}
+		// Full group-to-bone and UV dispatch is deliberately unsupported.
+		w.text( 'bone-group' ).text( '' ).u8( 4 ).u8( 0 ).u32( 1 ).u8( 1 ).f32( 0.75 );
+		w.text( 'uv-morph' ).text( '' ).u8( 4 ).u8( 3 ).u32( 1 ).u8( 0 ).f32( 0.1, 0.2, 0.3, 0.4 );
+
+	}
 	w.u32( 0 ).u32( 0 ).u32( 0 );
 	return w.buffer();
 
 }
+
+// Left-handed source payloads: asymmetric rotations and translations, a
+// negative quaternion sign and a near-identity rotation. Never external assets.
+export const authoredBoneMorphs = [
+	{ name: 'bone-a', elements: [
+		{ index: 0, position: [ 0.3, - 0.2, 0.4 ], rotation: [ 0.2, - 0.3, 0.4, Math.sqrt( 0.71 ) ] },
+		{ index: 1, position: [ - 0.1, 0.25, - 0.35 ], rotation: [ - 0.3, 0.1, 0.2, Math.sqrt( 0.86 ) ] }
+	] },
+	{ name: 'bone-b', elements: [
+		{ index: 0, position: [ - 0.15, 0.3, 0.2 ], rotation: [ - 0.1, - 0.4, 0.2, - Math.sqrt( 0.79 ) ] }
+	] },
+	{ name: 'bone-near', elements: [
+		{ index: 1, position: [ 0.1, 0.2, 0.3 ], rotation: [ 0.0001, - 0.0002, 0.0003, Math.sqrt( 1 - 0.00000014 ) ] }
+	] }
+];
