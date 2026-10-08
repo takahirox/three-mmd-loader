@@ -17,6 +17,7 @@
   },
   "include": [
     "scripts/**/*.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "local-viewer/**/*.ts"
   ]
 }

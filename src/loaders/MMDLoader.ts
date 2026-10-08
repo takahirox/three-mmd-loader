@@ -1,4 +1,5 @@
-import { Camera, LoadingManager } from 'three';
+import { enableSdefShadows } from '../skinning/MMDSdef.js';
+import { Camera, InterleavedBuffer, InterleavedBufferAttribute, LoadingManager } from 'three';
 import type { Texture, TypedArray, KeyframeTrack } from 'three';
 import { Parser } from 'mmd-parser';
 import type { Model, Pmd, Pmx, PmdMorph, PmxVertexMorph, MaterialMorphElement, Vmd, VmdMotion, VmdMorph, Vpd } from 'mmd-parser';
@@ -85,7 +86,6 @@ type MMDMaterialParameters = MMDToonMaterialParameters & {
  *
  * TODO
  *  - light motion in vmd support.
- *  - SDEF support.
  *  - uv/material/bone morphing support.
  *  - more precise grant skinning support.
  *  - shadow support.
@@ -507,6 +507,7 @@ class MeshBuilder {
 
 		const skeleton = new Skeleton( initBones( mesh ) );
 		mesh.bind( skeleton );
+		if ( geometry.hasAttribute( 'mmdSdefC' ) ) enableSdefShadows( mesh );
 
 		// console.log( mesh ); // for console debug
 
@@ -602,6 +603,9 @@ class GeometryBuilder {
 		const skinIndices = [];
 		const skinWeights = [];
 		const edgeRatios = [];
+		const skinningTypes = [];
+		const sdefData = [];
+		const hasSdef = data.vertices.some( v => 'type' in v && v.type === 3 );
 
 		const morphTargets = [];
 		const morphPositions = [];
@@ -621,6 +625,9 @@ class GeometryBuilder {
 		for ( let i = 0; i < data.metadata.vertexCount; i ++ ) {
 
 			const v = data.vertices[ i ];
+			const isSdef = 'type' in v && v.type === 3;
+			skinningTypes.push( 'type' in v ? v.type : 1 );
+			if ( hasSdef ) sdefData.push( skinningTypes[ i ], ...( isSdef ? [ ...v.skinC, ...v.skinR0, ...v.skinR1 ] : [ 0, 0, 0, 0, 0, 0, 0, 0, 0 ] ) );
 			// PMD vertex edgeFlag is inverted: 1 disables an edge.
 			edgeRatios.push( 'edgeRatio' in v ? v.edgeRatio : v.edgeFlag === 0 ? 1 : 0 );
 
@@ -1075,6 +1082,21 @@ class GeometryBuilder {
 		geometry.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
 		geometry.setAttribute( 'skinIndex', new Uint16BufferAttribute( skinIndices, 4 ) );
 		geometry.setAttribute( 'skinWeight', new Float32BufferAttribute( skinWeights, 4 ) );
+		if ( hasSdef ) {
+
+			// One GPU vertex buffer for all four SDEF attributes, staying below
+			// WebGPU's default eight-buffer limit alongside UVs and tangents.
+			const sdef = new InterleavedBuffer( new Float32Array( sdefData ), 10 );
+			geometry.setAttribute( 'mmdSkinningType', new InterleavedBufferAttribute( sdef, 1, 0 ) );
+			geometry.setAttribute( 'mmdSdefC', new InterleavedBufferAttribute( sdef, 3, 1 ) );
+			geometry.setAttribute( 'mmdSdefR0', new InterleavedBufferAttribute( sdef, 3, 4 ) );
+			geometry.setAttribute( 'mmdSdefR1', new InterleavedBufferAttribute( sdef, 3, 7 ) );
+
+		} else {
+
+			geometry.setAttribute( 'mmdSkinningType', new Float32BufferAttribute( skinningTypes, 1 ) );
+
+		}
 		geometry.setAttribute( 'mmdEdgeRatio', new Float32BufferAttribute( edgeRatios, 1 ) );
 		geometry.setIndex( indices );
 

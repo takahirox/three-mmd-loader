@@ -67,7 +67,7 @@ examples-site assets and are not included in the npm package.
 
 ## mmd-parser
 
-[mmd-parser](https://github.com/takahirox/mmd-parser) (`^1.1.2`) is an external
+[mmd-parser](https://github.com/takahirox/mmd-parser) (`^1.1.3`) is an external
 runtime dependency for parsing MMD resources and Shift_JIS encoding. Its public
 TypeScript types describe the raw parser results consumed by this package.
 The browser examples use the installed `build/mmdparser.module.mjs` artifact;

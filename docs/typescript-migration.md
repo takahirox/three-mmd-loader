@@ -8,7 +8,7 @@ Package exports expose the root and documented `.js` subpaths, with
 `types` conditions pointing to the corresponding declarations.
 
 Issue #20 replaces the former local parser with the external runtime dependency
-`mmd-parser ^1.1.2`. MMDLoader imports `Parser`, and MMDExporter imports
+`mmd-parser ^1.1.3`. MMDLoader imports `Parser`, and MMDExporter imports
 `CharsetEncoder`, directly from the dependency. The loader and helper use its
 public PMD/PMX/VMD/VPD result types. Local types now describe Three.js meshes,
 geometry, IK, grants, and transformed physics parameters rather than duplicate

@@ -36,6 +36,7 @@ export function createExamplesServer( { assetRoot = resolve( root, 'examples/ass
 		try {
 
 			let path = decodeURIComponent( new URL( request.url || '/', 'http://localhost' ).pathname );
+			if ( path.startsWith( '/examples/assets/private/' ) ) throw new Error( 'Private assets require the local viewer' );
 			if ( path === '/' ) {
 
 				response.writeHead( 302, { Location: '/examples/' } ).end();

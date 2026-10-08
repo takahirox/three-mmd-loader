@@ -53,7 +53,7 @@ export async function buildExamples( {
 
 	}
 	// Keep the browser import-map paths stable while serving compiled modules.
-	for ( const name of [ 'index.js', 'animation', 'exporters', 'loaders', 'materials', 'effects' ] ) {
+	for ( const name of [ 'index.js', 'animation', 'exporters', 'loaders', 'materials', 'effects', 'skinning' ] ) {
 
 		await cp( join( root, 'dist', name ), join( outputDirectory, 'src', name ), { recursive: true, filter: source => ! source.endsWith( '.d.ts' ) } );
 

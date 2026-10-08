@@ -53,7 +53,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			'node_modules/mmd-parser/build/mmdparser.module.mjs', 'node_modules/mmd-parser/LICENSE',
 			'node_modules/three/build/three.module.js', 'node_modules/three/build/three.core.js',
 			'node_modules/three/build/three.webgpu.js', 'node_modules/three/build/three.tsl.js',
-			'src/materials/MMDToonMaterial.js', 'src/effects/MMDOutlineEffect.js',
+			'src/skinning/MMDSdef.js', 'src/materials/MMDToonMaterial.js', 'src/effects/MMDOutlineEffect.js',
 			'node_modules/three/examples/jsm/controls/OrbitControls.js',
 			'node_modules/three/examples/jsm/loaders/TGALoader.js',
 			'node_modules/three/examples/jsm/libs/lil-gui.module.min.js',
@@ -65,7 +65,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			assert.deepEqual( await readFile( join( outputDirectory, path ) ), await readFile( new URL( '../' + path.replace( /^src\//, 'dist/' ).replace( /^examples\/(.+\.js)$/, 'dist/example-modules/$1' ), import.meta.url ) ), path );
 
 		}
-		for ( const path of [ 'src/libs/mmdparser.module.js', 'node_modules/mmd-parser/build/mmdparser.js', 'stale.html', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {
+		for ( const path of [ 'src/libs/mmdparser.module.js', 'node_modules/mmd-parser/build/mmdparser.js', 'stale.html', 'local-sdef', 'local-viewer', 'scripts/serve-sdef.ts', 'examples/assets/private', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {
 
 			await assert.rejects( readFile( join( outputDirectory, path ) ), { code: 'ENOENT' }, path );
 

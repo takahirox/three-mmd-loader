@@ -1,7 +1,8 @@
+import { hasSdef, setupMMDPosition } from '../skinning/MMDSdef.js';
 import { BackSide, Color } from 'three';
 import type { Camera, Scene, Texture } from 'three';
 import { NodeMaterial } from 'three/webgpu';
-import type { Renderer } from 'three/webgpu';
+import type { NodeBuilder, Renderer } from 'three/webgpu';
 import {
 	Fn, attribute, cameraProjectionMatrix, float, modelViewMatrix,
 	normalLocal, positionLocal, uniform, vec4
@@ -12,6 +13,12 @@ class OutlineMaterial extends NodeMaterial {
 	displacementMap: Texture | null = null;
 	displacementScale = 1;
 	displacementBias = 0;
+
+	setupPosition( builder: NodeBuilder ) {
+
+		return hasSdef( builder ) ? setupMMDPosition( this, builder ) : super.setupPosition( builder );
+
+	}
 }
 
 function createOutline() {

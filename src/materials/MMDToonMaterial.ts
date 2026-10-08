@@ -1,3 +1,4 @@
+import { hasSdef, setupMMDPosition } from '../skinning/MMDSdef.js';
 import { AddOperation, MultiplyOperation } from 'three';
 import type { Color, Combine, Texture } from 'three';
 import { MeshPhongNodeMaterial, PhongLightingModel } from 'three/webgpu';
@@ -73,6 +74,12 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 	// Retain the loader's historical diffuse alias while exposing standard color.
 	get diffuse(): Color { return this.color; }
 	set diffuse( value: Color ) { this.color = value; }
+
+	setupPosition( builder: NodeBuilder ) {
+
+		return hasSdef( builder ) ? setupMMDPosition( this, builder ) : super.setupPosition( builder );
+
+	}
 
 	setupLightingModel(): PhongLightingModel { return new MMDLightingModel(); }
 

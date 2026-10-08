@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { pmdBuffer, pmxBuffer, vmdBuffer } from './fixtures.ts';
+import { pmdBuffer, pmxBuffer, sdefPmxBuffer, vmdBuffer } from './fixtures.ts';
 
 const root = resolve( dirname( fileURLToPath( import.meta.url ) ), '..' );
 interface PackageManifest { exports: Record<string, Record<string, string>>; devDependencies: { three: string }; dependencies: { 'mmd-parser': string } }
@@ -53,7 +53,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 			assert.ok( files.includes( target.slice( 2 ) ), `Missing package file: ${target}` );
 
 		}
-		assert.ok( files.every( path => ! /(?:mmdparser|dist\/libs\/)/.test( path ) ) );
+		assert.ok( files.every( path => ! /(?:mmdparser|dist\/libs\/|private|local-viewer|serve-sdef)/.test( path ) ) );
 		assert.ok( files.includes( 'LICENSE' ) );
 		assert.ok( files.includes( 'THIRD_PARTY_NOTICES.md' ) );
 		assert.ok( files.includes( 'README.md' ) );
@@ -70,7 +70,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		const [ parser ]: PackedPackage[] = JSON.parse( execFileSync( npm, [
 			'pack', join( root, 'node_modules/mmd-parser' ), '--json', '--pack-destination', consumer, '--ignore-scripts'
 		], options ) );
-		assert.equal( parser.version, '1.1.2' );
+		assert.equal( parser.version, '1.1.3' );
 		writeFileSync( join( consumer, 'package.json' ), JSON.stringify( {
 			private: true,
 			type: 'module',
@@ -84,7 +84,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		execFileSync( npm, [
 			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
 		], options );
-		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ] ] as const ) {
+		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer() ] ] as const ) {
 
 			writeFileSync( join( consumer, name ), Buffer.from( buffer ) );
 
@@ -143,6 +143,12 @@ for ( const format of [ 'pmd', 'pmx' ] ) {
   mesh.geometry.dispose();
   mesh.material.forEach( material => material.dispose() );
 }
+const sdefBytes = readFileSync( 'sdef.pmx' );
+const sdefMesh = await loader.loadAsync( 'data:application/octet-stream;base64,' + sdefBytes.toString( 'base64' ) );
+assert.equal( Array.from( { length: sdefMesh.geometry.attributes.mmdSkinningType.count }, ( _, i ) => sdefMesh.geometry.attributes.mmdSkinningType.getX( i ) ).filter( type => type === 3 ).length, 9 );
+assert.equal( sdefMesh.geometry.attributes.mmdSdefC.getZ( 0 ), Math.fround( -0.3 ) );
+assert.ok( sdefMesh.material[0].isMMDToonMaterial );
+sdefMesh.geometry.dispose(); sdefMesh.material.forEach( material => material.dispose() );
 assert.throws( () => new entry.MMDPhysics( null, [] ), /Import ammo.js/ );
 for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )} ) ) {
   const module = await import( 'three-mmd-loader/' + path );
@@ -164,10 +170,10 @@ for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )
 		], options );
 		const installed: { peerDependencies: { three: string }; dependencies?: Record<string, string> } = JSON.parse( readFileSync( join( consumer, 'node_modules/three-mmd-loader/package.json' ), 'utf8' ) );
 		assert.equal( installed.peerDependencies.three, '~0.186.0' );
-		assert.deepEqual( installed.dependencies, { 'mmd-parser': '^1.1.2' } );
+		assert.deepEqual( installed.dependencies, { 'mmd-parser': '^1.1.3' } );
 		assert.equal( installed.dependencies[ 'mmd-parser' ], manifest.dependencies[ 'mmd-parser' ] );
 		const installedParser = JSON.parse( readFileSync( join( consumer, 'node_modules/mmd-parser/package.json' ), 'utf8' ) );
-		assert.equal( installedParser.version, '1.1.2' );
+		assert.equal( installedParser.version, '1.1.3' );
 
 	} finally {
 

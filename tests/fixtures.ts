@@ -167,3 +167,59 @@ export function cameraVmdBuffer() {
 	return w.buffer();
 
 }
+
+// Authored PMX probes: each triangle has identical skinning inputs so its GPU
+// output is constant. Different clip positions are supplied by the browser test.
+export const sdefProbeVertices = [
+	{ type: 3, weight: 0.35, position: [ 0.6, 0.3, 0.2 ] },
+	{ type: 3, weight: 0, position: [ - 0.4, 0.7, 0.3 ] },
+	{ type: 3, weight: 1, position: [ 0.2, - 0.5, - 0.1 ] },
+	{ type: 0, weight: 1, position: [ 0.4, 0.5, 0.6 ] },
+	{ type: 1, weight: 0.35, position: [ - 0.3, 0.6, - 0.4 ] },
+	{ type: 2, weight: 0.2, position: [ 0.5, - 0.2, 0.4 ] }
+];
+export const sdefCenter = [ 0.1, 0.2, 0.3 ];
+export const sdefR0 = [ 0.4, - 0.2, 0.6 ];
+export const sdefR1 = [ - 0.3, 0.5, - 0.1 ];
+export const sdefNormal = [ 0.36, 0.48, 0.8 ];
+export const sdefMorph = [ 0.15, - 0.2, 0.25 ];
+
+export function sdefPmxBuffer() {
+
+	const w = new Writer();
+	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
+	for ( const value of [ 0, 0, 1, 1, 1, 1, 1, 1 ] ) w.u8( value );
+	w.text( 'SDEF probes' ).text( '' ).text( '' ).text( '' );
+	w.u32( sdefProbeVertices.length * 3 );
+	for ( const v of sdefProbeVertices ) {
+
+		for ( let i = 0; i < 3; i ++ ) {
+
+			w.f32( ...v.position, ...sdefNormal, 0, 0 ).u8( v.type );
+			if ( v.type === 0 ) w.u8( 0 );
+			else if ( v.type === 2 ) w.u8( 0 ).u8( 1 ).u8( 2 ).u8( 3 ).f32( 0.2, 0.3, 0.1, 0.4 );
+			else w.u8( 0 ).u8( 1 ).f32( v.weight );
+			if ( v.type === 3 ) w.f32( ...sdefCenter, ...sdefR0, ...sdefR1 );
+			w.f32( 1 );
+
+		}
+
+	}
+	w.u32( sdefProbeVertices.length * 3 );
+	for ( let i = 0; i < sdefProbeVertices.length * 3; i ++ ) w.u8( i );
+	w.u32( 0 ).u32( 1 );
+	w.text( 'probes' ).text( '' ).f32( 0.8, 0.6, 0.4, 1, 0, 0, 0, 30, 0, 0, 0 );
+	w.u8( 0x11 ).f32( 1, 0, 0, 1, 1 ).u8( 255 ).u8( 255 ).u8( 0 ).u8( 1 ).u8( 0 );
+	w.text( '' ).u32( sdefProbeVertices.length * 3 );
+	w.u32( 4 );
+	for ( let i = 0; i < 4; i ++ ) {
+
+		w.text( `bone${i}` ).text( '' ).f32( i * 0.2, i * 0.1, i * - 0.15 ).u8( 255 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
+
+	}
+	w.u32( 1 ).text( 'vertex-morph' ).text( '' ).u8( 1 ).u8( 1 ).u32( sdefProbeVertices.length * 3 );
+	for ( let i = 0; i < sdefProbeVertices.length * 3; i ++ ) w.u8( i ).f32( ...sdefMorph );
+	w.u32( 0 ).u32( 0 ).u32( 0 );
+	return w.buffer();
+
+}
