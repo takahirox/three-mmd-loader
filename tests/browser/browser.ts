@@ -1,6 +1,7 @@
 import type { Readable, Writable } from 'node:stream';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { rm } from 'node:fs/promises';
 
 interface CDPResults {
 	'Target.createTarget': { targetId: string };
@@ -9,6 +10,7 @@ interface CDPResults {
 	'Emulation.setEmulatedMedia': object;
 	'Page.navigate': object;
 	'Runtime.evaluate': { exceptionDetails?: unknown; result: { value: string } };
+	'Browser.close': object;
 }
 interface Pending { resolve: ( value: unknown ) => void; reject: ( error: Error ) => void }
 interface CDPMessage { id: number; sessionId?: string; method?: string; params?: unknown; result?: unknown; error?: { message: string } }
@@ -19,9 +21,18 @@ const chrome = process.env.CHROME_BIN || ( process.platform === 'darwin'
 		? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 		: 'google-chrome' );
 
+// Chrome subprocesses can briefly keep writing profiles after the main process
+// exits. Retry transient ENOTEMPTY/EBUSY failures, but still report permanent
+// cleanup errors after ten retries with 100 ms linear backoff.
+export async function removeBrowserDirectory( directory: string ) {
+
+	await rm( directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 } );
+
+}
+
 // Use Chrome's DevTools pipe so asynchronous audio work can finish on the
 // normal browser clock. A virtual clock can stall AudioContext operations.
-export async function runBrowser<T>( url: string, profile: string, colorScheme = 'light' ): Promise<T> {
+export async function runBrowser<T>( url: string, profile: string, colorScheme = 'light', timeoutMs = 45000 ): Promise<T> {
 
 	const browser = spawn( chrome, [
 		'--headless', '--no-first-run', '--no-default-browser-check',
@@ -29,6 +40,25 @@ export async function runBrowser<T>( url: string, profile: string, colorScheme =
 		'--autoplay-policy=no-user-gesture-required', '--remote-debugging-pipe',
 		`--user-data-dir=${profile}`
 	], { stdio: [ 'ignore', 'ignore', 'ignore', 'pipe', 'pipe' ] } );
+	const closed = new Promise<void>( resolve => browser.once( 'close', () => resolve() ) );
+	async function waitForClose() {
+
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		try {
+
+			return await Promise.race( [ closed.then( () => true ), new Promise<false>( resolve => {
+
+				timer = setTimeout( () => resolve( false ), 2000 );
+
+			} ) ] );
+
+		} finally {
+
+			clearTimeout( timer );
+
+		}
+
+	}
 	const pending = new Map<number, Pending>();
 	const events = new Map<string, Pending>();
 	let nextID = 0;
@@ -81,10 +111,10 @@ export async function runBrowser<T>( url: string, profile: string, colorScheme =
 	}
 	const timeout = setTimeout( () => {
 
-		rejectPending( new Error( 'Chrome did not finish examples validation within 45 seconds' ) );
+		rejectPending( new Error( `Chrome did not finish validation of ${url} within ${timeoutMs / 1000} seconds` ) );
 		browser.kill();
 
-	}, 45000 );
+	}, timeoutMs );
 	try {
 
 		const { targetId } = await send( 'Target.createTarget', { url: 'about:blank' } );
@@ -119,12 +149,16 @@ export async function runBrowser<T>( url: string, profile: string, colorScheme =
 	} finally {
 
 		clearTimeout( timeout );
-		browser.kill();
-		if ( browser.exitCode === null && browser.signalCode === null ) {
+		if ( browser.exitCode === null && browser.signalCode === null && browser.pid !== undefined ) {
 
-			await new Promise( resolve => browser.once( 'exit', resolve ) );
+			// Let Chrome flush and stop its children normally before falling back
+			// to signals. Wait for stdio closure as well as the parent exit.
+			void send( 'Browser.close' ).catch( () => {} );
+			if ( ! await waitForClose() ) browser.kill();
+			if ( ! await waitForClose() ) browser.kill( 'SIGKILL' );
 
 		}
+		assert.ok( await waitForClose(), 'Chrome did not close after bounded shutdown attempts' );
 
 	}
 

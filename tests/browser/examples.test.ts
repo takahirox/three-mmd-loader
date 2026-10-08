@@ -1,6 +1,6 @@
-import { runBrowser } from './browser.ts';
+import { removeBrowserDirectory, runBrowser } from './browser.ts';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve, sep } from 'node:path';
@@ -357,7 +357,7 @@ function wavBuffer() {
 
 }
 
-test( 'example pages match Three.js layout, resize, render, and preserve interactive controls', { timeout: 90000 }, async () => {
+test( 'example pages match Three.js layout, resize, render, and preserve interactive controls', { timeout: 180000 }, async t => {
 
 	const temporary = await mkdtemp( join( tmpdir(), 'three-mmd-examples-' ) );
 	const assetRoot = join( temporary, 'assets' );
@@ -423,7 +423,13 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 			assert.match( await index.text(), /webgl_loader_mmd_audio.html/ );
 
 		}
-		const results = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test`, join( temporary, 'profile' ) );
+		// The built site uses the full distributed model/motion/audio rather than
+		// synthetic fixtures. Repeated navigation and SwiftShader rendering can
+		// exceed 45 seconds on CI; give this session a bounded two-minute budget.
+		const timeoutMs = siteRoot ? 120000 : 45000;
+		const started = performance.now();
+		const results = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test`, join( temporary, 'profile' ), 'light', timeoutMs );
+		t.diagnostic( `Light example validation: ${Math.round( performance.now() - started )} ms (budget ${timeoutMs} ms)` );
 		assert.equal( results.length, 5, JSON.stringify( results ) );
 		const darkResults = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test-dark`, join( temporary, 'profile-dark' ), 'dark' );
 		assert.equal( darkResults.length, 1, JSON.stringify( darkResults ) );
@@ -443,7 +449,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 
 		server.closeAllConnections();
 		await new Promise( resolve => server.close( resolve ) );
-		await rm( temporary, { recursive: true, force: true } );
+		await removeBrowserDirectory( temporary );
 
 	}
 

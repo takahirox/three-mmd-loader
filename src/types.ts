@@ -67,6 +67,14 @@ export interface MMDGeometryData {
 	grants: Grant[];
 	rigidBodies: RigidBodyParameters[];
 	constraints: ConstraintParameters[];
+	/** Direct PMX type 2 morphs in file order; offsets are already right-handed. */
+	boneMorphs?: MMDBoneMorph[];
+}
+
+export interface MMDBoneMorph {
+	index: number;
+	name: string;
+	elements: { index: number; position: number[]; rotation: number[] }[];
 }
 
 export interface MMDGeometry extends BufferGeometry {

@@ -11,6 +11,7 @@ import {
 } from 'three';
 import { CCDIKSolver } from '../animation/CCDIKSolver.js';
 import { MMDPhysics } from '../animation/MMDPhysics.js';
+import { MMDBoneMorphController } from './MMDBoneMorphController.js';
 
 export interface MMDAnimationHelperParameters {
 	sync?: boolean;
@@ -26,12 +27,13 @@ export interface MMDAnimationParameters extends MMDPhysicsParameters {
 	delayTime?: number;
 }
 export interface MMDPoseParameters { resetPose?: boolean; ik?: boolean; grant?: boolean }
-export type MMDAnimationFeature = 'animation' | 'ik' | 'grant' | 'physics' | 'cameraAnimation';
+export type MMDAnimationFeature = 'animation' | 'boneMorph' | 'ik' | 'grant' | 'physics' | 'cameraAnimation';
 export type MMDCamera = Camera & { updateProjectionMatrix(): void };
 // Three.js exposes no public API for enumerating mixer actions/bindings.
 type MMDMixer = AnimationMixer & {
 	_actions: AnimationAction[];
-	_bindings: { buffer: number[]; valueSize: number; binding: { getValue( buffer: number[], offset: number ): void } }[];
+	_activateAction( action: AnimationAction ): void;
+	_bindings: { restoreOriginalState(): void; buffer: number[]; valueSize: number; binding: { getValue( buffer: number[], offset: number ): void } }[];
 	_accuIndex: number;
 };
 export interface MMDAnimationState {
@@ -59,6 +61,8 @@ export interface MMDAnimationState {
  *  - more precise grant skinning support.
  */
 class MMDAnimationHelper {
+
+	private boneMorphControllers = new WeakMap<MMDMesh, MMDBoneMorphController>();
 
 	meshes: MMDMesh[];
 	camera: MMDCamera | null;
@@ -100,6 +104,7 @@ class MMDAnimationHelper {
 
 		this.enabled = {
 			animation: true,
+			boneMorph: true,
 			ik: true,
 			grant: true,
 			physics: true,
@@ -212,7 +217,12 @@ class MMDAnimationHelper {
 
 		}
 
-		if ( this.sharedPhysics ) this._updateSharedPhysics( delta );
+		if ( this.sharedPhysics ) {
+
+			this._updateSharedPhysics( delta );
+			for ( const mesh of this.meshes ) this.boneMorphControllers.get( mesh )?.capture();
+
+		}
 
 		if ( this.camera !== null ) this._animateCamera( this.camera, delta );
 
@@ -233,6 +243,8 @@ class MMDAnimationHelper {
 	 */
 	pose( mesh: MMDMesh, vpd: Vpd, params: MMDPoseParameters = {} ) {
 
+		const boneMorphs = this._getBoneMorphController( mesh );
+		boneMorphs?.restore();
 		if ( params.resetPose !== false ) mesh.pose();
 
 		const bones = mesh.skeleton.bones;
@@ -262,6 +274,7 @@ class MMDAnimationHelper {
 
 		}
 
+		boneMorphs?.apply( this.enabled.boneMorph );
 		mesh.updateMatrixWorld( true );
 
 		// PMX animation system special path
@@ -289,6 +302,7 @@ class MMDAnimationHelper {
 
 		}
 
+		boneMorphs?.capture();
 		return this;
 
 	}
@@ -348,6 +362,7 @@ class MMDAnimationHelper {
 
 		}
 
+		this._getBoneMorphController( mesh )?.restore();
 		this.meshes.push( mesh );
 		this.objects.set( mesh, { looped: false } );
 
@@ -421,6 +436,8 @@ class MMDAnimationHelper {
 
 			if ( this.meshes[ i ] === mesh ) {
 
+				// Release the authored pose so a new helper cannot bake in bone morphs.
+				this.boneMorphControllers.get( mesh )?.restore();
 				this.objects.delete( mesh );
 				found = true;
 
@@ -491,13 +508,13 @@ class MMDAnimationHelper {
 				? animation : [ animation ];
 
 			objects.mixer = new AnimationMixer( mesh ) as MMDMixer;
+			this._getBoneMorphController( mesh )?.watchAnimationMixer( objects.mixer );
 
 			for ( let i = 0, il = animations.length; i < il; i ++ ) {
 
 				objects.mixer.clipAction( animations[ i ] ).play();
 
 			}
-
 			// TODO: find a workaround not to access ._clip looking like a private property
 			objects.mixer.addEventListener( 'loop', function ( event ) {
 
@@ -551,7 +568,8 @@ class MMDAnimationHelper {
 
 		objects.physics = this._createMMDPhysics( mesh, params );
 
-		if ( objects.mixer && params.animationWarmup !== false ) {
+		const animationWarmup = ( objects.mixer || this._getBoneMorphController( mesh ) ) && params.animationWarmup !== false;
+		if ( animationWarmup ) {
 
 			this._animateMesh( mesh, 0 );
 			objects.physics.reset();
@@ -561,6 +579,7 @@ class MMDAnimationHelper {
 		objects.physics.warmup( params.warmup !== undefined ? params.warmup : 60 );
 
 		this._optimizeIK( mesh, true );
+		if ( animationWarmup ) this.boneMorphControllers.get( mesh )?.capture();
 
 	}
 
@@ -572,7 +591,9 @@ class MMDAnimationHelper {
 		const ikSolver = objects.ikSolver;
 		const grantSolver = objects.grantSolver;
 		const physics = objects.physics;
-		const looped = objects.looped;
+		const boneMorphs = this._getBoneMorphController( mesh );
+		if ( mixer ) boneMorphs?.watchAnimationMixer( mixer );
+		boneMorphs?.restore();
 
 		if ( mixer && this.enabled.animation ) {
 
@@ -580,11 +601,17 @@ class MMDAnimationHelper {
 			//mesh.pose();
 			//this._updatePropertyMixersBuffer( mesh );
 
-			this._restoreBones( mesh );
+			if ( ! boneMorphs ) this._restoreBones( mesh );
 
 			mixer.update( delta );
 
 			this._saveBones( mesh );
+
+		}
+
+		boneMorphs?.apply( this.enabled.boneMorph );
+
+		if ( ( mixer && this.enabled.animation ) || boneMorphs ) {
 
 			// PMX animation system special path
 			if ( this.configuration.pmxAnimation &&
@@ -618,7 +645,7 @@ class MMDAnimationHelper {
 
 		}
 
-		if ( looped === true && this.enabled.physics ) {
+		if ( objects.looped === true && this.enabled.physics ) {
 
 			if ( physics && this.configuration.resetPhysicsOnLoop ) physics.reset();
 
@@ -632,6 +659,22 @@ class MMDAnimationHelper {
 			physics.update( delta );
 
 		}
+
+		boneMorphs?.capture();
+
+	}
+
+	_getBoneMorphController( mesh: MMDMesh ) {
+
+		if ( ! mesh.geometry.userData.MMD.boneMorphs?.length ) return undefined;
+		let controller = this.boneMorphControllers.get( mesh );
+		if ( ! controller ) {
+
+			controller = new MMDBoneMorphController( mesh );
+			this.boneMorphControllers.set( mesh, controller );
+
+		}
+		return controller;
 
 	}
 

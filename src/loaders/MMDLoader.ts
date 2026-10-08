@@ -3,7 +3,7 @@ import { Camera, InterleavedBuffer, InterleavedBufferAttribute, LoadingManager }
 import type { Texture, TypedArray, KeyframeTrack } from 'three';
 import { Parser } from 'mmd-parser';
 import type { Model, Pmd, Pmx, PmdMorph, PmxVertexMorph, MaterialMorphElement, Vmd, VmdMotion, VmdMorph, Vpd } from 'mmd-parser';
-import type { MMDBone, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
+import type { MMDBone, MMDBoneMorph, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
 import {
 	AddOperation,
 	AnimationClip,
@@ -86,7 +86,7 @@ type MMDMaterialParameters = MMDToonMaterialParameters & {
  *
  * TODO
  *  - light motion in vmd support.
- *  - uv/material/bone morphing support.
+ *  - full group/uv/material morphing support.
  *  - more precise grant skinning support.
  *  - shadow support.
  */
@@ -608,6 +608,7 @@ class GeometryBuilder {
 		const hasSdef = data.vertices.some( v => 'type' in v && v.type === 3 );
 
 		const morphTargets = [];
+		const boneMorphs: MMDBoneMorph[] = [];
 		const morphPositions = [];
 
 		const iks: IK[] = [];
@@ -982,7 +983,14 @@ class GeometryBuilder {
 
 				} else if ( morph.type === 2 ) { // bone
 
-					// TODO: implement
+					boneMorphs.push( {
+						index: i, name: morph.name,
+						elements: morph.elements.map( element => ( {
+							index: element.index,
+							position: element.position.slice(),
+							rotation: element.rotation.slice()
+						} ) )
+					} );
 
 				} else if ( morph.type === 3 ) { // uv
 
@@ -1118,6 +1126,7 @@ class GeometryBuilder {
 		geometry.morphTargetsRelative = false;
 
 		geometry.userData.MMD = {
+			boneMorphs: boneMorphs,
 			bones: bones,
 			iks: iks,
 			grants: grants,

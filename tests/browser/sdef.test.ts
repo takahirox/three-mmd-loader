@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { Matrix4, Quaternion, Vector3 } from 'three';
-import { runBrowser } from './browser.ts';
+import { removeBrowserDirectory, runBrowser } from './browser.ts';
 import { sdefCenter, sdefMorph, sdefNormal, sdefPmxBuffer, sdefProbeVertices, sdefR0, sdefR1 } from '../fixtures.ts';
 import { referenceBdef, referenceSdef } from '../sdef-reference.ts';
 
@@ -193,6 +193,6 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 		if ( result.webgpu === 'available' ) assert.equal( result.backends[ 1 ]?.backend, 'webgpu' );
 		else t.diagnostic( 'Native WebGPU unavailable; mandatory WebGL2 passed.' );
 
-	} finally { await new Promise( resolve => server.close( resolve ) ); await rm( profile, { recursive: true, force: true } ); }
+	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
 
 } );
