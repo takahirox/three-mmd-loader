@@ -13,6 +13,7 @@ export class MMDBoneMorphController {
 	private rotation = new Quaternion();
 	private weightedRotation = new Quaternion();
 	private offsets: Quaternion[];
+	private weights: Float64Array;
 	private watchedBindings = new WeakSet<object>();
 	private watchedMixers = new WeakSet<AnimationMixer>();
 
@@ -21,6 +22,7 @@ export class MMDBoneMorphController {
 		this.base = new Float64Array( mesh.skeleton.bones.length * 7 );
 		this.result = new Float64Array( this.base.length );
 		this.offsets = mesh.skeleton.bones.map( () => new Quaternion() );
+		this.weights = new Float64Array( mesh.geometry.morphTargets.length );
 
 	}
 
@@ -104,10 +106,33 @@ export class MMDBoneMorphController {
 
 		this.save( this.base );
 		if ( ! enabled ) return;
-		for ( const offset of this.offsets ) offset.identity();
+		// Aggregate direct and all group contributions before composing each
+		// bone target in PMX file order. Never write effective weights back to
+		// the public slider/VMD array, or replay baked group vertex offsets.
+		this.weights.fill( 0 );
 		for ( const morph of this.mesh.geometry.userData.MMD.boneMorphs ?? [] ) {
 
 			const weight = this.mesh.morphTargetInfluences?.[ morph.index ] ?? 0;
+			if ( Number.isFinite( weight ) ) this.weights[ morph.index ] = weight;
+
+		}
+		for ( const group of this.mesh.geometry.userData.MMD.groupMorphs ?? [] ) {
+
+			const weight = this.mesh.morphTargetInfluences?.[ group.index ] ?? 0;
+			if ( ! Number.isFinite( weight ) || weight === 0 ) continue;
+			for ( const element of group.elements ) {
+
+				if ( element.type !== 2 || ! Number.isInteger( element.index ) || element.index < 0 || element.index >= this.weights.length ) continue;
+				const contribution = weight * element.ratio;
+				if ( Number.isFinite( contribution ) ) this.weights[ element.index ] += contribution;
+
+			}
+
+		}
+		for ( const offset of this.offsets ) offset.identity();
+		for ( const morph of this.mesh.geometry.userData.MMD.boneMorphs ?? [] ) {
+
+			const weight = this.weights[ morph.index ];
 			if ( weight === 0 ) continue;
 			for ( const element of morph.elements ) {
 

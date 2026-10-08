@@ -33,6 +33,11 @@ const assetDirectory = element<HTMLSelectElement>( 'asset-directory' );
 const morph = element<HTMLSelectElement>( 'morph' );
 const weight = element<HTMLInputElement>( 'weight' );
 const morphInfo = element<HTMLPreElement>( 'morph-info' );
+const group = element<HTMLSelectElement>( 'group' );
+const groupWeight = element<HTMLInputElement>( 'group-weight' );
+const groupTarget = element<HTMLSelectElement>( 'group-target' );
+const targetWeight = element<HTMLInputElement>( 'target-weight' );
+const groupInfo = element<HTMLPreElement>( 'group-info' );
 let loadedDirectory = '';
 
 function privateURL( path: string, directory = assetDirectory.value ) {
@@ -75,12 +80,70 @@ function applyBend() {
 	report( `Bending ${mesh.skeleton.bones[ index ].name}. Drag to orbit; scroll to zoom.` );
 
 }
+function reportGroups() {
+
+	const groups = mesh?.geometry.userData.MMD.groupMorphs ?? [];
+	const lines: HTMLElement[] = [];
+	let boneLinks = 0;
+	for ( const g of groups ) {
+
+		const heading = document.createElement( 'span' );
+		heading.textContent = `${g.index}: ${g.name} (type 0), weight ${mesh!.morphTargetInfluences![ g.index ].toFixed( 2 )}\n`;
+		lines.push( heading );
+		for ( const e of g.elements ) {
+
+			const line = document.createElement( 'span' );
+			const supported = ( e.type === 1 || e.type === 2 ) && Number.isFinite( e.ratio );
+			line.textContent = `  → ${e.index}: ${e.name ?? 'missing'} (type ${e.type ?? 'invalid'}), ratio ${e.ratio}${supported ? '' : ' — ignored/unsupported'}\n`;
+			if ( e.type === 2 && supported ) {
+
+				boneLinks ++; line.className = 'bone-link';
+				const target = mesh!.geometry.userData.MMD.boneMorphs?.find( m => m.index === e.index );
+				line.textContent += target?.elements.map( b => `    Bone ${b.index}: ${mesh!.skeleton.bones[ b.index ]?.name ?? 'missing'}\n` ).join( '' ) ?? '';
+
+			}
+			lines.push( line );
+
+		}
+
+	}
+	const diagnostic = document.createElement( 'span' );
+	diagnostic.textContent = ( boneLinks ? `${boneLinks} group → bone links. Bone links highlighted.` : 'No group → bone relation is present in this PMX.' ) + '\nNested groups are ignored; UV/additional-UV/material morphs are unsupported.';
+	groupInfo.replaceChildren( ...lines, diagnostic );
+	groupWeight.value = String( mesh?.morphTargetInfluences?.[ Number( group.value ) ] ?? 0 );
+	targetWeight.value = String( mesh?.morphTargetInfluences?.[ Number( groupTarget.value ) ] ?? 0 );
+	element( 'group-weight-value' ).textContent = Number( groupWeight.value ).toFixed( 2 );
+	element( 'target-weight-value' ).textContent = Number( targetWeight.value ).toFixed( 2 );
+
+}
+function selectGroup() {
+
+	const selected = mesh?.geometry.userData.MMD.groupMorphs?.find( g => g.index === Number( group.value ) );
+	const targets = new Map( selected?.elements.filter( e => ( e.type === 1 || e.type === 2 ) && Number.isFinite( e.ratio ) ).map( e => [ e.index, e ] ) );
+	groupTarget.replaceChildren( ...Array.from( targets.values(), e => new Option( `${e.index}: ${e.name} (type ${e.type})`, String( e.index ) ) ) );
+	groupTarget.disabled = targetWeight.disabled = targets.size === 0;
+	reportGroups();
+
+}
+function setWeight( select: HTMLSelectElement, slider: HTMLInputElement ) {
+
+	if ( ! mesh || select.disabled ) return;
+	stop(); mesh.morphTargetInfluences![ Number( select.value ) ] = Number( slider.value );
+	helper.update( 0 ); reportMorphs();
+
+}
+group.onchange = selectGroup;
+groupTarget.onchange = reportGroups;
+groupWeight.oninput = () => setWeight( group, groupWeight );
+targetWeight.oninput = () => setWeight( groupTarget, targetWeight );
 function reportMorphs() {
+
+	reportGroups();
 
 	const boneMorphs = mesh?.geometry.userData.MMD.boneMorphs ?? [];
 	if ( ! boneMorphs.length ) {
 
-		morphInfo.textContent = mesh ? 'No type 2 bone morph is present in this PMX. Group, UV and material morphs are not implemented by this viewer.' : 'Load a PMX to enumerate its actual type 2 bone morphs.';
+		morphInfo.textContent = mesh ? 'No type 2 bone morph is present in this PMX. UV and material morphs are not implemented by this viewer.' : 'Load a PMX to enumerate its actual type 2 bone morphs.';
 		weight.value = '0'; element( 'weight-value' ).textContent = '0.00'; return;
 
 	}
@@ -92,7 +155,7 @@ function reportMorphs() {
 		const lines = m.elements.map( e => `  Bone ${e.index}: ${mesh!.skeleton.bones[ e.index ]?.name ?? 'missing'}\n    translation: [${e.position.join( ', ' )}]\n    rotation (xyzw): [${e.rotation.join( ', ' )}]` );
 		return `${m.index}: ${m.name} — weight ${mesh!.morphTargetInfluences![ m.index ].toFixed( 2 )}\n${lines.join( '\n' )}`;
 
-	} ).join( '\n\n' ) + '\n\nDirect type 2 only. Group composition, UV and material morph dispatch are unsupported. Values are in right-handed local space.';
+	} ).join( '\n\n' ) + '\n\nDirect type 2 controls. Group links to vertex/bone targets are supported; UV and material morph dispatch are unsupported. Values are in right-handed local space.';
 
 }
 morph.onchange = reportMorphs;
@@ -119,7 +182,12 @@ element( 'load' ).onclick = async () => {
 		const boneMorphs = mesh.geometry.userData.MMD.boneMorphs ?? [];
 		morph.replaceChildren( ...boneMorphs.map( m => new Option( `${m.index}: ${m.name}`, String( m.index ) ) ) );
 		morph.disabled = weight.disabled = boneMorphs.length === 0;
-		reportMorphs();
+		const groups = mesh.geometry.userData.MMD.groupMorphs ?? [];
+		group.replaceChildren( ...groups.map( g => new Option( `${g.index}: ${g.name}`, String( g.index ) ) ) );
+		group.disabled = groupWeight.disabled = groups.length === 0;
+		const folding = groups.find( g => g.name === 'たたむ全' );
+		if ( folding ) group.value = String( folding.index );
+		selectGroup(); reportMorphs();
 		baseRotations = mesh.skeleton.bones.map( b => b.quaternion.clone() );
 		const types = mesh.geometry.getAttribute( 'mmdSkinningType' ) as BufferAttribute | InterleavedBufferAttribute;
 		originalTypes = Float32Array.from( { length: types.count }, ( _, i ) => types.getX( i ) );

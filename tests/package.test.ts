@@ -84,7 +84,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		execFileSync( npm, [
 			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
 		], options );
-		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { boneMorphs: true } ) ] ] as const ) {
+		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { groupMorphs: true } ) ] ] as const ) {
 
 			writeFileSync( join( consumer, name ), Buffer.from( buffer ) );
 
@@ -158,6 +158,16 @@ const transformed=sdefMesh.skeleton.bones[0].quaternion.toArray();
 morphHelper.update(0);
 assert.deepEqual(sdefMesh.skeleton.bones[0].quaternion.toArray(), transformed);
 morphHelper.enable('boneMorph',false).update(0);
+assert.deepEqual(sdefMesh.skeleton.bones[0].position.toArray(),[0,0,0]);
+sdefMesh.morphTargetInfluences.fill(0);
+sdefMesh.morphTargetInfluences[sdefMesh.morphTargetDictionary['mixed-group']]=1;
+morphHelper.enable('boneMorph',true).update(0);
+assert.ok(Math.abs(sdefMesh.skeleton.bones[0].position.x - (0.3*0.375 - 0.15*0.5))<1e-6);
+assert.equal(sdefMesh.morphTargetInfluences[1],0);
+assert.equal(sdefMesh.geometry.userData.MMD.groupMorphs.find(g=>g.index===6).elements[1].type,2);
+const groupResult=sdefMesh.skeleton.bones[0].quaternion.toArray();
+morphHelper.update(0);assert.deepEqual(sdefMesh.skeleton.bones[0].quaternion.toArray(),groupResult);
+sdefMesh.morphTargetInfluences.fill(0);morphHelper.update(0);
 assert.deepEqual(sdefMesh.skeleton.bones[0].position.toArray(),[0,0,0]);
 sdefMesh.geometry.dispose(); sdefMesh.material.forEach( material => material.dispose() );
 assert.throws( () => new entry.MMDPhysics( null, [] ), /Import ammo.js/ );

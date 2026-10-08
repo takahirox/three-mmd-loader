@@ -120,6 +120,9 @@ flags, multiplying extrusion thickness. Outlines use the same mesh and Three's
 morphing/skinning/displacement setup as the surface, so animation requires no
 separate outline mesh or skeleton synchronization.
 
+PMX [group morphs](docs/group-morphs.md) support direct vertex and bone targets,
+including VMD playback and a private local inspection viewer.
+
 Development and validation:
 
 ```sh

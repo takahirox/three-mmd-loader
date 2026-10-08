@@ -184,7 +184,9 @@ export const sdefR1 = [ - 0.3, 0.5, - 0.1 ];
 export const sdefNormal = [ 0.36, 0.48, 0.8 ];
 export const sdefMorph = [ 0.15, - 0.2, 0.25 ];
 
-export function sdefPmxBuffer( { boneMorphs = false, texturePath }: { boneMorphs?: boolean; texturePath?: string } = {} ) {
+export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, texturePath }: { boneMorphs?: boolean; groupMorphs?: boolean; texturePath?: string } = {} ) {
+
+	boneMorphs ||= groupMorphs;
 
 	const w = new Writer();
 	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
@@ -219,7 +221,7 @@ export function sdefPmxBuffer( { boneMorphs = false, texturePath }: { boneMorphs
 		w.text( `bone${i}` ).text( '' ).f32( i * 0.2, i * 0.1, i * - 0.15 ).u8( 255 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
 
 	}
-	w.u32( boneMorphs ? 6 : 1 ).text( 'vertex-morph' ).text( '' ).u8( 1 ).u8( 1 ).u32( sdefProbeVertices.length * 3 );
+	w.u32( groupMorphs ? 16 : boneMorphs ? 6 : 1 ).text( 'vertex-morph' ).text( '' ).u8( 1 ).u8( 1 ).u32( sdefProbeVertices.length * 3 );
 	for ( let i = 0; i < sdefProbeVertices.length * 3; i ++ ) w.u8( i ).f32( ...sdefMorph );
 	if ( boneMorphs ) {
 
@@ -229,9 +231,32 @@ export function sdefPmxBuffer( { boneMorphs = false, texturePath }: { boneMorphs
 			for ( const e of morph.elements ) w.u8( e.index ).f32( ...e.position, ...e.rotation );
 
 		}
-		// Full group-to-bone and UV dispatch is deliberately unsupported.
+		// A direct group-to-bone link; UV dispatch remains unsupported.
 		w.text( 'bone-group' ).text( '' ).u8( 4 ).u8( 0 ).u32( 1 ).u8( 1 ).f32( 0.75 );
 		w.text( 'uv-morph' ).text( '' ).u8( 4 ).u8( 3 ).u32( 1 ).u8( 0 ).f32( 0.1, 0.2, 0.3, 0.4 );
+
+	}
+	if ( groupMorphs ) {
+
+		const group = ( name: string, elements: number[][] ) => {
+
+			w.text( name ).text( '' ).u8( 4 ).u8( 0 ).u32( elements.length );
+			for ( const [ index, ratio ] of elements ) w.u8( index ).f32( ratio );
+
+		};
+		group( 'mixed-group', [ [ 0, 0.5 ], [ 1, 0.25 ], [ 2, 0.5 ], [ 1, 0.125 ] ] ); // 6
+		group( 'shared-group', [ [ 0, - 0.25 ], [ 1, 0.5 ], [ 3, 0.75 ] ] ); // 7
+		group( 'nested-group', [ [ 6, 1 ], [ 9, 1 ], [ 0, 0.125 ] ] ); // 8
+		group( 'cyclic-group', [ [ 9, 1 ], [ 8, 1 ] ] ); // 9
+		w.text( 'material-morph' ).text( '' ).u8( 4 ).u8( 8 ).u32( 1 ).u8( 255 ).u8( 1 ); // 10
+		w.f32( 0.2, 0.3, 0.4, 0.5, 0.1, 0.2, 0.3, 10, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 1, 2 );
+		w.f32( 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 );
+		for ( const type of [ 4, 5, 6, 7 ] ) { // 11..14
+
+			w.text( `additional-uv-${type}` ).text( '' ).u8( 4 ).u8( type ).u32( 1 ).u8( 0 ).f32( 0.1, 0.2, 0.3, 0.4 );
+
+		}
+		group( 'invalid-group', [ [ - 1, 1 ], [ 120, 1 ], [ 5, 1 ], [ 10, 1 ], [ 11, 1 ], [ 12, 1 ], [ 13, 1 ], [ 14, 1 ], [ 9, 1 ], [ 1, NaN ], [ 0, Infinity ] ] ); // 15
 
 	}
 	w.u32( 0 ).u32( 0 ).u32( 0 );

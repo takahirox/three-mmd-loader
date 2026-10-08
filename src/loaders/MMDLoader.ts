@@ -3,7 +3,7 @@ import { Camera, InterleavedBuffer, InterleavedBufferAttribute, LoadingManager }
 import type { Texture, TypedArray, KeyframeTrack } from 'three';
 import { Parser } from 'mmd-parser';
 import type { Model, Pmd, Pmx, PmdMorph, PmxVertexMorph, MaterialMorphElement, Vmd, VmdMotion, VmdMorph, Vpd } from 'mmd-parser';
-import type { MMDBone, MMDBoneMorph, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
+import type { MMDBone, MMDBoneMorph, MMDGroupMorph, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
 import {
 	AddOperation,
 	AnimationClip,
@@ -86,7 +86,7 @@ type MMDMaterialParameters = MMDToonMaterialParameters & {
  *
  * TODO
  *  - light motion in vmd support.
- *  - full group/uv/material morphing support.
+ *  - uv/material morphing support. Nested groups are intentionally ignored.
  *  - more precise grant skinning support.
  *  - shadow support.
  */
@@ -609,6 +609,7 @@ class GeometryBuilder {
 
 		const morphTargets = [];
 		const boneMorphs: MMDBoneMorph[] = [];
+		const groupMorphs: MMDGroupMorph[] = [];
 		const morphPositions = [];
 
 		const iks: IK[] = [];
@@ -960,18 +961,30 @@ class GeometryBuilder {
 
 				if ( morph.type === 0 ) { // group
 
+					groupMorphs.push( {
+						index: i, name: morph.name,
+						elements: morph.elements.map( element => {
+
+							const target = Number.isInteger( element.index ) ? data.morphs[ element.index ] : undefined;
+							return { index: element.index, ratio: element.ratio, type: target?.type ?? null, name: target?.name ?? null };
+
+						} )
+					} );
 					for ( let j = 0; j < morph.elementCount; j ++ ) {
 
 						const morph2 = data.morphs[ morph.elements[ j ].index ];
 						const ratio = morph.elements[ j ].ratio;
 
-						if ( morph2.type === 1 ) {
+						if ( Number.isInteger( morph.elements[ j ].index ) && morph2?.type === 1 && Number.isFinite( ratio ) ) {
 
+							// Bake only direct vertex links. Three.js adds these once,
+							// before skinning, without changing public target weights.
 							updateAttributes( attribute, morph2, ratio );
 
 						} else {
 
-							// TODO: implement
+							// Bone links run in MMDBoneMorphController. Nested groups
+							// are ignored for MMD compatibility; UV/material unsupported.
 
 						}
 
@@ -1127,6 +1140,7 @@ class GeometryBuilder {
 
 		geometry.userData.MMD = {
 			boneMorphs: boneMorphs,
+			groupMorphs: groupMorphs,
 			bones: bones,
 			iks: iks,
 			grants: grants,
@@ -1427,6 +1441,7 @@ class MaterialBuilder {
 					if ( element.index === - 1 ) continue;
 
 					const material = materials[ element.index ];
+					if ( ! material ) continue;
 
 					if ( material.opacity !== element.diffuse[ 3 ] ) {
 
@@ -1449,7 +1464,7 @@ class MaterialBuilder {
 
 						const morph2 = data.morphs[ elements[ j ].index ];
 
-						if ( morph2.type !== 8 ) continue;
+						if ( ! Number.isInteger( elements[ j ].index ) || morph2?.type !== 8 ) continue;
 
 						checkAlphaMorph( morph2.elements, materials );
 

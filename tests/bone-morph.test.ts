@@ -258,9 +258,10 @@ for ( const pmxAnimation of [ false, true ] ) {
 			assert.deepEqual( snapshot( mesh ), first );
 
 		}
-		// Unsupported dispatch must not turn a group weight into bone motion.
+		// A group-to-bone link contributes its ratio; UV stays unsupported.
 		weights( mesh, [ 0, 0, 0 ] ); mesh.morphTargetInfluences![ 4 ] = 1; mesh.morphTargetInfluences![ 5 ] = 1;
-		helper.update( 0 ); checkPose( mesh, referenceBonePose( [] ) );
+		helper.update( 0 ); checkPose( mesh, referenceBonePose( [ 0.75, 0, 0 ] ) );
+		mesh.morphTargetInfluences![ 4 ] = 0;
 		weights( mesh, [ 0.7, 0.4, 0 ] ); helper.update( 0 );
 		helper.enable( 'boneMorph', false ).update( 0 ); checkPose( mesh, referenceBonePose( [] ) );
 		helper.enable( 'boneMorph', true ).update( 0 ); checkPose( mesh, referenceBonePose( [ 0.7, 0.4, 0 ] ) );
@@ -317,7 +318,7 @@ for ( const pmxAnimation of [ false, true ] ) {
 
 	} );
 
-	test( `IK and grants see bone morphs before solving and never accumulate (pmxAnimation=${pmxAnimation})`, () => {
+	for ( const group of [ false, true ] ) test( `IK and grants see ${group ? 'group' : 'direct'} bone morphs before solving and never accumulate (pmxAnimation=${pmxAnimation})`, () => {
 
 		const data: Pmx = new Parser().parsePmx( sdefPmxBuffer( { boneMorphs: true } ), true );
 		data.bones[ 1 ].parentIndex = 0; data.bones[ 1 ].position = [ 0, 1, 0 ];
@@ -327,7 +328,9 @@ for ( const pmxAnimation of [ false, true ] ) {
 		// Pure bone0 rotation: IK should undo the morph to reach this target.
 		data.morphs[ 1 ] = { name: 'bone-a', englishName: '', panel: 4, type: 2, elementCount: 1, elements: [ { index: 0, position: [ 0, 0, 0 ], rotation: authoredBoneMorphs[ 0 ].elements[ 0 ].rotation.map( ( v, i ) => Math.fround( i < 2 ? - v : v ) ) as [ number, number, number, number ] } ] };
 		const { mesh } = setup( data ); const helper = new MMDAnimationHelper( { pmxAnimation } ); helper.add( mesh, { physics: false } );
-		weights( mesh, [ 1, 0, 0 ] ); helper.update( 0 );
+		if ( group ) mesh.morphTargetInfluences![ 4 ] = 1 / 0.75;
+		else weights( mesh, [ 1, 0, 0 ] );
+		helper.update( 0 );
 		const effector = mesh.skeleton.bones[ 1 ], target = mesh.skeleton.bones[ 2 ];
 		assert.ok( effector.getWorldPosition( new Vector3() ).distanceTo( target.getWorldPosition( new Vector3() ) ) < 1e-5 );
 		const expectedGrant = new Quaternion().slerp( mesh.skeleton.bones[ 0 ].quaternion, 0.5 );
@@ -361,13 +364,15 @@ test( 'real Ammo consumes morphed kinematic transforms, dynamic bones override m
 	ammoGlobal.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )();
 	try {
 
-		for ( const pmxAnimation of [ false, true ] ) for ( const shared of [ false, true ] ) for ( const animationWarmup of [ false, true ] ) {
+		for ( const pmxAnimation of [ false, true ] ) for ( const shared of [ false, true ] ) for ( const animationWarmup of [ false, true ] ) for ( const group of [ false, true ] ) {
 
 			const data = new Parser().parsePmx( sdefPmxBuffer( { boneMorphs: true } ), true );
 			data.rigidBodies = [ 0, 1 ].map( i => ( { name: `body${i}`, englishName: '', boneIndex: i, type: i, shapeType: 0, width: 0.01, height: 0.01, depth: 0.01, position: [ ...data.bones[ i ].position ], rotation: [ 0, 0, 0 ], weight: i, friction: 0.5, restitution: 0, positionDamping: 0, rotationDamping: 0, groupIndex: i, groupTarget: 0 } ) );
 			data.metadata.rigidBodyCount = 2;
 			const { mesh } = setup( data ); const helper = new MMDAnimationHelper( { pmxAnimation } ); helper.sharedPhysics = shared;
-			helper.add( mesh, { animationWarmup, warmup: 0, gravity: new Vector3( 0, 0, 0 ) } ); weights( mesh, [ 1, 0, 0 ] );
+			helper.add( mesh, { animationWarmup, warmup: 0, gravity: new Vector3( 0, 0, 0 ) } );
+			if ( group ) mesh.morphTargetInfluences![ 4 ] = 1 / 0.75;
+			else weights( mesh, [ 1, 0, 0 ] );
 			helper.update( 1 / 60 );
 			near( mesh.skeleton.bones[ 0 ].position.toArray(), referenceBonePose( [ 1, 0, 0 ] )[ 0 ].position );
 			// Dynamic body stays at its initial position under zero gravity.

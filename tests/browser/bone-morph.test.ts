@@ -6,13 +6,14 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import { referenceBonePose, weightedRotation } from '../bone-morph-reference.ts';
+import { referenceGroupWeights } from '../group-morph-reference.ts';
 import { referenceBdef, referenceSdef } from '../sdef-reference.ts';
 import { authoredBoneMorphs, sdefCenter, sdefMorph, sdefNormal, sdefPmxBuffer, sdefProbeVertices, sdefR0, sdefR1, vmdBuffer } from '../fixtures.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
 const flip = ( values: number[] ) => values.map( ( v, i ) => Math.fround( i === 2 ? - v : v ) );
 const animationRotation = authoredBoneMorphs[ 0 ].elements[ 1 ].rotation;
-const motion = vmdBuffer( { boneName: 'bone0', rotation: animationRotation, morphs: [ 'vertex-morph', 'bone-a', 'bone-b' ].flatMap( morphName => [ { morphName, frameNum: 0, weight: 0 }, { morphName, frameNum: 30, weight: 1 } ] ) } );
+const motion = vmdBuffer( { boneName: 'bone0', rotation: animationRotation, morphs: [ 'vertex-morph', 'bone-a', 'bone-b', 'mixed-group' ].flatMap( morphName => [ { morphName, frameNum: 0, weight: 0 }, { morphName, frameNum: 30, weight: 1 } ] ) } );
 const cases = [
 	{ name: 'rest', weights: [ 0, 0, 0 ], vertex: 0 },
 	{ name: 'full direct', weights: [ 1, 0, 0 ], vertex: 0 },
@@ -20,6 +21,13 @@ const cases = [
 	{ name: 'composed intermediate', weights: [ 0.25, 0.7, 0.5 ], vertex: 0.6 },
 	{ name: 'full composed', weights: [ 1, 1, 1 ], vertex: 1 },
 	{ name: 'disabled', weights: [ 1, 1, 1 ], vertex: 0.3, disabled: true },
+	...[ 0, 0.5, 1, 0 ].flatMap( weight => [
+		{ name: 'group only ' + weight, weights: [ 0, 0, 0 ], vertex: 0, groups: [ weight, 0, 0 ] },
+		{ name: 'direct plus group ' + weight, weights: [ weight, 0.25, 0 ], vertex: 0.3, groups: [ weight, 0, 0 ] },
+		{ name: 'multiple shared groups ' + weight, weights: [ weight, 0.25, 0.1 ], vertex: 0.3, groups: [ weight, weight, 0 ] }
+	] ),
+	{ name: 'ignored nested cyclic unsupported', weights: [ 0, 0, 0 ], vertex: 0, groups: [ 0, 0, 1 ], ignored: true },
+	{ name: 'disabled groups', weights: [ 0.2, 0.3, 0.4 ], vertex: 0.2, groups: [ 1, 0.5, 0 ], disabled: true },
 	{ name: 'back to rest', weights: [ 0, 0, 0 ], vertex: 0 },
 	{ name: 'VMD midpoint', weights: [ 0.5, 0.5, 0 ], vertex: 0.5, time: 0.5 },
 	{ name: 'VMD seek backward', weights: [ 0.2, 0.2, 0 ], vertex: 0.2, time: 0.2 },
@@ -29,11 +37,13 @@ const cases = [
 
 	const base = referenceBonePose( [] );
 	if ( 'time' in c && c.time !== undefined ) { base[ 0 ].position[ 0 ] = c.time * 2; base[ 0 ].rotation = weightedRotation( animationRotation, c.time ); }
-	const bones = referenceBonePose( 'disabled' in c && c.disabled ? [] : c.weights, base );
+	const publicWeights = [ c.vertex, ...c.weights, 0, 0, ...( 'groups' in c ? c.groups! : [ 'time' in c ? c.time ?? 0 : 0, 0, 0 ] ) ];
+	const effective = referenceGroupWeights( publicWeights );
+	const bones = referenceBonePose( 'disabled' in c && c.disabled ? [] : effective.bones, base );
 	const palette = bones.map( ( b, i ) => new Matrix4().compose( new Vector3().fromArray( b.position ), new Quaternion().fromArray( b.rotation ), new Vector3( 1, 1, 1 ) ).multiply( new Matrix4().makeTranslation( ...referenceBonePose( [] )[ i ].position as [ number, number, number ] ).invert() ) );
 	const expected = sdefProbeVertices.map( v => {
 
-		const position = flip( v.position ).map( ( value, i ) => value + flip( sdefMorph )[ i ] * c.vertex );
+		const position = flip( v.position ).map( ( value, i ) => value + flip( sdefMorph )[ i ] * effective.vertex );
 		return v.type === 3
 			? referenceSdef( { position, normal: flip( sdefNormal ), c: flip( sdefCenter ), r0: flip( sdefR0 ), r1: flip( sdefR1 ), weight: Math.fround( v.weight ) }, palette )
 			: referenceBdef( position, flip( sdefNormal ), palette, v.type === 0 ? [ 1 ] : v.type === 1 ? [ Math.fround( v.weight ), 1 - Math.fround( v.weight ) ] : [ 0.2, 0.3, 0.1, 0.4 ] );
@@ -71,7 +81,7 @@ try {
   let maxError=0,assertions=0;
   for(const pmxAnimation of [false,true]) {
    const loader=new MMDLoader();loader.meshBuilder.materialBuilder.textureLoader.load=()=>new Texture();
-   const mesh=await loader.loadAsync('data:application/octet-stream;base64,${Buffer.from( sdefPmxBuffer( { boneMorphs: true } ) ).toString( 'base64' )}');
+   const mesh=await loader.loadAsync('data:application/octet-stream;base64,${Buffer.from( sdefPmxBuffer( { groupMorphs: true } ) ).toString( 'base64' )}');
    check(mesh.geometry.userData.MMD.boneMorphs.length===3,'payload missing');
    mesh.frustumCulled=false;
    const scene=new Scene();scene.add(mesh);const camera=new OrthographicCamera(-2,2,2,-2,0.1,20);camera.position.z=5;
@@ -79,7 +89,7 @@ try {
    mesh.geometry.setAttribute('probeClip',new Float32BufferAttribute(clips,2));
    const material=mesh.material[0];material.vertexNode=Fn(()=>vec4(attribute('probeClip','vec2'),0,1))();
    const clip=await new Promise((resolve,reject)=>loader.loadAnimation('data:application/octet-stream;base64,${Buffer.from( motion ).toString( 'base64' )}',mesh,resolve,undefined,reject));
-   check(clip.tracks.length===5,'VMD tracks missing');
+   check(clip.tracks.length===6,'VMD tracks missing');
    for(const output of ['position','normal']) {
     mesh.pose();mesh.morphTargetInfluences.fill(0);
     material.fragmentNode=Fn(()=>vec4(varying(output==='position'?positionLocal:normalLocal),1))();material.needsUpdate=true;
@@ -91,7 +101,7 @@ try {
       const mixer=helper.objects.get(mesh).mixer;
       if(c.loop)helper.update(0.4);else mixer.setTime(c.time);
       helper.update(0);
-     } else {mesh.morphTargetInfluences[0]=c.vertex;c.weights.forEach((w,i)=>mesh.morphTargetInfluences[i+1]=w);helper.update(0);}
+     } else {mesh.morphTargetInfluences.fill(0);(c.groups||[0,0,0]).forEach((w,i)=>mesh.morphTargetInfluences[i+6]=w);if(c.ignored){mesh.morphTargetInfluences[9]=1;mesh.morphTargetInfluences[15]=1;}mesh.morphTargetInfluences[0]=c.vertex;c.weights.forEach((w,i)=>mesh.morphTargetInfluences[i+1]=w);helper.update(0);}
      // Repeated zero updates must leave actual GPU output unchanged.
      for(let repeat=0;repeat<2;repeat++) {
       helper.update(0);await new Promise(requestAnimationFrame);renderer.render(scene,camera);
@@ -127,7 +137,7 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 		const result = await runBrowser<{ error?: string; errors: string[]; webgpu: string; backends: { backend: string; maxError: number; assertions: number }[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/`, profile );
 		assert.equal( result.error, undefined, result.error ); assert.deepEqual( result.errors, [] );
 		assert.equal( result.backends[ 0 ]?.backend, 'webgl' );
-		for ( const b of result.backends ) { assert.equal( b.assertions, 1584 ); t.diagnostic( `${b.backend}: ${b.assertions} CPU position/normal comparisons, maximum error ${b.maxError}` ); }
+		for ( const b of result.backends ) { assert.equal( b.assertions, cases.length * 144 ); t.diagnostic( `${b.backend}: ${b.assertions} CPU position/normal comparisons, maximum error ${b.maxError}` ); }
 		if ( result.webgpu === 'available' ) assert.equal( result.backends[ 1 ]?.backend, 'webgpu' );
 		else t.diagnostic( 'Native WebGPU unavailable; mandatory WebGL2 passed.' );
 

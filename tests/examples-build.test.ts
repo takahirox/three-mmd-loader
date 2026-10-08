@@ -26,6 +26,9 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		await mkdir( join( assetDirectory, 'private/bone-morph' ), { recursive: true } );
 		await writeFile( join( assetDirectory, 'private/bone-morph/model.pmx' ), 'private model sentinel' );
 		await writeFile( join( assetDirectory, 'private/bone-morph/LICENSE.txt' ), 'local only' );
+		await mkdir( join( assetDirectory, 'private/group-morph' ), { recursive: true } );
+		await writeFile( join( assetDirectory, 'private/group-morph/model.pmx' ), 'private group sentinel' );
+		await writeFile( join( assetDirectory, 'private/group-morph/README.txt' ), 'local only' );
 		await mkdir( outputDirectory );
 		await writeFile( join( outputDirectory, 'stale.html' ), 'old build' );
 		const commit = 'c'.repeat( 40 );
@@ -70,7 +73,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			assert.deepEqual( await readFile( join( outputDirectory, path ) ), await readFile( new URL( '../' + path.replace( /^src\//, 'dist/' ).replace( /^examples\/(.+\.js)$/, 'dist/example-modules/$1' ), import.meta.url ) ), path );
 
 		}
-		for ( const path of [ 'src/libs/mmdparser.module.js', 'node_modules/mmd-parser/build/mmdparser.js', 'stale.html', 'local-sdef', 'local-viewer', 'scripts/serve-sdef.ts', 'examples/assets/private', 'examples/assets/mmd/private/bone-morph/model.pmx', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {
+		for ( const path of [ 'src/libs/mmdparser.module.js', 'node_modules/mmd-parser/build/mmdparser.js', 'stale.html', 'local-sdef', 'local-viewer', 'scripts/serve-sdef.ts', 'examples/assets/private', 'examples/assets/mmd/private/bone-morph/model.pmx', 'examples/assets/mmd/private/group-morph/model.pmx', 'examples/assets/mmd/private/group-morph/README.txt', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {
 
 			await assert.rejects( readFile( join( outputDirectory, path ) ), { code: 'ENOENT' }, path );
 

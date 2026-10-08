@@ -69,6 +69,14 @@ export interface MMDGeometryData {
 	constraints: ConstraintParameters[];
 	/** Direct PMX type 2 morphs in file order; offsets are already right-handed. */
 	boneMorphs?: MMDBoneMorph[];
+	/** PMX type 0 references in file order, including ignored/unsupported links. */
+	groupMorphs?: MMDGroupMorph[];
+}
+
+export interface MMDGroupMorph {
+	index: number;
+	name: string;
+	elements: { index: number; ratio: number; type: number | null; name: string | null }[];
 }
 
 export interface MMDBoneMorph {
