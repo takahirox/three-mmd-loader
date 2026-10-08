@@ -92,9 +92,8 @@ palette for surfaces, normals, outlines and shadows.
 
 ## Scope and inherited limitations
 
-Full group-to-bone composition, UV/additional-UV and material morph dispatch
-are separate tasks. Existing group-to-vertex handling remains unchanged;
-a group referencing a bone morph does not activate that bone morph. The
+[PMX group morphs](group-morphs.md) propagate direct type 1/type 2 references.
+UV/additional-UV and material morph dispatch remain unsupported. The
 wire rope candidate's UV interaction cannot be reproduced by this issue.
 
 This change preserves the helper's existing solver limitations: local grants
@@ -145,7 +144,7 @@ Existing public examples, asset manifest, screenshots and Pages URLs are unchang
 ## Automated verification
 
 Generated PMX fixtures contain mixed BDEF/SDEF skinning, vertex morphs, three
-direct bone morphs, an unsupported group and a UV morph. They include asymmetric
+direct bone morphs, a group-to-bone link and a UV morph. They include asymmetric
 nonzero translations/rotations on two bones, shared bone targets, a negative
 quaternion sign and a near-identity rotation. CPU tests compare rest, full and
 intermediate weights and composed poses against a scalar Hamilton-product and
@@ -153,7 +152,7 @@ axis/angle reference. They exercise VMD bone rotation/translation plus vertex
 and bone morph tracks, repeated zero updates, pause, seeking, looping, VPD,
 absolute bone edits, disabling/re-enabling and real Ammo integration.
 
-Browser CI runs 1,584 position/normal comparisons per backend using actual
+Browser CI compares direct and group-driven positions/normals per backend using actual
 MMDLoader geometry, VMD animations and both helper modes. WebGL2 is mandatory;
 native WebGPU runs when Chrome supplies an adapter. The existing SDEF suite
 also retains surface, outline and shadow regressions. The viewer test uses

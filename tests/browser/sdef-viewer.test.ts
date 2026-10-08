@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { createSdefServer } from '../../scripts/serve-sdef.ts';
-import { sdefPmxBuffer } from '../fixtures.ts';
+import { sdefPmxBuffer, vmdBuffer } from '../fixtures.ts';
+import { referenceGroupPose } from '../group-morph-reference.ts';
 import { referenceBonePose } from '../bone-morph-reference.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
@@ -61,15 +62,16 @@ try {
 } );
 
 
-test( 'private bone morph viewer enumerates real payloads, loads relative textures, controls weights and diagnoses absent morphs', { timeout: 60000 }, async () => {
+test( 'private group/bone viewer enumerates parsed links, loads textures/VMD, controls weights and diagnoses absent morphs', { timeout: 60000 }, async () => {
 
 	const directory = await mkdtemp( join( tmpdir(), 'mmd-bone-viewer-' ) );
 	const profile = await mkdtemp( join( tmpdir(), 'mmd-bone-viewer-profile-' ) );
 	await mkdir( join( directory, 'umbrella/tex' ), { recursive: true } );
-	await writeFile( join( directory, 'umbrella/傘.pmx' ), Buffer.from( sdefPmxBuffer( { boneMorphs: true, texturePath: 'tex/色.png' } ) ) );
+	await writeFile( join( directory, 'umbrella/傘.pmx' ), Buffer.from( sdefPmxBuffer( { groupMorphs: true, texturePath: 'tex/色.png' } ) ) );
 	await writeFile( join( directory, 'empty.pmx' ), Buffer.from( sdefPmxBuffer() ) );
 	await writeFile( join( directory, 'umbrella/tex/色.png' ), Buffer.from( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64' ) );
-	const local = createSdefServer( { boneMorphDirectory: directory } );
+	await writeFile( join( directory, 'group.vmd' ), Buffer.from( vmdBuffer( { boneName: 'bone0', morphs: [ { morphName: 'mixed-group', frameNum: 0, weight: 0 }, { morphName: 'mixed-group', frameNum: 30, weight: 1 } ] } ) ) );
+	const local = createSdefServer( { boneMorphDirectory: directory, groupMorphDirectory: directory } );
 	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
 <pre id="result">pending</pre><script type="module">
 import {MMDAnimationHelper} from 'three-mmd-loader';
@@ -80,13 +82,32 @@ async function until(check){const start=performance.now();while(!check()){if(per
 function check(value,message){if(!value)throw new Error(message);}
 try {
  await until(()=>document.getElementById('load').onclick);
- document.getElementById('asset-directory').value='bone-morph';
+ document.getElementById('asset-directory').value='group-morph';
  document.getElementById('model').value='umbrella/傘.pmx';document.getElementById('load').click();
  await until(()=>mesh?.geometry.userData.MMD.boneMorphs?.length===3);
  const select=document.getElementById('morph'),weight=document.getElementById('weight'),info=document.getElementById('morph-info');
  check(select.options.length===3 && !weight.disabled,'type 2 selection missing');
  check(info.textContent.includes('bone-a') && info.textContent.includes('bone-b') && info.textContent.includes('Bone 1: bone1') && info.textContent.includes('translation:') && info.textContent.includes('rotation (xyzw):'),'actual payload report missing');
  await until(()=>mesh.material[0].map?.image?.width===1);
+ const group=document.getElementById('group'),groupWeight=document.getElementById('group-weight'),target=document.getElementById('group-target'),targetWeight=document.getElementById('target-weight'),groupInfo=document.getElementById('group-info');
+ check(group.options.length===6 && !groupWeight.disabled,'group controls absent');
+ check(groupInfo.textContent.includes('mixed-group') && groupInfo.textContent.includes('type 2') && groupInfo.textContent.includes('ratio 0.25') && groupInfo.textContent.includes('Bone 1: bone1') && groupInfo.querySelector('.bone-link'),'group metadata/highlights absent');
+ group.value='6';group.dispatchEvent(new Event('change'));check(target.options.length===3,'shared targets not deduplicated');
+ for(const value of [0,0.5,1,0]) {
+  groupWeight.value=String(value);groupWeight.dispatchEvent(new Event('input'));
+  await new Promise(resolve=>setTimeout(resolve,40));
+  check(Math.abs(mesh.skeleton.bones[0].position.x-(0.3*0.375-0.15*0.5)*value)<1e-6,'group slider disconnected or drifting');
+  check(mesh.morphTargetInfluences[1]===0,'public direct weight overwritten');
+ }
+ groupWeight.value='0.5';groupWeight.dispatchEvent(new Event('input'));
+ target.value='1';target.dispatchEvent(new Event('change'));targetWeight.value='0.25';targetWeight.dispatchEvent(new Event('input'));
+ await new Promise(resolve=>setTimeout(resolve,100));
+ const groupExpected=${JSON.stringify( referenceGroupPose( [ 0, 0.25, 0, 0, 0, 0, 0.5 ] ) )};
+ mesh.skeleton.bones.forEach((bone,i)=>bone.position.toArray().forEach((v,c)=>check(Math.abs(v-groupExpected[i].position[c])<1e-6,'group plus direct comparison wrong')));
+ document.getElementById('reset').click();check(mesh.morphTargetInfluences.every(v=>v===0),'group reset failed');
+ document.getElementById('motion').value='group.vmd';document.getElementById('play').click();
+ await until(()=>mesh.morphTargetInfluences[6]>0.05);check(groupInfo.textContent.includes('weight 0.'),'group VMD diagnostics absent');
+ document.getElementById('stop').click();check(mesh.morphTargetInfluences.every(v=>v===0),'group VMD stop failed');
  const expected=${JSON.stringify( referenceBonePose( [ 0.5, 0.75, 0 ] ) )};
  select.value='1';select.dispatchEvent(new Event('change'));weight.value='0.5';weight.dispatchEvent(new Event('input'));
  select.value='2';select.dispatchEvent(new Event('change'));weight.value='0.75';weight.dispatchEvent(new Event('input'));
@@ -98,7 +119,8 @@ try {
  document.getElementById('reset').click();check(mesh.morphTargetInfluences.every(v=>v===0),'reset weights failed');
  document.getElementById('model').value='empty.pmx';document.getElementById('load').click();
  await until(()=>info.textContent.includes('No type 2 bone morph'));
- check(weight.disabled && select.disabled,'absent morph controls enabled');
+ check(weight.disabled && select.disabled && group.disabled && groupWeight.disabled,'absent morph controls enabled');
+ check(groupInfo.textContent.includes('No group → bone relation'),'absent group bone diagnostic missing');
  check(info.textContent.includes('not implemented'),'unsupported morphs falsely claimed');
  result.textContent=encodeURIComponent(JSON.stringify({morphs:3,texture:true,errors}));
 } catch(error){result.textContent=encodeURIComponent(JSON.stringify({error:error.stack||String(error)}));}
