@@ -73,6 +73,48 @@ test( 'published parser converts bone morph translation/quaternions exactly once
 
 for ( const pmxAnimation of [ false, true ] ) {
 
+	for ( const nextPmxAnimation of [ false, true ] ) {
+
+		test( `helper transfer preserves authored transforms (pmxAnimation=${pmxAnimation} -> ${nextPmxAnimation})`, () => {
+
+			for ( const authoredPose of [ false, true ] ) {
+
+				const { mesh } = setup();
+				if ( authoredPose ) {
+
+					mesh.skeleton.bones[ 0 ].position.set( 2, 3, 4 );
+					mesh.skeleton.bones[ 0 ].quaternion.setFromAxisAngle( new Vector3( 1, 2, 3 ).normalize(), 0.4 );
+
+				}
+				const base = snapshot( mesh );
+				const first = new MMDAnimationHelper( { pmxAnimation } );
+				const second = new MMDAnimationHelper( { pmxAnimation: nextPmxAnimation } );
+				weights( mesh, [ 1, 0, 0 ] );
+				first.add( mesh, { physics: false } ).update( 0 );
+				checkPose( mesh, referenceBonePose( [ 1, 0, 0 ], base ) );
+				first.remove( mesh );
+				checkPose( mesh, base );
+				second.add( mesh, { physics: false } );
+				for ( let i = 0; i < 10; i ++ ) {
+
+					second.update( 0 ); checkPose( mesh, referenceBonePose( [ 1, 0, 0 ], base ) );
+
+				}
+				weights( mesh, [ 0, 0, 0 ] ); second.update( 0 ); checkPose( mesh, base );
+				weights( mesh, [ 1, 0, 0 ] ); second.update( 0 );
+				second.enable( 'boneMorph', false ).update( 0 ); checkPose( mesh, base );
+				second.enable( 'boneMorph', true ).update( 0 );
+				checkPose( mesh, referenceBonePose( [ 1, 0, 0 ], base ) );
+				second.remove( mesh );
+				first.add( mesh, { physics: false } ).update( 0 );
+				checkPose( mesh, referenceBonePose( [ 1, 0, 0 ], base ) );
+
+			}
+
+		} );
+
+	}
+
 	for ( const activation of [ 'restart', 'newAction', 'uncacheAction', 'uncacheRoot' ] ) {
 
 		test( `mixer ${activation} saves authored originals with interactive bone morphs selected (pmxAnimation=${pmxAnimation})`, () => {

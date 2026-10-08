@@ -436,6 +436,8 @@ class MMDAnimationHelper {
 
 			if ( this.meshes[ i ] === mesh ) {
 
+				// Release the authored pose so a new helper cannot bake in bone morphs.
+				this.boneMorphControllers.get( mesh )?.restore();
 				this.objects.delete( mesh );
 				found = true;
 
