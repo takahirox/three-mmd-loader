@@ -73,6 +73,58 @@ test( 'published parser converts bone morph translation/quaternions exactly once
 
 for ( const pmxAnimation of [ false, true ] ) {
 
+	for ( const property of [ 'translation', 'rotation' ] ) for ( const evaluate of [ 'setTime', 'update' ] ) {
+
+		test( `external mixer ${evaluate} preserves authored ${property} equal to previous morph output (pmxAnimation=${pmxAnimation})`, () => {
+
+			const data = new Parser().parsePmx( sdefPmxBuffer( { boneMorphs: true } ), true );
+			data.morphs[ 1 ] = { name: 'bone-a', englishName: '', panel: 4, type: 2, elementCount: 1,
+				elements: [ { index: 0, position: property === 'translation' ? [ 1, 0, 0 ] : [ 0, 0, 0 ],
+					rotation: property === 'rotation' ? [ 0, 0, 1, 0 ] : [ 0, 0, 0, 1 ] } ] };
+			const { mesh, loader } = setup( data );
+			const motion = new Parser().parseVmd( vmdBuffer( { boneName: 'bone0',
+				rotation: property === 'rotation' ? [ 0, 0, 1, 0 ] : [ 0, 0, 0, 1 ],
+				morphs: [ { morphName: 'bone-a', frameNum: 0, weight: 1 }, { morphName: 'bone-a', frameNum: 30, weight: 1 } ]
+			} ), true );
+			// An exact half-turn collision avoids floating-point equality accidents:
+			// the midpoint is identity, then the endpoint equals the morph quaternion.
+			if ( property === 'rotation' ) {
+
+				motion.motions.push( { ...motion.motions[ 0 ], frameNum: 18, position: [ 1.2, 0, 0 ] } );
+				motion.metadata.motionCount ++;
+
+			}
+			const clip = loader.animationBuilder.build( motion, mesh );
+			const helper = new MMDAnimationHelper( { pmxAnimation, sync: false } );
+			helper.add( mesh, { animation: clip, physics: false } );
+			const mixer = helper.objects.get( mesh )!.mixer!;
+			const action = mixer.clipAction( clip ).setLoop( LoopOnce, 1 ); action.clampWhenFinished = true;
+			helper.update( 0.5 );
+			const bone = mesh.skeleton.bones[ 0 ];
+			const previous = property === 'translation' ? bone.position.toArray() : bone.quaternion.toArray();
+			assert.deepEqual( previous, property === 'translation' ? [ 2, 0, 0 ] : [ 0, 0, 1, 0 ] );
+			if ( evaluate === 'setTime' ) assert.equal( mixer.setTime( 1 ), mixer );
+			else assert.equal( mixer.update( 0.5 ), mixer );
+			assert.equal( action.paused, true );
+			const authored = property === 'translation' ? bone.position.toArray() : bone.quaternion.toArray();
+			assert.ok( authored.every( ( value, i ) => value === previous[ i ] ), 'authored pose must exactly collide with previous output' );
+			for ( let i = 0; i < 10; i ++ ) {
+
+				helper.update( 0 );
+				near( bone.position.toArray(), property === 'translation' ? [ 3, 0, 0 ] : [ 2, 0, 0 ] );
+				near( bone.quaternion.toArray(), property === 'rotation' ? [ 0, 0, 0, - 1 ] : [ 0, 0, 0, 1 ] );
+
+			}
+			// Re-evaluating the same seek must also preserve the mixer's cached pose.
+			action.paused = false; // LoopOnce clamping pauses the action; allow another seek.
+			mixer.setTime( 1 ); helper.update( 0 );
+			near( bone.position.toArray(), property === 'translation' ? [ 3, 0, 0 ] : [ 2, 0, 0 ] );
+			near( bone.quaternion.toArray(), property === 'rotation' ? [ 0, 0, 0, - 1 ] : [ 0, 0, 0, 1 ] );
+
+		} );
+
+	}
+
 	for ( const stop of [ 'stopAllAction', 'stop', 'uncacheAction', 'uncacheRoot', 'restart' ] ) {
 
 		test( `mixer ${stop} preserves a reset pose equal to the previous morph output (pmxAnimation=${pmxAnimation})`, () => {

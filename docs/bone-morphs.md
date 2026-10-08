@@ -74,9 +74,12 @@ The morph-before-animation convention is also used by
 Noncommuting rotations are tested against a separate scalar quaternion
 reference. The helper saves the authored and final procedural poses with
 float64 precision. It restores properties that still match its previous
-output, allowing absolute application edits and external mixer seeking to
-supply a new authored pose. Do not add relative bone edits to the already
-morphed output on every frame; supply an absolute authored pose instead.
+output, allowing absolute application edits to supply a new authored pose.
+The helper observes mixer updates (including `setTime`) and restores the
+procedural pose before evaluation, preserving a newly authored pose even
+when it exactly equals the preceding morphed output. Do not add relative bone
+edits to the already morphed output on every frame; supply an absolute authored
+pose instead.
 `helper.pose(mesh, vpd)` resets and applies a VPD before the morph pass;
 `{ resetPose: false }` composes the VPD onto the preceding authored pose.
 An empty VPD resets to rest while retaining selected morph weights. Set

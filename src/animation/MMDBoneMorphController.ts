@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
+import type { AnimationMixer } from 'three';
 import type { MMDMesh } from '../types.js';
 
 // Restore authored/mixer transforms before the next morph/IK/grant/physics
@@ -13,6 +14,7 @@ export class MMDBoneMorphController {
 	private weightedRotation = new Quaternion();
 	private offsets: Quaternion[];
 	private watchedBindings = new WeakSet<object>();
+	private watchedMixers = new WeakSet<AnimationMixer>();
 
 	constructor( private mesh: MMDMesh ) {
 
@@ -22,7 +24,27 @@ export class MMDBoneMorphController {
 
 	}
 
-	watchAnimationBindings( bindings: { restoreOriginalState(): void }[] ) {
+	watchAnimationMixer( mixer: AnimationMixer & { _bindings: { restoreOriginalState(): void }[] } ) {
+
+		this.watchAnimationBindings( mixer._bindings );
+		if ( this.watchedMixers.has( mixer ) ) return;
+		this.watchedMixers.add( mixer );
+		const update = mixer.update;
+		const controller = this;
+		mixer.update = function ( delta ) {
+
+			controller.watchAnimationBindings( mixer._bindings );
+			// setTime() also calls update(). Restore BEFORE evaluation so a new
+			// authored value equal to the last procedural output stays authored.
+			// The next helper pass must not undo it, even if mixer caches skip writes.
+			controller.restore();
+			return update.call( this, delta );
+
+		};
+
+	}
+
+	private watchAnimationBindings( bindings: { restoreOriginalState(): void }[] ) {
 
 		// Three.js has no stop/reset event. Observe the actual restoration used
 		// by action.stop(), stopAllAction() and mixer uncache operations. Remove

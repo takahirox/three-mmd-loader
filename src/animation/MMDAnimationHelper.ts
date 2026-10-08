@@ -511,7 +511,7 @@ class MMDAnimationHelper {
 				objects.mixer.clipAction( animations[ i ] ).play();
 
 			}
-			this._getBoneMorphController( mesh )?.watchAnimationBindings( objects.mixer._bindings );
+			this._getBoneMorphController( mesh )?.watchAnimationMixer( objects.mixer );
 
 			// TODO: find a workaround not to access ._clip looking like a private property
 			objects.mixer.addEventListener( 'loop', function ( event ) {
@@ -590,7 +590,7 @@ class MMDAnimationHelper {
 		const grantSolver = objects.grantSolver;
 		const physics = objects.physics;
 		const boneMorphs = this._getBoneMorphController( mesh );
-		if ( mixer ) boneMorphs?.watchAnimationBindings( mixer._bindings );
+		if ( mixer ) boneMorphs?.watchAnimationMixer( mixer );
 		boneMorphs?.restore();
 
 		if ( mixer && this.enabled.animation ) {
