@@ -7,7 +7,7 @@ and VPD poses, with animation, IK, physics, toon shading, and VPD export.
 The package targets **Three.js r186** (`three ~0.186.0`) and is tested with
 `three 0.186.1`. Three.js is a peer dependency: the addons use the application's
 Three.js instance, including its retained TGALoader and SkeletonUtils addons.
-`mmd-parser ^1.1.2` is an external runtime dependency installed automatically
+`mmd-parser ^1.1.3` is an external runtime dependency installed automatically
 with this package; its implementation and public types come from that package.
 
 Install the package alongside the supported Three.js version:
@@ -81,8 +81,11 @@ Install that optional distribution separately (`npm install ammojs-typed`), or
 initialize your own compatible Ammo.js build. Pass `{ physics: false }` when
 adding a mesh to use animation without Ammo. Model texture decoding and
 rendering require a browser environment. The `mmd-parser` dependency
-supports PMX UTF-16LE text and retains limitations such as SDEF being treated
-as BDEF2.
+supports PMX UTF-16LE text and SDEF skinning type `3` with right-handed
+center vectors. Version **1.1.3** is the minimum parser version for SDEF.
+PMX SDEF uses quaternion skinning on both TSL backends, including vertex
+morphs, normals, outlines and shadows. See [SDEF and private model viewing](docs/sdef.md)
+for the algorithm, tests and optional local YYB Miku workflow.
 
 MMD rendering uses **TSL / NodeMaterial**. `MMDToonMaterial` extends Three.js
 `MeshPhongNodeMaterial`, with toon direct irradiance, Phong specular and MMD
