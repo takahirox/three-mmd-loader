@@ -1,5 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
-import type { AnimationMixer } from 'three';
+import type { AnimationAction, AnimationMixer } from 'three';
 import type { MMDMesh } from '../types.js';
 
 // Restore authored/mixer transforms before the next morph/IK/grant/physics
@@ -24,13 +24,24 @@ export class MMDBoneMorphController {
 
 	}
 
-	watchAnimationMixer( mixer: AnimationMixer & { _bindings: { restoreOriginalState(): void }[] } ) {
+	watchAnimationMixer( mixer: AnimationMixer & { _bindings: { restoreOriginalState(): void }[]; _activateAction( action: AnimationAction ): void } ) {
 
 		this.watchAnimationBindings( mixer._bindings );
 		if ( this.watchedMixers.has( mixer ) ) return;
 		this.watchedMixers.add( mixer );
 		const update = mixer.update;
+		const activateAction = mixer._activateAction;
 		const controller = this;
+		// play() saves original properties immediately, before update(). Restore
+		// the authored pose first so stopping/restarting an action cannot bake in
+		// interactive morphs. Observe new bindings too, including uncached actions.
+		mixer._activateAction = function ( action ) {
+
+			controller.restore();
+			activateAction.call( this, action );
+			controller.watchAnimationBindings( mixer._bindings );
+
+		};
 		mixer.update = function ( delta ) {
 
 			controller.watchAnimationBindings( mixer._bindings );

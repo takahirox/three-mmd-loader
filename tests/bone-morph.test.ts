@@ -73,6 +73,45 @@ test( 'published parser converts bone morph translation/quaternions exactly once
 
 for ( const pmxAnimation of [ false, true ] ) {
 
+	for ( const activation of [ 'restart', 'newAction', 'uncacheAction', 'uncacheRoot' ] ) {
+
+		test( `mixer ${activation} saves authored originals with interactive bone morphs selected (pmxAnimation=${pmxAnimation})`, () => {
+
+			const { mesh, loader } = setup();
+			const rest = snapshot( mesh );
+			let clip = loader.animationBuilder.build( new Parser().parseVmd( vmdBuffer( {
+				boneName: 'bone0', morphs: [ { morphName: 'bone-b', frameNum: 0, weight: 0.25 }, { morphName: 'bone-b', frameNum: 30, weight: 0.5 } ]
+			} ), true ), mesh );
+			const helper = new MMDAnimationHelper( { pmxAnimation, sync: false } );
+			helper.add( mesh, { animation: clip, physics: false } );
+			const mixer = helper.objects.get( mesh )!.mixer!;
+			let action = mixer.clipAction( clip );
+			weights( mesh, [ 1, 0, 0 ] );
+			helper.update( 0 ); checkPose( mesh, referenceBonePose( [ 1, 0.25, 0 ], rest ), 1e-5 );
+			for ( let cycle = 0; cycle < 3; cycle ++ ) {
+
+				action.stop();
+				helper.update( 0 ); checkPose( mesh, referenceBonePose( [ 1, 0, 0 ], rest ) );
+				if ( activation === 'uncacheAction' ) mixer.uncacheAction( clip );
+				else if ( activation === 'uncacheRoot' ) mixer.uncacheRoot( mesh );
+				else if ( activation === 'newAction' ) clip = clip.clone();
+				action = mixer.clipAction( clip ).reset().play();
+				for ( let frame = 0; frame < 3; frame ++ ) {
+
+					helper.update( 0 ); checkPose( mesh, referenceBonePose( [ 1, 0.25, 0 ], rest ), 1e-5 );
+
+				}
+				action.stop();
+				helper.update( 0 ); checkPose( mesh, referenceBonePose( [ 1, 0, 0 ], rest ) );
+				helper.enable( 'boneMorph', false ).update( 0 ); checkPose( mesh, rest );
+				helper.enable( 'boneMorph', true ).update( 0 ); checkPose( mesh, referenceBonePose( [ 1, 0, 0 ], rest ) );
+
+			}
+
+		} );
+
+	}
+
 	for ( const property of [ 'translation', 'rotation' ] ) for ( const evaluate of [ 'setTime', 'update' ] ) {
 
 		test( `external mixer ${evaluate} preserves authored ${property} equal to previous morph output (pmxAnimation=${pmxAnimation})`, () => {

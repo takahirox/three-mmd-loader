@@ -32,7 +32,7 @@ export async function removeBrowserDirectory( directory: string ) {
 
 // Use Chrome's DevTools pipe so asynchronous audio work can finish on the
 // normal browser clock. A virtual clock can stall AudioContext operations.
-export async function runBrowser<T>( url: string, profile: string, colorScheme = 'light' ): Promise<T> {
+export async function runBrowser<T>( url: string, profile: string, colorScheme = 'light', timeoutMs = 45000 ): Promise<T> {
 
 	const browser = spawn( chrome, [
 		'--headless', '--no-first-run', '--no-default-browser-check',
@@ -111,10 +111,10 @@ export async function runBrowser<T>( url: string, profile: string, colorScheme =
 	}
 	const timeout = setTimeout( () => {
 
-		rejectPending( new Error( 'Chrome did not finish examples validation within 45 seconds' ) );
+		rejectPending( new Error( `Chrome did not finish validation of ${url} within ${timeoutMs / 1000} seconds` ) );
 		browser.kill();
 
-	}, 45000 );
+	}, timeoutMs );
 	try {
 
 		const { targetId } = await send( 'Target.createTarget', { url: 'about:blank' } );

@@ -32,6 +32,7 @@ export type MMDCamera = Camera & { updateProjectionMatrix(): void };
 // Three.js exposes no public API for enumerating mixer actions/bindings.
 type MMDMixer = AnimationMixer & {
 	_actions: AnimationAction[];
+	_activateAction( action: AnimationAction ): void;
 	_bindings: { restoreOriginalState(): void; buffer: number[]; valueSize: number; binding: { getValue( buffer: number[], offset: number ): void } }[];
 	_accuIndex: number;
 };
@@ -505,14 +506,13 @@ class MMDAnimationHelper {
 				? animation : [ animation ];
 
 			objects.mixer = new AnimationMixer( mesh ) as MMDMixer;
+			this._getBoneMorphController( mesh )?.watchAnimationMixer( objects.mixer );
 
 			for ( let i = 0, il = animations.length; i < il; i ++ ) {
 
 				objects.mixer.clipAction( animations[ i ] ).play();
 
 			}
-			this._getBoneMorphController( mesh )?.watchAnimationMixer( objects.mixer );
-
 			// TODO: find a workaround not to access ._clip looking like a private property
 			objects.mixer.addEventListener( 'loop', function ( event ) {
 
