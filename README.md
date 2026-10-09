@@ -200,5 +200,13 @@ Source provenance and licenses are recorded in
 See the [development flow](docs/development-flow.md) and [review guidelines](docs/review-guidelines.md) for contribution guidance.
 
 PMX rotation/translation grants, including local grants and physics phase
-ordering, are documented in [docs/grants.md](docs/grants.md), with generated
+ordering and layered authored/body/post-physics composition, are documented in
+[docs/grants.md](docs/grants.md), with generated
 fixture tests and a private loopback inspector.
+
+The loopback-only `npm run dev:sdef` viewer also provides **Generated Physics
+layers fixture** and a private `physics-layers/` source. It runs real Ammo with
+step/pause/reset controls and reports authored, pre-physics, body and final
+transforms. Post kinematic inputs are explicitly deferred to the next step;
+dynamic post effects deform the skeleton without teleporting mode-1 bodies.
+Private models remain optional, ignored and excluded from published artifacts.

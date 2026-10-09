@@ -3,7 +3,7 @@ import type { AnimationClip, BufferAttribute, InterleavedBufferAttribute, Textur
 import { WebGPURenderer } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MMDAnimationHelper, MMDLoader, MMDOutlineEffect } from 'three-mmd-loader';
-import type { MMDMesh } from 'three-mmd-loader';
+import type { AmmoAPI, MMDMesh } from 'three-mmd-loader';
 
 const element = <T extends HTMLElement>( id: string ) => document.getElementById( id ) as T;
 const status = element<HTMLParagraphElement>( 'status' );
@@ -28,6 +28,22 @@ const translation = element<HTMLInputElement>( 'translation' );
 const grantInfo = element<HTMLPreElement>( 'grant-info' );
 let originalTypes: Float32Array | undefined;
 let animation = false;
+let physicsView = false;
+let physicsPaused = true;
+const physicsToggle = element<HTMLInputElement>( 'physics' );
+const physicsInfo = element<HTMLPreElement>( 'physics-info' );
+let ammoReady: Promise<AmmoAPI> | undefined;
+async function initializeAmmo() {
+
+	const host = globalThis as typeof globalThis & { Ammo: AmmoAPI | ( () => Promise<AmmoAPI> ) };
+	if ( typeof host.Ammo === 'function' ) {
+
+		ammoReady ??= host.Ammo();
+		host.Ammo = await ammoReady;
+
+	}
+
+}
 let count = 0;
 const bend = element<HTMLInputElement>( 'bend' );
 const bone = element<HTMLSelectElement>( 'bone' );
@@ -72,8 +88,13 @@ function report( message = '' ) {
 }
 function stop() {
 
-	if ( mesh && animation ) { helper.remove( mesh ); helper.add( mesh, { physics: false } ); }
-	helper.enable( 'ik', false ).enable( 'grant', grants.checked );
+	if ( mesh && animation ) {
+
+		if ( physicsView ) helper.objects.get( mesh )?.mixer?.stopAllAction();
+		else { helper.remove( mesh ); helper.add( mesh, { physics: false } ); }
+
+	}
+	helper.enable( 'ik', physicsView ).enable( 'grant', grants.checked );
 	animation = false;
 
 }
@@ -83,7 +104,14 @@ function reset() {
 	if ( mesh ) helper.pose( mesh, { metadata: { boneCount: 0, parentFile: '', coordinateSystem: 'right' }, bones: [] }, { ik: false, grant: false } );
 	bend.value = translation.value = '0'; element( 'degrees' ).textContent = '0°';
 	mesh?.morphTargetInfluences?.fill( 0 );
-	helper.update( 0 ); reportMorphs();
+	helper.update( 0 );
+	if ( physicsView && mesh ) {
+
+		helper.objects.get( mesh )?.physics?.reset();
+		helper.update( 0 ); physicsPaused = true; reportPhysics();
+
+	}
+	reportMorphs();
 
 }
 function applyBend() {
@@ -234,17 +262,21 @@ weight.oninput = () => {
 	report( `Bone morph ${morph.selectedOptions[ 0 ].text}: weight ${value.toFixed( 2 )}.` );
 
 };
-async function loadModel( generated: boolean | 'grant' = false ) {
+async function loadModel( generated: boolean | 'grant' | 'physics-layers' = false ) {
 
 	try {
 
 		status.textContent = 'Loading local PMX and textures…';
 		const directory = assetDirectory.value;
-		const next = await loader.loadAsync( generated ? ( generated === 'grant' ? '/local-sdef/generated-grant.pmx' : '/local-sdef/generated-uv.pmx' ) : privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
+		const next = await loader.loadAsync( generated ? ( generated === 'physics-layers' ? '/local-sdef/generated-physics-layers.pmx' : generated === 'grant' ? '/local-sdef/generated-grant.pmx' : '/local-sdef/generated-uv.pmx' ) : privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
 		reset();
 		if ( mesh ) { helper.remove( mesh ); scene.remove( mesh ); mesh.geometry.dispose(); mesh.skeleton.dispose(); mesh.material.forEach( m => m.dispose() ); }
 		mesh = next; mesh.frustumCulled = false; scene.add( mesh ); loadedDirectory = directory;
-		helper.add( mesh, { physics: false } );
+		physicsView = generated === 'physics-layers' || directory === 'physics-layers';
+		physicsPaused = true; physicsToggle.checked = physicsView;
+		if ( physicsView ) await initializeAmmo();
+		helper.enable( 'physics', physicsView ).enable( 'ik', physicsView );
+		helper.add( mesh, { physics: physicsView, warmup: 0, unitStep: 1 / 60, gravity: new Vector3( 0, -9.8, 0 ) } );
 		originalMaps = mesh.material.map( m => m.map ); checker.checked = generated === true; checker.onchange!( new Event( 'change' ) );
 		const uvs = mesh.geometry.userData.MMD.uvMorphs ?? [];
 		uvMorph.replaceChildren( ...uvs.map( m => new Option( `${m.index}: ${m.name} (UV${m.channel})`, String( m.index ) ) ) );
@@ -269,9 +301,9 @@ async function loadModel( generated: boolean | 'grant' = false ) {
 		bone.replaceChildren( ...mesh.skeleton.bones.map( ( b, i ) => new Option( `${i}: ${b.name}`, String( i ) ) ) );
 		const elbow = mesh.skeleton.bones.findIndex( b => /左ひじ|左肘|elbow/i.test( b.name ) );
 		bone.value = String( elbow >= 0 ? elbow : 0 ); comparison.checked = false;
-		grants.checked = generated === 'grant'; helper.enable( 'grant', grants.checked );
-		if ( generated === 'grant' ) bone.value = '6';
-		helper.update( 0 ); reportGrants();
+		grants.checked = generated === 'grant' || physicsView; helper.enable( 'grant', grants.checked );
+		if ( generated === 'grant' || generated === 'physics-layers' ) bone.value = '6';
+		helper.update( 0 ); reportGrants(); reportPhysics();
 		mesh.updateMatrixWorld( true );
 		const box = new Box3().setFromObject( mesh );
 		const center = box.getCenter( new Vector3() );
@@ -283,6 +315,7 @@ async function loadModel( generated: boolean | 'grant' = false ) {
 
 }
 element( 'load' ).onclick = () => loadModel();
+element( 'generated-physics-layers' ).onclick = () => loadModel( 'physics-layers' );
 element( 'generated-grant' ).onclick = () => loadModel( 'grant' );
 translation.oninput = applyBend;
 grants.onchange = () => { helper.enable( 'grant', grants.checked ).update( 0 ); reportGrants(); };
@@ -306,8 +339,8 @@ element( 'play' ).onclick = async () => {
 		const motion = await new Promise<AnimationClip>( ( resolve, reject ) => loader.loadAnimation( privateURL( element<HTMLInputElement>( 'motion' ).value, loadedDirectory ), mesh!, resolve, undefined, reject ) );
 		reset();
 		helper.remove( mesh ); helper.enable( 'ik', true ).enable( 'grant', true );
-		helper.add( mesh, { animation: motion, physics: false } ); animation = true;
-		report( 'Playing private motion with IK and grants; physics disabled. Stop before adjusting bones.' );
+		helper.add( mesh, { animation: motion, physics: physicsView, warmup: 0, unitStep: 1 / 60 } ); animation = true; physicsPaused = false;
+		report( 'Playing private motion with IK and grants. Physics follows the Ammo toggle; pause to inspect a fixed pose.' );
 
 	} catch ( error ) { report( String( error ) ); }
 
@@ -315,7 +348,7 @@ element( 'play' ).onclick = async () => {
 element( 'stop' ).onclick = reset;
 function resize() { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize( innerWidth, innerHeight ); }
 addEventListener( 'resize', resize ); resize();
-renderer.setAnimationLoop( () => { const delta = clock.getDelta(); if ( mesh ) helper.update( animation ? delta : 0 ); reportMorphs(); reportGrants(); controls.update(); effect.render( scene, camera ); } );
+renderer.setAnimationLoop( () => { const delta = clock.getDelta(); if ( mesh && ( ! physicsView || ! physicsPaused ) ) helper.update( physicsView ? 1 / 60 : animation ? delta : 0 ); reportMorphs(); reportGrants(); if ( physicsView ) reportPhysics(); controls.update(); effect.render( scene, camera ); } );
 
 function reportGrants() {
 
@@ -339,7 +372,42 @@ function reportGrants() {
 	summary.textContent = `Grant counts: ${JSON.stringify( counts )}\n` +
 		( counts.globalPosition + counts.localPosition ? '' : 'No position grants present.\n' ) +
 		( counts.localRotation + counts.localPosition ? '' : 'No local grants present.\n' ) +
-		'Flags are parsed from this PMX; counts and transforms are diagnostics, not a visual pass. Physics disabled in this viewer.\n';
+		'Flags are parsed from this PMX; counts and transforms are diagnostics, not a visual pass. Use the Ammo controls in the physics layers view.\n';
 	grantInfo.replaceChildren( summary, ...lines );
+
+}
+
+physicsToggle.onchange = () => { helper.enable( 'physics', physicsToggle.checked ).update( 0 ); reportPhysics(); };
+element( 'physics-step' ).onclick = () => { if ( physicsView ) { helper.update( 1 / 60 ); reportPhysics(); } };
+element( 'physics-pause' ).onclick = () => { physicsPaused = ! physicsPaused; reportPhysics(); };
+element( 'physics-reset' ).onclick = reset;
+function reportPhysics() {
+
+	if ( ! mesh || ! physicsView ) return;
+	const data = mesh.geometry.userData.MMD, state = helper.objects.get( mesh )!, layers = state.poseLayers;
+	const counts = { pre: 0, post: 0, postKinematic: 0, postDynamic: 0, postMode2: 0 };
+	const lines = data.bones.map( ( b, i ) => {
+
+		const post = Boolean( ( b.flag ?? 0 ) & 0x1000 ); counts[ post ? 'post' : 'pre' ] ++;
+		if ( post && b.rigidBodyType === 0 ) counts.postKinematic ++;
+		if ( post && b.rigidBodyType === 1 ) counts.postDynamic ++;
+		if ( post && b.rigidBodyType === 2 ) counts.postMode2 ++;
+		const compact = ( values: ArrayLike<number> | undefined ) => values ? Array.from( values ).map( v => Number( v.toFixed( 4 ) ) ) : [];
+		return `${i}: ${b.name}; flag=0x${( b.flag ?? 0 ).toString( 16 )}; ${post ? 'post' : 'pre'}; class=${b.transformationClass}; parent=${b.parent}${b.originalParent === undefined ? '' : ` (invalid original ${b.originalParent})`}; mode=${b.rigidBodyType}\n` +
+			`  Grant: ${JSON.stringify( b.grant ?? null )}; IK: ${JSON.stringify( b.ik ?? null )}\n` +
+			`  Authored ${compact( layers?.authored.slice( i * 7, i * 7 + 7 ) )}\n  Pre ${compact( layers?.beforePhysics.slice( i * 7, i * 7 + 7 ) )}\n  Physics ${compact( layers?.physics.slice( i * 7, i * 7 + 7 ) )}\n  Final ${compact( layers?.final.slice( i * 7, i * 7 + 7 ) )}`;
+
+	} );
+	const bodies = state.physics?.bodies.map( ( b, i ) => {
+
+		const transform = b.body.getCenterOfMassTransform(), p = transform.getOrigin(), q = transform.getRotation();
+		return `Body ${i}: bone=${b.params.boneIndex}, mode=${b.params.type}; PMX mode=${b.params.originalType ?? b.params.type}; body/adapter position [${[ p.x(), p.y(), p.z() ]}], rotation [${[ q.x(), q.y(), q.z(), q.w() ]}]; ${state.physics!.bodyResultPhase} simulation snapshot ${JSON.stringify( state.physics!.bodyResults[ i ] )}; next input ${JSON.stringify( b.getDeferredPose() )}`;
+
+	} ) ?? [];
+	physicsInfo.textContent = `Ammo ${physicsToggle.checked ? 'enabled' : 'disabled'}, ${physicsPaused ? 'paused' : 'running'}, fixed step 1/60 s.\nCounts ${JSON.stringify( counts )}\n` +
+		( counts.postKinematic ? '' : 'Missing required case: no post-phase kinematic target.\n' ) +
+		( counts.postDynamic ? '' : 'Missing required case: no post-phase dynamic target.\n' ) +
+		`Post kinematic final poses become NEXT-step inputs. Body snapshots belong to the completed step. Mode1 bodies retain Bullet trajectories.\n${data.constraints.length} constraints.\n` + bodies.join( '\n' ) + '\n' + lines.join( '\n' ) +
+		'\nOptional trusted MMD comparison is manual and private. Match pose/time first; Bullet versions, fixed steps and solver behavior can differ. No visual approval is required.';
 
 }

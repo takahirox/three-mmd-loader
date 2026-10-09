@@ -101,13 +101,16 @@ class CCDIKSolver {
 
 		const effector = bones[ ik.effector ];
 		const target = bones[ ik.target ];
+		if ( ! effector || ! target || ! Number.isFinite( ik.iteration ?? 1 ) || ( ik.iteration ?? 1 ) < 0 ||
+			! Number.isFinite( ik.maxAngle ?? 1 ) || ! Number.isFinite( ik.minAngle ?? 0 ) ||
+			ik.links.some( link => ! bones[ link.index ] || [ link.limitation, link.rotationMin, link.rotationMax ].some( limit => limit && ! limit.toArray().every( Number.isFinite ) ) ) ) return this;
 
 		// don't use getWorldPosition() here for the performance
 		// because it calls updateMatrixWorld( true ) inside.
 		_targetPos.setFromMatrixPosition( target.matrixWorld );
 
 		const links = ik.links;
-		const iteration = ik.iteration !== undefined ? ik.iteration : 1;
+		const iteration = Math.min( ik.iteration !== undefined ? ik.iteration : 1, 1024 );
 
 		for ( let i = 0; i < iteration; i ++ ) {
 
@@ -127,6 +130,7 @@ class CCDIKSolver {
 
 				// don't use getWorldPosition/Quaternion() here for the performance
 				// because they call updateMatrixWorld( true ) inside.
+				if ( ! link.matrixWorld.elements.every( Number.isFinite ) || ! target.matrixWorld.elements.every( Number.isFinite ) || ! effector.matrixWorld.elements.every( Number.isFinite ) ) return this;
 				link.matrixWorld.decompose( _linkPos, _invLinkQ, _linkScale );
 				_invLinkQ.invert();
 				_effectorPos.setFromMatrixPosition( effector.matrixWorld );
@@ -171,6 +175,7 @@ class CCDIKSolver {
 
 				_axis.crossVectors( _effectorVec, _targetVec );
 				_axis.normalize();
+				if ( _axis.lengthSq() === 0 ) continue;
 
 				_q.setFromAxisAngle( _axis, angle );
 				link.quaternion.multiply( _q );
@@ -248,6 +253,7 @@ class CCDIKSolver {
 
 				link1 = bones[ links[ j ].index ];
 
+				if ( ! link0 || ! link1 ) break;
 				if ( link0.parent !== link1 ) {
 
 					console.warn( 'THREE.CCDIKSolver: bone ' + link0.name + ' is not the child of bone ' + link1.name );

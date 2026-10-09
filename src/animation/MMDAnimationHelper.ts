@@ -1,3 +1,4 @@
+import { PMXPoseLayers } from './PMXPoseLayers.js';
 import { GrantSolver } from './GrantSolver.js';
 import { updateMMDUVs } from './MMDUVMorphController.js';
 import { MMDMaterialMorphController } from './MMDMaterialMorphController.js';
@@ -48,6 +49,7 @@ export interface MMDAnimationState {
 	duration?: number;
 	backupBones?: Float32Array;
 	sortedBonesData?: MMDBone[];
+	poseLayers?: PMXPoseLayers;
 }
 
 
@@ -223,13 +225,7 @@ class MMDAnimationHelper {
 
 		if ( this.sharedPhysics ) {
 
-			this._updateSharedPhysics( delta );
-			for ( const mesh of this.meshes ) {
-
-				this._animateAfterPhysics( mesh );
-				this.boneMorphControllers.get( mesh )?.capture();
-
-			}
+			this._finishSharedPhysics( delta );
 
 		}
 
@@ -283,7 +279,11 @@ class MMDAnimationHelper {
 
 		}
 
+		const poseLayers = mesh.geometry.userData.MMD.format === 'pmx' ? this.objects.get( mesh )?.poseLayers ?? new PMXPoseLayers( mesh ) : undefined;
+		poseLayers?.capture( poseLayers.authored );
 		boneMorphs?.apply( this.enabled.boneMorph );
+		poseLayers?.capture( poseLayers.morphed );
+		poseLayers?.stageBeforePhysics();
 		this._getMaterialMorphController( mesh )?.apply( this.enabled.materialMorph );
 		updateMMDUVs( mesh, this.enabled.uvMorph );
 		mesh.updateMatrixWorld( true );
@@ -294,7 +294,14 @@ class MMDAnimationHelper {
 			const sortedBonesData = this._sortBoneDataArray( mesh.geometry.userData.MMD.bones.slice() );
 			const ikSolver = params.ik !== false ? this._createCCDIKSolver( mesh ) : null;
 			const grantSolver = params.grant !== false ? this.createGrantSolver( mesh ) : null;
-			this._animatePMXMesh( mesh, sortedBonesData, ikSolver, grantSolver );
+			if ( poseLayers && grantSolver ) grantSolver.invalidPoseIndices = poseLayers.invalid;
+			this._animatePMXMesh( mesh, sortedBonesData, ikSolver, grantSolver, false, false );
+			poseLayers?.capture( poseLayers.beforePhysics );
+			poseLayers?.capture( poseLayers.physics );
+			for ( const data of sortedBonesData ) if ( ( data.flag ?? 0 ) & 0x1000 ) poseLayers?.applyAfterPhysics( data.index, - 1 );
+			this._animatePMXMesh( mesh, sortedBonesData, ikSolver, grantSolver, true, false );
+			poseLayers?.capture( poseLayers.final );
+			this.objects.get( mesh )?.physics?.deferAfterPhysics();
 
 		} else {
 
@@ -374,7 +381,7 @@ class MMDAnimationHelper {
 
 		this._getBoneMorphController( mesh )?.restore();
 		this.meshes.push( mesh );
-		this.objects.set( mesh, { looped: false } );
+		this.objects.set( mesh, { looped: false, poseLayers: mesh.geometry.userData.MMD.format === 'pmx' ? new PMXPoseLayers( mesh ) : undefined } );
 
 		this._setupMeshAnimation( mesh, params.animation );
 
@@ -450,6 +457,8 @@ class MMDAnimationHelper {
 				this.boneMorphControllers.get( mesh )?.restore();
 				this.materialMorphControllers.get( mesh )?.apply( false );
 				updateMMDUVs( mesh, false );
+				this.objects.get( mesh )?.physics?.dispose();
+				if ( this.masterPhysics === this.objects.get( mesh )?.physics ) this.masterPhysics = null;
 				this.objects.delete( mesh );
 				found = true;
 
@@ -579,6 +588,9 @@ class MMDAnimationHelper {
 		}
 
 		objects.physics = this._createMMDPhysics( mesh, params );
+		objects.physics.poseLayers = objects.poseLayers;
+		if ( objects.poseLayers ) objects.physics.reset();
+		this._optimizeIK( mesh, this.enabled.physics );
 
 		const animationWarmup = ( objects.mixer || this._getBoneMorphController( mesh ) ) && params.animationWarmup !== false;
 		if ( animationWarmup ) {
@@ -588,14 +600,31 @@ class MMDAnimationHelper {
 
 		}
 
+		if ( objects.poseLayers || this.sharedPhysics ) objects.physics.warmupStep = delta => {
+
+			// Settle physics at a fixed authored time, through both pose phases.
+			// One shared-world step affects every mesh, including meshes already
+			// present when a new adapter is added or warmup is called directly.
+			if ( this.sharedPhysics ) {
+
+				for ( const participant of this.meshes ) this._animateMesh( participant, delta, 0 );
+				this._finishSharedPhysics( delta );
+
+			} else {
+
+				this._animateMesh( mesh, delta, 0 );
+
+			}
+
+		};
 		objects.physics.warmup( params.warmup !== undefined ? params.warmup : 60 );
 
-		this._optimizeIK( mesh, true );
+		this._optimizeIK( mesh, this.enabled.physics );
 		if ( animationWarmup ) this.boneMorphControllers.get( mesh )?.capture();
 
 	}
 
-	_animateMesh( mesh: MMDMesh, delta: number ) {
+	_animateMesh( mesh: MMDMesh, delta: number, animationDelta = delta ) {
 
 		const objects = this.objects.get( mesh )!;
 
@@ -615,13 +644,17 @@ class MMDAnimationHelper {
 
 			if ( ! boneMorphs ) this._restoreBones( mesh );
 
-			mixer.update( delta );
+			mixer.update( animationDelta );
 
 			this._saveBones( mesh );
 
 		}
 
+		objects.poseLayers?.capture( objects.poseLayers.authored );
 		boneMorphs?.apply( this.enabled.boneMorph );
+		objects.poseLayers?.capture( objects.poseLayers.morphed );
+		objects.poseLayers?.stageBeforePhysics();
+		if ( objects.poseLayers && grantSolver ) grantSolver.invalidPoseIndices = objects.poseLayers.invalid;
 		this._getMaterialMorphController( mesh )?.apply( this.enabled.materialMorph );
 		updateMMDUVs( mesh, this.enabled.uvMorph );
 
@@ -659,7 +692,8 @@ class MMDAnimationHelper {
 
 		}
 
-		grantSolver?.captureBeforePhysics();
+		objects.poseLayers?.capture( objects.poseLayers.beforePhysics );
+		grantSolver?.captureBeforePhysics( objects.poseLayers?.morphed );
 
 		if ( objects.looped === true && this.enabled.physics ) {
 
@@ -685,9 +719,39 @@ class MMDAnimationHelper {
 
 		const objects = this.objects.get( mesh )!;
 		if ( mesh.geometry.userData.MMD.format !== 'pmx' || ! objects.sortedBonesData ) return;
+		objects.poseLayers?.capture( objects.poseLayers.physics );
+		objects.poseLayers?.postPhysicsBase.set( objects.poseLayers.physics );
+		// Publish the authored post layer once at the phase boundary. An IK
+		// controller may legally affect a link whose own ordered turn is later.
+		const physicsActive = this.enabled.physics && Boolean( objects.physics );
+		for ( const data of objects.sortedBonesData ) if ( ( data.flag ?? 0 ) & 0x1000 ) {
+
+			if ( physicsActive && data.rigidBodyType > 0 ) objects.physics?.projectBone( data.index );
+			objects.poseLayers?.applyAfterPhysics( data.index, physicsActive ? data.rigidBodyType : - 1 );
+
+		}
 		this._animatePMXMesh( mesh, objects.sortedBonesData,
 			this.enabled.ik ? objects.ikSolver ?? null : null,
 			this.enabled.grant ? objects.grantSolver ?? null : null, true );
+		// Later post IK/grants can move ancestors of already processed dynamic
+		// bones in either phase. Rebase parent first, preserving each bone's own
+		// post contributions, so correcting a parent cannot move a corrected child.
+		if ( physicsActive ) this._reprojectDynamicBones( mesh );
+		objects.poseLayers?.capture( objects.poseLayers.final );
+		objects.physics?.deferAfterPhysics();
+
+	}
+
+	_reprojectDynamicBones( mesh: MMDMesh ) {
+
+		const objects = this.objects.get( mesh )!;
+		if ( ! objects.poseLayers || ! objects.physics ) return;
+		for ( const index of objects.poseLayers.parentFirstIndices ) {
+
+			if ( mesh.geometry.userData.MMD.bones[ index ].rigidBodyType <= 0 ) continue;
+			objects.poseLayers.reprojectDynamic( index, () => objects.physics!.projectBone( index ) );
+
+		}
 
 	}
 
@@ -707,7 +771,7 @@ class MMDAnimationHelper {
 
 	_getBoneMorphController( mesh: MMDMesh ) {
 
-		if ( ! mesh.geometry.userData.MMD.boneMorphs?.length && ! mesh.geometry.userData.MMD.grants.length ) return undefined;
+		if ( mesh.geometry.userData.MMD.format !== 'pmx' && ! mesh.geometry.userData.MMD.boneMorphs?.length && ! mesh.geometry.userData.MMD.grants.length ) return undefined;
 		let controller = this.boneMorphControllers.get( mesh );
 		if ( ! controller ) {
 
@@ -744,29 +808,40 @@ class MMDAnimationHelper {
 
 	}
 
-	_animatePMXMesh( mesh: MMDMesh, sortedBonesData: MMDBone[], ikSolver: CCDIKSolver | null, grantSolver: GrantSolver | null, afterPhysics?: boolean ) {
+	_animatePMXMesh( mesh: MMDMesh, sortedBonesData: MMDBone[], ikSolver: CCDIKSolver | null, grantSolver: GrantSolver | null, afterPhysics?: boolean, physicsActive = this.enabled.physics && Boolean( this.objects.get( mesh )?.physics ) ) {
 
 		// PMX order is phase, transformation class, then file index. Do not
 		// recursively solve grant sources: that would move IK across classes.
-		const physicsActive = this.enabled.physics && Boolean( this.objects.get( mesh )?.physics );
 		for ( const data of sortedBonesData ) {
 
 			if ( afterPhysics !== undefined && Boolean( ( data.flag ?? 0 ) & 0x1000 ) !== afterPhysics ) continue;
-			// Dynamic target layering after physics needs a broader PMX layer
-			// implementation. Preserve the authoritative body pose (docs/grants.md).
-			const dynamicPostTarget = afterPhysics === true && physicsActive && data.rigidBodyType > 0;
-			if ( grantSolver && data.grant && ! dynamicPostTarget ) {
+			if ( grantSolver && data.grant ) {
 
+				// Earlier post operations may have moved any source/target ancestor.
+				// Publish body authority before consumers read accumulated matrices.
+				if ( afterPhysics === true && physicsActive ) this._reprojectDynamicBones( mesh );
 				grantSolver.updateOne( data.grant, afterPhysics === true && physicsActive );
 
 			}
 			if ( ikSolver && data.ik ) {
 
+				if ( afterPhysics === true && physicsActive ) this._reprojectDynamicBones( mesh );
 				mesh.updateMatrixWorld( true );
 				ikSolver.updateOne( data.ik );
 
 			}
 
+			if ( afterPhysics === true && physicsActive && grantSolver ) {
+
+				const raw = this.objects.get( mesh )?.poseLayers?.postPhysicsBase;
+				if ( raw ) {
+
+					grantSolver.capturePostProcedural( data.index, raw );
+					if ( data.ik && ikSolver ) for ( const link of data.ik.links ) grantSolver.capturePostProcedural( link.index, raw );
+
+				}
+
+			}
 		}
 
 		mesh.updateMatrixWorld( true );
@@ -810,7 +885,7 @@ class MMDAnimationHelper {
 
 					// disable IK of the bone the corresponding rigidBody type of which is 1 or 2
 					// because its rotation will be overriden by physics
-					link.enabled = bones[ link.index ].rigidBodyType > 0 ? false : true;
+					link.enabled = ! bones[ link.index ] || ( bones[ link.index ].rigidBodyType > 0 && ! ( ( bones[ ik.target ]?.flag ?? 0 ) & 0x1000 ) ) ? false : true;
 
 				} else {
 
@@ -1072,19 +1147,26 @@ class MMDAnimationHelper {
 
 		if ( physics === null ) return;
 
+		// A shared world has one clock. Any PMX participant requires zero-time
+		// pose evaluation to leave every body's simulation state unchanged,
+		// regardless of which mesh supplied the master adapter.
+		const evaluateOnly = ! Number.isFinite( delta ) || ( delta <= 0 && this.meshes.some( mesh =>
+			mesh.geometry.userData.MMD.format === 'pmx' && Boolean( this.objects.get( mesh )?.physics ) ) );
+
 		for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
 			const p = this.objects.get( this.meshes[ i ] )!.physics;
 
 			if ( p !== null && p !== undefined ) {
 
-				p._updateRigidBodies();
+				this.onBeforePhysics( this.meshes[ i ] );
+				if ( ! evaluateOnly ) p._updateRigidBodies();
 
 			}
 
 		}
 
-		physics._stepSimulation( delta );
+		if ( ! evaluateOnly ) physics._stepSimulation( delta );
 
 		for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
@@ -1092,9 +1174,22 @@ class MMDAnimationHelper {
 
 			if ( p !== null && p !== undefined ) {
 
-				p._updateBones();
+				if ( delta > 0 ) p._captureBodyResults( 'step' );
+				p._updateBones( ! evaluateOnly );
 
 			}
+
+		}
+
+	}
+
+	_finishSharedPhysics( delta: number ) {
+
+		this._updateSharedPhysics( delta );
+		for ( const mesh of this.meshes ) {
+
+			this._animateAfterPhysics( mesh );
+			this.boneMorphControllers.get( mesh )?.capture();
 
 		}
 

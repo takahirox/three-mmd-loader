@@ -231,9 +231,10 @@ export const sdefR1 = [ - 0.3, 0.5, - 0.1 ];
 export const sdefNormal = [ 0.36, 0.48, 0.8 ];
 export const sdefMorph = [ 0.15, - 0.2, 0.25 ];
 
-export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, texturePath, uvMorphs = false, additionalUVCount = 4, grants = false }: { grants?: boolean; boneMorphs?: boolean; groupMorphs?: boolean; texturePath?: string; uvMorphs?: boolean; additionalUVCount?: number } = {} ) {
+export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, texturePath, uvMorphs = false, additionalUVCount = 4, grants = false, physicsLayers = false }: { physicsLayers?: boolean; grants?: boolean; boneMorphs?: boolean; groupMorphs?: boolean; texturePath?: string; uvMorphs?: boolean; additionalUVCount?: number } = {} ) {
 
-	boneMorphs ||= groupMorphs;
+	boneMorphs ||= groupMorphs || physicsLayers;
+	grants ||= physicsLayers;
 
 	const w = new Writer();
 	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
@@ -265,15 +266,17 @@ export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, textur
 	w.text( 'probes' ).text( '' ).f32( 0.8, 0.6, 0.4, 1, 0, 0, 0, 30, 0, 0, 0 );
 	w.u8( 0x11 ).f32( 1, 0, 0, 1, 1 ).u8( texturePath ? 0 : 255 ).u8( 255 ).u8( 0 ).u8( 1 ).u8( 0 );
 	w.text( '' ).u32( sdefProbeVertices.length * 3 );
-	w.u32( grants ? grantFixtureBones.length : 4 );
-	for ( let i = 0; i < ( grants ? grantFixtureBones.length : 4 ); i ++ ) {
+	const fixtureBones = physicsLayers ? physicsLayerBones : grantFixtureBones;
+	w.u32( grants ? fixtureBones.length : 4 );
+	for ( let i = 0; i < ( grants ? fixtureBones.length : 4 ); i ++ ) {
 
 		if ( grants ) {
 
-			const b = grantFixtureBones[ i ];
+			const b = fixtureBones[ i ];
 			w.text( `bone${i}` ).text( '' ).f32( ...b.position ).u8( b.parent ).u32( b.transformationClass ).u16( b.flag ).f32( 0, 1, 0 );
 			if ( b.grant ) w.u8( b.grant.parentIndex ).f32( b.grant.ratio );
 			if ( b.flag & 0x0800 ) w.f32( 0, 1, 0, 1, 0, 0 );
+			if ( physicsLayers && ( i === 6 || i === 9 ) ) w.u8( i === 6 ? 5 : 10 ).u32( 32 ).f32( 0.5 ).u32( 1 ).u8( i === 6 ? 4 : 1 ).u8( 0 );
 			continue;
 
 		}
@@ -341,7 +344,22 @@ export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, textur
 		group( 'uv-nested', [ [ first + 5, 100 ], [ first + 7, 100 ], [ first + 2, - 0.5 ], [ 120, 1 ], [ first, NaN ], [ first, Infinity ] ] );
 
 	}
-	w.u32( 0 ).u32( 0 ).u32( 0 );
+	w.u32( 0 ); // display frames
+	if ( physicsLayers ) {
+
+		w.u32( physicsLayerBodies.length );
+		for ( const [ i, b ] of physicsLayerBodies.entries() ) {
+
+			w.text( `body${i}` ).text( '' ).u8( b.bone ).u8( 0 ).u16( 0xffff ).u8( 0 );
+			w.f32( b.radius, b.radius, b.radius, ...physicsLayerBones[ b.bone ].position, 0, 0, 0, b.mode === 0 ? 0 : 1, 0, 0, 0, 0.5 ).u8( b.mode );
+
+		}
+		w.u32( 1 ).text( 'constrained pair' ).text( '' ).u8( 0 ).u8( 0 ).u8( 3 );
+		w.f32( 0.3, 0, 0, 0, 0, 0 );
+		// Locked translation, free rotation. Distinct from the contact probe.
+		w.f32( 0, 0, 0, 0, 0, 0, -3.14, -3.14, -3.14, 3.14, 3.14, 3.14, 0, 0, 0, 0, 0, 0 );
+
+	} else w.u32( 0 ).u32( 0 );
 	return w.buffer();
 
 }
@@ -380,3 +398,21 @@ export const grantFixtureBones = [
 ];
 
 export function grantPmxBuffer() { return sdefPmxBuffer( { grants: true, boneMorphs: true } ); }
+
+// Internally authored binary fixture: parsed by the released parser in CI
+// and loaded without credentials or third-party files in the private viewer.
+export const physicsLayerBones = [
+	{ position: [ 0, 0, 0 ], parent: -1, transformationClass: 3, flag: 0x1380, grant: { parentIndex: 6, ratio: 0.5 } },
+	{ position: [ 2, 0, 0 ], parent: -1, transformationClass: 4, flag: 0x1380, grant: { parentIndex: 6, ratio: 0.25 } },
+	{ position: [ -2, 0, 0 ], parent: 7, transformationClass: 4, flag: 0x1380, grant: { parentIndex: 6, ratio: 0.25 } },
+	{ position: [ 0.65, 0, 0 ], parent: -1, transformationClass: 0, flag: 0 },
+	{ position: [ -2, 2, 0 ], parent: -1, transformationClass: 0, flag: 0 },
+	{ position: [ -2, 3, 0 ], parent: 4, transformationClass: 1, flag: 0 },
+	{ position: [ 0, 2, 0 ], parent: -1, transformationClass: 2, flag: 0x0020 },
+	{ position: [ 0.5, 0.5, 0 ], parent: -1, transformationClass: 0, flag: 0 },
+	{ position: [ -0.65, 0, 0 ], parent: -1, transformationClass: 1, flag: 0 },
+	{ position: [ 3, 1, 0 ], parent: -1, transformationClass: 6, flag: 0x1020 },
+	{ position: [ 2, 1, 0 ], parent: 1, transformationClass: 5, flag: 0x1000 }
+];
+export const physicsLayerBodies = [ { bone: 0, mode: 0, radius: 0.4 }, { bone: 1, mode: 1, radius: 0.1 }, { bone: 2, mode: 2, radius: 0.1 }, { bone: 3, mode: 1, radius: 0.1 }, { bone: 8, mode: 1, radius: 0.4 } ];
+export function physicsLayersPmxBuffer() { return sdefPmxBuffer( { physicsLayers: true } ); }

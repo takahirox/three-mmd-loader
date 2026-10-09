@@ -12,9 +12,13 @@
 "three-mmd-loader":"/src/index.js"}}</script></head>
 <body><div id="panel">
 <strong>Private PMX UV/material/group/bone morph and SDEF inspection</strong>
-<label>Local directory <select id="asset-directory"><option value="yyb-miku-10th">yyb-miku-10th/</option><option value="bone-morph">bone-morph/</option><option value="group-morph">group-morph/</option><option value="material-morph">material-morph/</option><option value="grant">grant/</option><option value="uv-morph">uv-morph/</option></select></label>
+<label>Local directory <select id="asset-directory"><option value="yyb-miku-10th">yyb-miku-10th/</option><option value="bone-morph">bone-morph/</option><option value="group-morph">group-morph/</option><option value="material-morph">material-morph/</option><option value="grant">grant/</option><option value="uv-morph">uv-morph/</option><option value="physics-layers">physics-layers/</option></select></label>
 <label>PMX path relative to the selected directory<input id="model" type="text" value="model.pmx"></label>
 <button id="load">Load PMX</button> <button id="generated-uv">Generated UV fixture</button> <button id="generated-grant">Generated Grant fixture</button>
+<button id="generated-physics-layers">Generated Physics layers fixture</button>
+<label><input id="physics" type="checkbox"> Ammo physics</label>
+<button id="physics-step">Step 1/60 s</button> <button id="physics-pause">Resume / pause physics</button> <button id="physics-reset">Reset simulation</button>
+<pre id="physics-info" style="max-height:300px;overflow:auto;white-space:pre-wrap">Choose physics-layers/ or the generated fixture. No private candidate is required.</pre>
 <label><input id="grants" type="checkbox"> Apply PMX grants</label>
 <pre id="grant-info" style="max-height:260px;overflow:auto;white-space:pre-wrap">Load PMX to inspect actual grant flags and affected bones.</pre>
 <label>Direct type 3–7 UV morph <select id="uv-morph" disabled></select></label>
@@ -41,4 +45,4 @@
 <label>Optional VMD path relative to the selected directory<input id="motion" type="text" placeholder="motion.vmd"></label>
 <button id="play">Play local motion</button><button id="stop">Stop motion</button>
 <p id="status">Review the model's README/license locally before loading. Assets remain on this loopback server.</p>
-</div><script type="module" src="/local-sdef/viewer.js"></script></body></html>
+</div><script src="/node_modules/ammojs-typed/ammo/ammo.js"></script><script type="module" src="/local-sdef/viewer.js"></script></body></html>

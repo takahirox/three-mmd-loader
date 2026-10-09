@@ -1,4 +1,6 @@
 import type { SkinnedMesh } from 'three';
+import type { PMXPoseLayers } from './PMXPoseLayers.js';
+import type { MMDMesh } from '../types.js';
 import type { RigidBodyParameters, ConstraintParameters } from '../types.js';
 import type { AmmoAPI, AmmoWorld, AmmoVector3, AmmoQuaternion, AmmoTransform, AmmoBody, AmmoConstraint } from '../ammo.js';
 import {
@@ -41,6 +43,14 @@ export interface MMDPhysicsParameters {
 /* global Ammo */
 
 class MMDPhysics {
+
+	/** Helper-owned snapshots used to reset simulation without baking post offsets. */
+	poseLayers?: PMXPoseLayers;
+	warmupStep?: ( delta: number ) => void;
+	private disposed = false;
+	/** Last actual Bullet step output, captured before mode-2 alignment. */
+	bodyResults: { position: number[]; quaternion: number[] }[] = [];
+	bodyResultPhase: 'reset' | 'step' = 'reset';
 
 	manager: ResourceManager;
 	mesh: SkinnedMesh;
@@ -101,6 +111,8 @@ class MMDPhysics {
 	 */
 	update( delta: number ) {
 
+		if ( this.disposed ) return this;
+
 		const manager = this.manager;
 		const mesh = this.mesh;
 
@@ -139,9 +151,10 @@ class MMDPhysics {
 
 		// calculate physics and update bones
 
-		this._updateRigidBodies();
+		if ( delta > 0 || ( this.mesh as MMDMesh ).geometry.userData.MMD?.format !== 'pmx' ) this._updateRigidBodies();
 		this._stepSimulation( delta );
-		this._updateBones();
+		if ( delta > 0 ) this._captureBodyResults( 'step' );
+		this._updateBones( delta > 0 || ( this.mesh as MMDMesh ).geometry.userData.MMD?.format !== 'pmx' );
 
 		// restore mesh if converted above
 
@@ -168,12 +181,44 @@ class MMDPhysics {
 	 */
 	reset() {
 
-		for ( let i = 0, il = this.bodies.length; i < il; i ++ ) {
+		if ( this.disposed ) return this;
 
-			this.bodies[ i ].reset();
+		const layers = this.poseLayers;
+		const rendered = layers ? new Float64Array( layers.final.length ) : undefined;
+		if ( layers && rendered ) {
+
+			layers.capture( rendered );
+			for ( const [ i, bone ] of this.mesh.skeleton.bones.entries() ) {
+
+				bone.position.fromArray( layers.beforePhysics, i * 7 );
+				bone.quaternion.fromArray( layers.beforePhysics, i * 7 + 3 );
+
+			}
+			this.mesh.updateMatrixWorld( true );
 
 		}
+		for ( const body of this.bodies ) {
 
+			// Removing/reinserting clears stale contact manifolds for this mesh,
+			// including shared worlds; other meshes retain their bodies/state.
+			this.world?.removeRigidBody?.( body.body );
+			body.reset();
+			if ( this.world?.removeRigidBody ) this.world.addRigidBody( body.body, 1 << body.params.groupIndex, body.params.groupTarget );
+
+		}
+		this._captureBodyResults( 'reset' );
+		if ( layers && rendered ) {
+
+			for ( const [ i, bone ] of this.mesh.skeleton.bones.entries() ) {
+
+				bone.position.fromArray( rendered, i * 7 );
+				bone.quaternion.fromArray( rendered, i * 7 + 3 );
+
+			}
+			this.mesh.updateMatrixWorld( true );
+			this.deferAfterPhysics();
+
+		}
 		return this;
 
 	}
@@ -186,9 +231,12 @@ class MMDPhysics {
 	 */
 	warmup( cycles: number ) {
 
+		if ( this.disposed ) return this;
+
 		for ( let i = 0; i < cycles; i ++ ) {
 
-			this.update( 1 / 60 );
+			if ( this.warmupStep ) this.warmupStep( 1 / 60 );
+			else this.update( 1 / 60 );
 
 		}
 
@@ -311,8 +359,44 @@ class MMDPhysics {
 
 	}
 
+	/** Remove this adapter's bodies/constraints when its helper releases it. */
+	dispose() {
+
+		if ( this.disposed ) return;
+		this.disposed = true;
+		this.warmupStep = undefined; this.poseLayers = undefined;
+
+		for ( const joint of this.constraints ) this.world?.removeConstraint?.( joint.constraint );
+		for ( const body of this.bodies ) {
+
+			this.world?.removeRigidBody?.( body.body );
+			body.clearDeferred();
+
+		}
+		this.constraints.length = 0; this.bodies.length = 0; this.bodyResults.length = 0;
+
+	}
+
+	/** Save post-phase follow inputs, without changing the completed step. */
+	deferAfterPhysics() {
+
+		this.mesh.updateMatrixWorld( true );
+		for ( const body of this.bodies ) body.deferFromBone();
+
+	}
+
+	/** Reproject a raw Bullet pose after a post-phase skeletal parent moved. */
+	projectBone( index: number ) {
+
+		this.mesh.updateMatrixWorld( true );
+		for ( const body of this.bodies ) if ( body.params.boneIndex === index && body.params.type > 0 ) body.updateBone( false );
+
+	}
+
 	_stepSimulation( delta: number ) {
 
+		// Pose evaluation at zero time must never advance contacts or constraints.
+		if ( ! Number.isFinite( delta ) || ( delta <= 0 && ( this.mesh as MMDMesh ).geometry.userData.MMD?.format === 'pmx' ) ) return;
 		const unitStep = this.unitStep;
 		let stepTime = delta;
 		let maxStepNum = ( ( delta / unitStep ) | 0 ) + 1;
@@ -338,17 +422,33 @@ class MMDPhysics {
 
 		for ( let i = 0, il = this.bodies.length; i < il; i ++ ) {
 
-			this.bodies[ i ].updateFromBone();
+			// Only the helper stages post-phase inputs. Standalone adapters read
+			// the caller's current pose synchronously, including post PMX bones.
+			this.bodies[ i ].updateFromBone( Boolean( this.poseLayers ) );
 
 		}
 
 	}
 
-	_updateBones() {
+	_captureBodyResults( phase: 'reset' | 'step' ) {
+
+		this.bodyResultPhase = phase;
+		for ( const [ i, body ] of this.bodies.entries() ) {
+
+			const transform = body.body.getCenterOfMassTransform(), p = transform.getOrigin(), q = transform.getRotation();
+			const result = this.bodyResults[ i ] ??= { position: [ 0, 0, 0 ], quaternion: [ 0, 0, 0, 1 ] };
+			result.position[ 0 ] = p.x(); result.position[ 1 ] = p.y(); result.position[ 2 ] = p.z();
+			result.quaternion[ 0 ] = q.x(); result.quaternion[ 1 ] = q.y(); result.quaternion[ 2 ] = q.z(); result.quaternion[ 3 ] = q.w();
+
+		}
+
+	}
+
+	_updateBones( alignPosition = true ) {
 
 		for ( let i = 0, il = this.bodies.length; i < il; i ++ ) {
 
-			this.bodies[ i ].updateBone();
+			this.bodies[ i ].updateBone( alignPosition, Boolean( this.poseLayers ) );
 
 		}
 
@@ -837,6 +937,8 @@ class RigidBody {
 	bone!: Bone;
 	boneOffsetForm!: AmmoTransform;
 	boneOffsetFormInverse!: AmmoTransform;
+	private deferred = false;
+	private pending: AmmoTransform | undefined;
 
 	constructor( mesh: SkinnedMesh, world: AmmoWorld, params: RigidBodyParameters, manager: ResourceManager ) {
 
@@ -845,7 +947,45 @@ class RigidBody {
 		this.params = params;
 		this.manager = manager;
 
+		const metadata = ( mesh as MMDMesh ).geometry.userData.MMD;
+		if ( metadata?.format === 'pmx' ) {
+
+			const visited = new Set<number>();
+			let index = params.boneIndex;
+			while ( metadata.bones[ index ] && ! visited.has( index ) ) {
+
+				visited.add( index );
+				if ( ( metadata.bones[ index ].flag ?? 0 ) & 0x1000 ) this.deferred = true;
+				index = metadata.bones[ index ].parent;
+
+			}
+
+		}
 		this._init();
+
+	}
+
+	/** Read-only next-step diagnostic; no Bullet state changes. */
+	getDeferredPose() {
+
+		if ( ! this.pending ) return null;
+		const p = this.pending.getOrigin(), q = this.pending.getRotation();
+		return { position: [ p.x(), p.y(), p.z() ], quaternion: [ q.x(), q.y(), q.z(), q.w() ] };
+
+	}
+
+	clearDeferred() {
+
+		if ( this.pending ) this.manager.freeTransform( this.pending );
+		this.pending = undefined;
+
+	}
+
+	deferFromBone() {
+
+		if ( ! this.deferred || ( this.params.type !== 0 && this.params.type !== 2 ) ) return;
+		if ( this.pending ) this.manager.freeTransform( this.pending );
+		this.pending = this._getBoneTransform();
 
 	}
 
@@ -856,7 +996,14 @@ class RigidBody {
 	 */
 	reset() {
 
+		if ( this.pending ) this.manager.freeTransform( this.pending );
+		this.pending = undefined;
 		this._setTransformFromBone();
+		const zero = this.manager.allocVector3(); zero.setValue( 0, 0, 0 );
+		this.body.setLinearVelocity?.( zero ); this.body.setAngularVelocity?.( zero ); this.body.clearForces?.();
+		this.body.setInterpolationWorldTransform?.( this.body.getCenterOfMassTransform() );
+		this.body.setInterpolationLinearVelocity?.( zero ); this.body.setInterpolationAngularVelocity?.( zero );
+		this.manager.freeVector3( zero );
 		return this;
 
 	}
@@ -866,9 +1013,31 @@ class RigidBody {
 	 *
 	 * @return {RidigBody}
 	 */
-	updateFromBone() {
+	updateFromBone( defer = false ) {
 
-		if ( this.params.boneIndex !== - 1 && this.params.type === 0 ) {
+		if ( this.deferred && defer ) {
+
+			if ( this.pending ) {
+
+				if ( this.params.type === 0 ) {
+
+					this.body.setCenterOfMassTransform( this.pending );
+					this.body.getMotionState().setWorldTransform( this.pending );
+
+				} else if ( this.params.type === 2 ) {
+
+					const transform = this.manager.allocTransform();
+					transform.setRotation( this.body.getCenterOfMassTransform().getRotation() );
+					this.manager.copyOrigin( transform, this.pending );
+					this.body.setCenterOfMassTransform( transform );
+					this.body.getMotionState().setWorldTransform( transform );
+					this.manager.freeTransform( transform );
+
+				}
+
+			}
+
+		} else if ( this.params.boneIndex !== - 1 && this.params.type === 0 ) {
 
 			this._setTransformFromBone();
 
@@ -883,7 +1052,7 @@ class RigidBody {
 	 *
 	 * @return {RidigBody}
 	 */
-	updateBone() {
+	updateBone( alignPosition = true, defer = false ) {
 
 		if ( this.params.type === 0 || this.params.boneIndex === - 1 ) {
 
@@ -901,7 +1070,7 @@ class RigidBody {
 
 		this.bone.updateMatrixWorld( true );
 
-		if ( this.params.type === 2 ) {
+		if ( this.params.type === 2 && alignPosition && ! ( this.deferred && defer ) ) {
 
 			this._setPositionFromBone();
 
@@ -1079,13 +1248,10 @@ class RigidBody {
 		const thQ3 = manager.allocThreeQuaternion();
 
 		thQ.set( q.x(), q.y(), q.z(), q.w() );
-		thQ2.setFromRotationMatrix( this.bone.matrixWorld );
-		thQ2.conjugate();
-		thQ2.multiply( thQ );
-
-		//this.bone.quaternion.multiply( thQ2 );
-
-		thQ3.setFromRotationMatrix( this.bone.matrix );
+		if ( this.bone.parent ) this.bone.parent.getWorldQuaternion( thQ2 );
+		else thQ2.identity();
+		thQ2.conjugate().multiply( thQ );
+		thQ3.identity();
 
 		// Renormalizing quaternion here because repeatedly transforming
 		// quaternion continuously accumulates floating point error and

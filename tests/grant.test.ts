@@ -202,7 +202,9 @@ for ( const pmxAnimation of [ false, true ] ) {
 				helper.update( 1 / 60 );
 				near( mesh.skeleton.bones[ 0 ].position.toArray(), rest[ 0 ].map( ( v, c ) => v + [ 0.4, 0.2, 0.1 ][ c ] * 0.5 ) );
 				near( mesh.skeleton.bones[ 2 ].position.toArray(), rest[ 2 ] );
-				near( mesh.skeleton.bones[ 3 ].position.toArray(), rest[ 3 ] );
+				near( mesh.skeleton.bones[ 3 ].position.toArray(), rest[ 3 ].map( ( v, c ) => v + ( [ 1.2, 0.3, 0.4 ][ c ] - rest[ 6 ][ c ] ) * 0.5 ) );
+				const rawDynamic = physics.bodies[ 3 ].body.getCenterOfMassTransform().getOrigin();
+				near( [ rawDynamic.x(), rawDynamic.y(), rawDynamic.z() ], rest[ 3 ] );
 				near( mesh.skeleton.bones[ 4 ].position.toArray(), rest[ 4 ].map( ( v, c ) => v + [ 0.4, 0.2, 0.1 ][ c ] * 0.5 ) );
 				const expectedPost = rest[ 1 ].map( ( v, c ) => v + ( [ 1.2, 0.3, 0.4 ][ c ] - rest[ 6 ][ c ] ) * 0.5 );
 				near( mesh.skeleton.bones[ 1 ].position.toArray(), expectedPost );
@@ -221,7 +223,7 @@ for ( const pmxAnimation of [ false, true ] ) {
 	} );
 }
 
-test( 'scoped inherited limitation: after-physics kinematic bodies cannot consume same-step grants', async () => {
+test( 'after-physics kinematic grant is deferred to the next simulation step', async () => {
 
 	const ammoGlobal = globalThis as typeof globalThis & { Ammo?: AmmoAPI };
 	ammoGlobal.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )();
@@ -239,6 +241,11 @@ test( 'scoped inherited limitation: after-physics kinematic bodies cannot consum
 		helper.update( 0 );
 		const origin = helper.objects.get( mesh )!.physics!.bodies[ 0 ].body.getCenterOfMassTransform().getOrigin();
 		assert.ok( Math.abs( mesh.skeleton.bones[ 0 ].position.x - origin.x() - 1 ) < 1e-5 );
+		// The completed step stays at its input, while the next step consumes
+		// the FULL preceding post pose (authored plus grant), not a partial pose.
+		helper.update( 1 / 60 );
+		const next = helper.objects.get( mesh )!.physics!.bodies[ 0 ].body.getCenterOfMassTransform().getOrigin();
+		assert.ok( Math.abs( mesh.skeleton.bones[ 0 ].position.x - next.x() ) < 1e-5 );
 
 	} finally { delete ammoGlobal.Ammo; }
 

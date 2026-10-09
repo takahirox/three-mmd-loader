@@ -694,6 +694,24 @@ class GeometryBuilder {
 
 		// bones
 
+		// PMX parent metadata can contain missing indices or cycles. Detach
+		// invalid edges before building Three's hierarchy (whose matrix traversal
+		// is recursive). Keep independent valid branches usable.
+		const parents = data.bones.map( ( b, i ) => Number.isInteger( b.parentIndex ) && b.parentIndex >= 0 && b.parentIndex < data.bones.length && b.parentIndex !== i ? b.parentIndex : - 1 );
+		for ( let i = 0; i < parents.length; i ++ ) {
+
+			const path: number[] = [];
+			const seen = new Map<number, number>();
+			let index = i;
+			while ( index !== - 1 && ! seen.has( index ) ) {
+
+				seen.set( index, path.length ); path.push( index ); index = parents[ index ];
+
+			}
+			if ( index !== - 1 ) for ( const cyclic of path.slice( seen.get( index ) ) ) parents[ cyclic ] = - 1;
+
+		}
+
 		for ( let i = 0; i < data.metadata.rigidBodyCount; i ++ ) {
 
 			const body = data.rigidBodies[ i ];
@@ -714,9 +732,10 @@ class GeometryBuilder {
 				index: i,
 				transformationClass: 'transformationClass' in boneData ? boneData.transformationClass : undefined,
 				flag: 'flag' in boneData ? boneData.flag : undefined,
-				parent: boneData.parentIndex,
+				parent: parents[ i ],
 				name: boneData.name,
-				pos: boneData.position.slice( 0, 3 ),
+				pos: boneData.position.slice( 0, 3 ).map( value => Number.isFinite( value ) && Math.abs( value ) < 1e15 ? value : 0 ),
+				originalParent: parents[ i ] !== boneData.parentIndex ? boneData.parentIndex : undefined,
 				rotq: [ 0, 0, 0, 1 ],
 				scl: [ 1, 1, 1 ],
 				rigidBodyType: boneTypeTable[ i ] !== undefined ? boneTypeTable[ i ] : - 1
@@ -724,9 +743,12 @@ class GeometryBuilder {
 
 			if ( bone.parent !== - 1 ) {
 
-				bone.pos[ 0 ] -= data.bones[ bone.parent ].position[ 0 ];
-				bone.pos[ 1 ] -= data.bones[ bone.parent ].position[ 1 ];
-				bone.pos[ 2 ] -= data.bones[ bone.parent ].position[ 2 ];
+				const parent0 = data.bones[ bone.parent ].position[ 0 ];
+				bone.pos[ 0 ] -= Number.isFinite( parent0 ) && Math.abs( parent0 ) < 1e15 ? parent0 : 0;
+				const parent1 = data.bones[ bone.parent ].position[ 1 ];
+				bone.pos[ 1 ] -= Number.isFinite( parent1 ) && Math.abs( parent1 ) < 1e15 ? parent1 : 0;
+				const parent2 = data.bones[ bone.parent ].position[ 2 ];
+				bone.pos[ 2 ] -= Number.isFinite( parent2 ) && Math.abs( parent2 ) < 1e15 ? parent2 : 0;
 
 			}
 
@@ -971,7 +993,7 @@ class GeometryBuilder {
 
 			const rigidBody = data.rigidBodies[ i ];
 			// MMD physics supports sphere, box, and capsule shape codes.
-			const params = { ...rigidBody, shapeType: rigidBody.shapeType as 0 | 1 | 2 };
+			const params = { ...rigidBody, originalType: rigidBody.type, position: rigidBody.position.slice() as [ number, number, number ], shapeType: rigidBody.shapeType as 0 | 1 | 2 };
 
 			/*
 				 * RigidBody position parameter in PMX seems global position
@@ -1020,6 +1042,11 @@ class GeometryBuilder {
 			constraints.push( params );
 
 		}
+
+		// The MMD joint compatibility rule above can convert mode 2 to mode 1.
+		// Pose composition must follow the effective runtime mode, too.
+		for ( const bone of bones ) bone.rigidBodyType = - 1;
+		for ( const body of rigidBodies ) if ( bones[ body.boneIndex ] ) bones[ body.boneIndex ].rigidBodyType = Math.max( bones[ body.boneIndex ].rigidBodyType, body.type );
 
 		// build BufferGeometry.
 
