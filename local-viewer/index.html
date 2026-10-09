@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Local PMX group/bone morph and SDEF inspection</title>
+<title>Local PMX material/group/bone morph and SDEF inspection</title>
 <style>body{margin:0;font:14px system-ui;background:#20242b;color:white}canvas{display:block}#panel{position:absolute;top:12px;left:12px;max-width:440px;max-height:calc(100vh - 48px);overflow:auto;padding:12px;background:#18202de8}label{display:block;margin:8px 0}input[type=text]{width:100%;box-sizing:border-box}button,select,input{font:inherit}.bone-link{color:#8deda7;font-weight:bold}#status{white-space:pre-wrap}</style>
 <script type="importmap">{"imports":{
 "three":"/node_modules/three/build/three.module.js",
@@ -11,8 +11,8 @@
 "mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs",
 "three-mmd-loader":"/src/index.js"}}</script></head>
 <body><div id="panel">
-<strong>Private PMX group/bone morph and SDEF inspection</strong>
-<label>Local directory <select id="asset-directory"><option value="yyb-miku-10th">yyb-miku-10th/</option><option value="bone-morph">bone-morph/</option><option value="group-morph">group-morph/</option></select></label>
+<strong>Private PMX material/group/bone morph and SDEF inspection</strong>
+<label>Local directory <select id="asset-directory"><option value="yyb-miku-10th">yyb-miku-10th/</option><option value="bone-morph">bone-morph/</option><option value="group-morph">group-morph/</option><option value="material-morph">material-morph/</option></select></label>
 <label>PMX path relative to the selected directory<input id="model" type="text" value="model.pmx"></label>
 <button id="load">Load PMX</button>
 <label>Type 0 group <select id="group" disabled></select></label>
@@ -20,6 +20,9 @@
 <label>Direct group target <select id="group-target" disabled></select></label>
 <label>Direct target weight <input id="target-weight" type="range" min="0" max="1" step="0.01" value="0" disabled> <span id="target-weight-value">0.00</span></label>
 <pre id="group-info" style="max-height:220px;overflow:auto;white-space:pre-wrap">Load a PMX to enumerate its actual group links. Bone links are highlighted.</pre>
+<label>Direct type 8 material morph <select id="material-morph" disabled></select></label>
+<label>Material weight <input id="material-weight" type="range" min="0" max="1" step="0.01" value="0" disabled> <span id="material-weight-value">0.00</span></label>
+<pre id="material-info" style="max-height:240px;overflow:auto;white-space:pre-wrap">Load a PMX to enumerate its actual type 8 material morphs.</pre>
 <label>Direct type 2 morph <select id="morph" disabled></select></label>
 <label>Weight <input id="weight" type="range" min="0" max="1" step="0.01" value="0" disabled> <span id="weight-value">0.00</span></label>
 <pre id="morph-info" style="max-height:220px;overflow:auto;white-space:pre-wrap">Load a PMX to enumerate its actual type 2 bone morphs.</pre>

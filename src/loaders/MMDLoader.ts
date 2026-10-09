@@ -1,9 +1,11 @@
+import { copyMaterialValues, freezeMaterialValues } from '../animation/MMDMaterialMorphController.js';
+import { protectMMDMorphWeights } from '../animation/MMDMorphWeights.js';
 import { enableSdefShadows } from '../skinning/MMDSdef.js';
 import { Camera, InterleavedBuffer, InterleavedBufferAttribute, LoadingManager } from 'three';
 import type { Texture, TypedArray, KeyframeTrack } from 'three';
 import { Parser } from 'mmd-parser';
-import type { Model, Pmd, Pmx, PmdMorph, PmxVertexMorph, MaterialMorphElement, Vmd, VmdMotion, VmdMorph, Vpd } from 'mmd-parser';
-import type { MMDBone, MMDBoneMorph, MMDGroupMorph, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
+import type { Model, Pmd, Pmx, PmdMorph, PmxVertexMorph, Vmd, VmdMotion, VmdMorph, Vpd } from 'mmd-parser';
+import type { MMDBone, MMDBoneMorph, MMDGroupMorph, MMDMaterialMorph, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
 import {
 	AddOperation,
 	AnimationClip,
@@ -86,7 +88,7 @@ type MMDMaterialParameters = MMDToonMaterialParameters & {
  *
  * TODO
  *  - light motion in vmd support.
- *  - uv/material morphing support. Nested groups are intentionally ignored.
+ *  - UV morphing support. Nested groups are intentionally ignored.
  *  - more precise grant skinning support.
  *  - shadow support.
  */
@@ -504,6 +506,7 @@ class MeshBuilder {
 			.build( data, geometry, onProgress, onError );
 
 		const mesh = new SkinnedMesh( geometry, material );
+		if ( geometry.userData.MMD.materialMorphs?.length ) protectMMDMorphWeights( mesh );
 
 		const skeleton = new Skeleton( initBones( mesh ) );
 		mesh.bind( skeleton );
@@ -610,6 +613,7 @@ class GeometryBuilder {
 		const morphTargets = [];
 		const boneMorphs: MMDBoneMorph[] = [];
 		const groupMorphs: MMDGroupMorph[] = [];
+		const materialMorphs: MMDMaterialMorph[] = [];
 		const morphPositions = [];
 
 		const iks: IK[] = [];
@@ -984,7 +988,7 @@ class GeometryBuilder {
 						} else {
 
 							// Bone links run in MMDBoneMorphController. Nested groups
-							// are ignored for MMD compatibility; UV/material unsupported.
+							// are ignored for MMD compatibility; UV unsupported.
 
 						}
 
@@ -1027,7 +1031,7 @@ class GeometryBuilder {
 
 				} else if ( morph.type === 8 ) { // material
 
-					// TODO: implement
+					materialMorphs.push( { index: i, name: morph.name, elements: morph.elements.map( e => ( { ...copyMaterialValues( e ), index: e.index, type: e.type } ) ) } );
 
 				}
 
@@ -1141,6 +1145,7 @@ class GeometryBuilder {
 		geometry.userData.MMD = {
 			boneMorphs: boneMorphs,
 			groupMorphs: groupMorphs,
+			materialMorphs: materialMorphs,
 			bones: bones,
 			iks: iks,
 			grants: grants,
@@ -1408,6 +1413,13 @@ class MaterialBuilder {
 			}
 
 			const toonMaterial = new MMDToonMaterial( params );
+			if ( ! isPmd( data ) ) {
+
+				const source = data.materials[ i ];
+				toonMaterial.userData.MMD.materialBase = freezeMaterialValues( { diffuse: source.diffuse, specular: source.specular, shininess: source.shininess, ambient: source.ambient, edgeColor: source.edgeColor, edgeSize: source.edgeSize, textureColor: [ 1, 1, 1, 1 ], sphereTextureColor: [ 1, 1, 1, 1 ], toonColor: [ 1, 1, 1, 1 ] } );
+				toonMaterial.userData.MMD.edgeEnabled = ( source.flag & 0x10 ) !== 0;
+
+			}
 			// The image transparency detector runs before this callback. Preserve
 			// texture alpha in the node material once asynchronous decoding finishes.
 			if ( params.map && ! toonMaterial.transparent ) {
@@ -1430,49 +1442,26 @@ class MaterialBuilder {
 
 		if ( ! isPmd( data ) ) {
 
-			// set transparent true if alpha morph is defined.
+			// Keep alpha-capable materials in one blending pipeline for the whole
+			// playback. Classify all direct type 8 targets, including -1, both modes
+			// and sampler alpha factors. Group targets use the same payloads.
+			for ( const morph of data.morphs ) {
 
-			function checkAlphaMorph( elements: MaterialMorphElement[], materials: MMDToonMaterial[] ) {
+				if ( morph.type !== 8 ) continue;
+				for ( const element of morph.elements ) {
 
-				for ( let i = 0, il = elements.length; i < il; i ++ ) {
+					if ( ! Number.isInteger( element.index ) || ( element.type !== 0 && element.type !== 1 ) ) continue;
+					const identity = element.type === 0 ? 1 : 0;
+					for ( const [ index, material ] of materials.entries() ) {
 
-					const element = elements[ i ];
-
-					if ( element.index === - 1 ) continue;
-
-					const material = materials[ element.index ];
-					if ( ! material ) continue;
-
-					if ( material.opacity !== element.diffuse[ 3 ] ) {
-
-						material.transparent = true;
-
-					}
-
-				}
-
-			}
-
-			for ( let i = 0, il = data.morphs.length; i < il; i ++ ) {
-
-				const morph = data.morphs[ i ];
-				const elements = morph.elements;
-
-				if ( morph.type === 0 ) {
-
-					for ( let j = 0, jl = elements.length; j < jl; j ++ ) {
-
-						const morph2 = data.morphs[ elements[ j ].index ];
-
-						if ( ! Number.isInteger( elements[ j ].index ) || morph2?.type !== 8 ) continue;
-
-						checkAlphaMorph( morph2.elements, materials );
+						if ( element.index !== - 1 && element.index !== index ) continue;
+						const changesAlpha = [ element.diffuse[ 3 ], element.edgeColor[ 3 ],
+							...( material.map ? [ element.textureColor[ 3 ] ] : [] ),
+							...( material.matcap ? [ element.sphereTextureColor[ 3 ] ] : [] ),
+							...( material.gradientMap ? [ element.toonColor[ 3 ] ] : [] ) ].some( value => Number.isFinite( value ) && value !== identity );
+						if ( changesAlpha ) { material.transparent = true; material.side = DoubleSide; }
 
 					}
-
-				} else if ( morph.type === 8 ) {
-
-					checkAlphaMorph( morph.elements, materials );
 
 				}
 

@@ -1,14 +1,16 @@
 import { hasSdef, setupMMDPosition } from '../skinning/MMDSdef.js';
-import { AddOperation, MultiplyOperation } from 'three';
+import { AddOperation, MultiplyOperation, Vector4 } from 'three';
 import type { Color, Combine, Texture } from 'three';
 import { MeshPhongNodeMaterial, PhongLightingModel } from 'three/webgpu';
 import type { MeshPhongNodeMaterialParameters, Node, NodeBuilder } from 'three/webgpu';
 import type { LightingModelDirectInput } from 'three/src/nodes/core/LightingModel.js';
 import {
-	BRDF_Lambert, F_Schlick, diffuseColor, float, materialReference,
+	BRDF_Lambert, F_Schlick, Fn, diffuseColor, float, materialColor, materialOpacity, materialReference, reference,
 	materialSpecularStrength, matcapUV, mix, normalView, positionViewDirection,
 	shininess, smoothstep, specularColor, vec2, vec3, vec4
 } from 'three/tsl';
+
+const samplerFactor = ( name: string ) => materialReference( name, 'vec4' ) as unknown as Node<'vec4'>;
 
 export interface MMDOutlineParameters {
 	thickness: number;
@@ -37,7 +39,7 @@ class MMDLightingModel extends PhongLightingModel {
 		const material = builder.material as MMDToonMaterial;
 		const fw = coord.fwidth().mul( 0.5 );
 		const gradient = material.gradientMap
-			? ( materialReference( 'gradientMap', 'texture' ) as unknown as Node<'vec4'> ).context( { getUV: () => coord } ).r
+			? ( materialReference( 'gradientMap', 'texture' ) as unknown as Node<'vec4'> ).context( { getUV: () => coord } ).rgb.mul( samplerFactor( 'mmdToonColor' ).rgb )
 			: mix( float( 0.7 ), float( 1 ), smoothstep( float( 0.7 ).sub( fw.x ), float( 0.7 ).add( fw.x ), coord.x ) );
 		const irradiance = gradient.mul( vec3( lightColor as Node<'vec3'> ) );
 		( reflectedLight.directDiffuse as Node<'vec3'> ).addAssign( irradiance.mul( BRDF_Lambert( { diffuseColor: diffuseColor.rgb } ) as unknown as Node<'vec3'> ) );
@@ -63,10 +65,17 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 	gradientMap: Texture | null = null;
 	matcap: Texture | null = null;
 	matcapCombine: Combine = AddOperation;
+	/** Linear working-space sampler factors; PMX evaluation happens in source sRGB. */
+	mmdTextureColor = new Vector4( 1, 1, 1, 1 );
+	mmdSphereColor = new Vector4( 1, 1, 1, 1 );
+	mmdToonColor = new Vector4( 1, 1, 1, 1 );
+	private mmdShadowMask: Node;
 
 	constructor( parameters?: MMDToonMaterialParameters ) {
 
 		super();
+		this.mmdShadowMask = this.createShadowMask();
+		this.maskShadowNode = this.mmdShadowMask;
 		this.setValues( parameters );
 
 	}
@@ -83,12 +92,67 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 
 	setupLightingModel(): PhongLightingModel { return new MMDLightingModel(); }
 
+	private createShadowMask() {
+
+		// r186 uses an override NodeMaterial for shadows and does not forward
+		// source opacity. Explicit source references keep zero-alpha casters and
+		// alpha-tested sampler factors correct without replacing that pass.
+		return Fn( () => {
+
+			let alpha: Node<'float'> = reference( 'opacity', 'float', this ) as unknown as Node<'float'>;
+			if ( this.map ) alpha = alpha.mul( ( reference( 'map', 'texture', this ) as unknown as Node<'vec4'> ).a ).mul( ( reference( 'mmdTextureColor', 'vec4', this ) as unknown as Node<'vec4'> ).a );
+			if ( this.matcap ) alpha = alpha.mul( ( reference( 'mmdSphereColor', 'vec4', this ) as unknown as Node<'vec4'> ).a );
+			if ( this.gradientMap ) alpha = alpha.mul( ( reference( 'mmdToonColor', 'vec4', this ) as unknown as Node<'vec4'> ).a );
+			if ( this.alphaMap ) alpha = alpha.mul( ( reference( 'alphaMap', 'texture', this ) as unknown as Node<'vec4'> ).g );
+			return alpha.greaterThan( reference( 'alphaTest', 'float', this ) as unknown as Node<'float'> );
+
+		} )();
+
+	}
+
+	setupDiffuseColor( builder: NodeBuilder ) {
+
+		// Supply factors before Three's opacity/alpha-test/shadow processing.
+		// Restore user nodes immediately: these are build-local expressions.
+		const colorNode = this.colorNode;
+		const opacityNode = this.opacityNode;
+		let color: Node<'vec4'> = vec4( ( colorNode ?? materialColor ) as Node<'vec4'> );
+		if ( this.map ) color = color.mul( samplerFactor( 'mmdTextureColor' ) );
+		let opacity: Node<'float'> = float( ( opacityNode ?? materialOpacity ) as Node<'float'> );
+		if ( this.matcap ) opacity = opacity.mul( samplerFactor( 'mmdSphereColor' ).a );
+		if ( this.gradientMap ) opacity = opacity.mul( samplerFactor( 'mmdToonColor' ).a );
+		this.colorNode = color; this.opacityNode = opacity;
+		try {
+
+			super.setupDiffuseColor( builder );
+			// A zero-alpha material must not leave invisible depth/shadow occluders.
+			if ( this.transparent ) diffuseColor.a.lessThanEqual( 0 ).discard();
+
+		}
+		finally { this.colorNode = colorNode; this.opacityNode = opacityNode; }
+
+	}
+
+	copy( source: this ): this {
+
+		super.copy( source );
+		this.gradientMap = source.gradientMap;
+		this.matcap = source.matcap;
+		this.matcapCombine = source.matcapCombine;
+		this.mmdTextureColor.copy( source.mmdTextureColor );
+		this.mmdSphereColor.copy( source.mmdSphereColor );
+		this.mmdToonColor.copy( source.mmdToonColor );
+		if ( source.maskShadowNode === source.mmdShadowMask ) this.maskShadowNode = this.mmdShadowMask = this.createShadowMask();
+		return this;
+
+	}
+
 	setupOutput( builder: NodeBuilder, outputNode: Node ) {
 
 		let result: Node<'vec4'> = vec4( outputNode as Node<'vec4'> );
 		if ( this.matcap ) {
 
-			const sphere = ( materialReference( 'matcap', 'texture' ) as unknown as Node<'vec4'> ).context( { getUV: () => matcapUV } ).rgb;
+			const sphere = ( materialReference( 'matcap', 'texture' ) as unknown as Node<'vec4'> ).context( { getUV: () => matcapUV } ).rgb.mul( samplerFactor( 'mmdSphereColor' ).rgb );
 			const rgb = this.matcapCombine === MultiplyOperation ? result.rgb.mul( sphere ) : result.rgb.add( sphere );
 			result = vec4( rgb, result.a );
 

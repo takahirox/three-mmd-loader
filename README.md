@@ -120,7 +120,12 @@ flags, multiplying extrusion thickness. Outlines use the same mesh and Three's
 morphing/skinning/displacement setup as the surface, so animation requires no
 separate outline mesh or skeleton synchronization.
 
-PMX [group morphs](docs/group-morphs.md) support direct vertex and bone targets,
+PMX [material morphs](docs/material-morphs.md) update surfaces, sampler colors,
+alpha and outlines through TSL uniforms. The helper evaluates direct and group
+weights from immutable PMX bases; `helper.enable('materialMorph', false)` restores
+those bases. Static sliders use `helper.update(0)`.
+
+PMX [group morphs](docs/group-morphs.md) support direct vertex, bone and material targets,
 including VMD playback and a private local inspection viewer.
 
 Development and validation:

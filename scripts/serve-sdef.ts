@@ -8,14 +8,15 @@ import { createExamplesServer } from './serve-examples.ts';
 const root = fileURLToPath( new URL( '../', import.meta.url ) );
 const assetRoot = resolve( root, 'examples/assets/private/yyb-miku-10th' );
 const groupMorphRoot = resolve( root, 'examples/assets/private/group-morph' );
+const materialMorphRoot = resolve( root, 'examples/assets/private/material-morph' );
 const boneMorphRoot = resolve( root, 'examples/assets/private/bone-morph' );
 const types: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.bmp': 'image/bmp', '.gif': 'image/gif', '.webp': 'image/webp', '.pmx': 'application/octet-stream', '.vmd': 'application/octet-stream', '.tga': 'application/octet-stream', '.sph': 'image/bmp', '.spa': 'image/bmp' };
 
 // A separate loopback-only entry. Public builds copy neither scripts nor
 // local-viewer/, and npm's file allowlist excludes both and all example assets.
-export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirectory = boneMorphRoot, groupMorphDirectory = groupMorphRoot }: { privateDirectory?: string; boneMorphDirectory?: string; groupMorphDirectory?: string } = {} ) {
+export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirectory = boneMorphRoot, groupMorphDirectory = groupMorphRoot, materialMorphDirectory = materialMorphRoot }: { privateDirectory?: string; boneMorphDirectory?: string; groupMorphDirectory?: string; materialMorphDirectory?: string } = {} ) {
 
-	const directories: Record<string, string> = { 'yyb-miku-10th': privateDirectory, 'bone-morph': boneMorphDirectory, 'group-morph': groupMorphDirectory };
+	const directories: Record<string, string> = { 'yyb-miku-10th': privateDirectory, 'bone-morph': boneMorphDirectory, 'group-morph': groupMorphDirectory, 'material-morph': materialMorphDirectory };
 
 	const dependencies = createExamplesServer();
 	return createServer( async ( request, response ) => {
