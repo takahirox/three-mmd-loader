@@ -8,8 +8,12 @@ import { test } from 'node:test';
 import { grantPmxBuffer, pmdBuffer, pmxBuffer, sdefPmxBuffer, materialPmxBuffer, subtexturePmxBuffer, vmdBuffer } from './fixtures.ts';
 
 const root = resolve( dirname( fileURLToPath( import.meta.url ) ), '..' );
-interface PackageManifest { exports: Record<string, Record<string, string>>; devDependencies: { three: string }; dependencies: { 'mmd-parser': string } }
-interface PackedPackage { filename: string; version: string; files: { path: string }[] }
+interface PackageManifest {
+	name: string; version: string; publishConfig: { access: string; registry: string };
+	exports: Record<string, Record<string, string>>;
+	devDependencies: { three: string }; dependencies: { 'mmd-parser': string };
+}
+interface PackedPackage { name: string; filename: string; version: string; files: { path: string }[] }
 const manifest: PackageManifest = JSON.parse( readFileSync( join( root, 'package.json' ), 'utf8' ) );
 const publicModules = {
 	'animation/CCDIKSolver.js': [ 'CCDIKHelper', 'CCDIKSolver' ],
@@ -24,13 +28,21 @@ const publicModules = {
 
 test( 'root and addon-style subpaths expose every public module', async () => {
 
-	const entry = await import( 'three-mmd-loader' );
+	const entry = await import( '@takahirox/three-mmd' );
+	assert.equal( manifest.name, '@takahirox/three-mmd' );
+	assert.deepEqual( manifest.publishConfig, { access: 'public', registry: 'https://registry.npmjs.org/' } );
+	const lock = JSON.parse( readFileSync( join( root, 'package-lock.json' ), 'utf8' ) );
+	assert.equal( lock.name, manifest.name );
+	assert.equal( lock.packages[ '' ].name, manifest.name );
+	assert.equal( lock.version, manifest.version );
+	assert.equal( lock.packages[ '' ].version, manifest.version );
+	assert.deepEqual( Object.keys( manifest.exports ).sort(), [ '.', ...Object.keys( publicModules ).map( path => './' + path ) ].sort() );
 	assert.deepEqual( Object.keys( entry ).sort(), [ ...Object.values( publicModules ).flat(), 'updateMMDUVs' ].sort() );
-	await assert.rejects( import( 'three-mmd-loader/' + 'shaders/MMDToonShader.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
-	await assert.rejects( import( 'three-mmd-loader/' + 'libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
+	await assert.rejects( import( '@takahirox/three-mmd/' + 'shaders/MMDToonShader.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
+	await assert.rejects( import( '@takahirox/three-mmd/' + 'libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
 	for ( const [ path, exports ] of Object.entries( publicModules ) ) {
 
-		const module = await import( `three-mmd-loader/${path}` );
+		const module = await import( `@takahirox/three-mmd/${path}` );
 		assert.deepEqual( Object.keys( module ).sort(), exports );
 		for ( const name of exports ) assert.equal( module[ name ], ( entry as unknown as Record<string, unknown> )[ name ] );
 
@@ -40,17 +52,24 @@ test( 'root and addon-style subpaths expose every public module', async () => {
 
 test( 'packed npm package installs and imports in an isolated consumer', { timeout: 60000 }, () => {
 
-	const consumer = mkdtempSync( join( tmpdir(), 'three-mmd-loader-test-' ) );
+	const consumer = mkdtempSync( join( tmpdir(), 'three-mmd-test-' ) );
 	const privateSentinel = join( root, 'examples/assets/private/pack-exclusion-fixture' );
 	mkdirSync( privateSentinel, { recursive: true } );
 	for ( const name of [ 'Gene.pmx', 'texture.png', 'model.zip', 'README.txt' ] ) writeFileSync( join( privateSentinel, name ), 'private generated sentinel' );
 	const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-	const options = { cwd: consumer, encoding: 'utf8' as const, timeout: 30000 };
+	// npm publish --dry-run sets this in lifecycle children. Local packing and
+	// installation must still create real files; ignore-scripts prevents recursion.
+	const options = {
+		cwd: consumer, encoding: 'utf8' as const, timeout: 30000,
+		env: { ...process.env, npm_config_dry_run: 'false' }
+	};
 	try {
 
 		const [ packed ]: PackedPackage[] = JSON.parse( execFileSync( npm, [
 			'pack', root, '--json', '--pack-destination', consumer, '--ignore-scripts'
 		], options ) );
+		assert.equal( packed.name, manifest.name );
+		assert.equal( packed.version, manifest.version );
 		const files = packed.files.map( file => file.path );
 		for ( const target of Object.values( manifest.exports ).flatMap( conditions => Object.values( conditions ) ) ) {
 
@@ -61,7 +80,10 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		assert.ok( files.includes( 'LICENSE' ) );
 		assert.ok( files.includes( 'THIRD_PARTY_NOTICES.md' ) );
 		assert.ok( files.includes( 'README.md' ) );
-		assert.ok( files.every( path => ! /^(node_modules|tests|src|dist\/examples)\//.test( path ) ) );
+		// Allow only runtime JS/declarations and the four npm metadata/legal files.
+		// This also excludes assets, caches, archives, viewers, CI output and tokens.
+		for ( const path of files ) assert.match( path,
+			/^(?:package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|dist\/(?:index|types|ammo)\.(?:js|d\.ts)|dist\/(?:animation|exporters|loaders|materials|effects|skinning)\/[\w-]+\.(?:js|d\.ts))$/ );
 		// Pack the pinned peer installed by npm ci; resolving a registry version
 		// offline would require metadata that npm ci does not cache.
 		const [ peer ]: PackedPackage[] = JSON.parse( execFileSync( npm, [
@@ -80,7 +102,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 			type: 'module',
 			overrides: { 'mmd-parser': `file:./${parser.filename}` },
 			dependencies: {
-				'three-mmd-loader': `file:./${packed.filename}`,
+				'@takahirox/three-mmd': `file:./${packed.filename}`,
 				three: `file:./${peer.filename}`
 			}
 		} ) );
@@ -98,7 +120,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Loader, REVISION, Texture } from 'three';
 import { Parser, CharsetEncoder } from 'mmd-parser';
-import * as entry from 'three-mmd-loader';
+import * as entry from '@takahirox/three-mmd';
 // Three.js FileLoader uses this browser event when streaming responses.
 globalThis.ProgressEvent ??= class extends Event {
   constructor( type, properties = {} ) { super( type ); Object.assign( this, properties ); }
@@ -109,7 +131,7 @@ new entry.MMDAnimationHelper();
 new entry.MMDExporter();
 assert.deepEqual( Object.keys( entry ).sort(), ${JSON.stringify( [ ...Object.values( publicModules ).flat(), 'updateMMDUVs' ].sort() )} );
 for ( const name of [ 'MMDParser', 'Parser', 'CharsetEncoder' ] ) assert.ok( ! ( name in entry ) );
-await assert.rejects( import( 'three-mmd-loader/libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
+await assert.rejects( import( '@takahirox/three-mmd/libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
 const loader = new entry.MMDLoader();
 assert.ok( loader._getParser() instanceof Parser );
 loader.meshBuilder.materialBuilder.textureLoader.load = () => new Texture();
@@ -210,7 +232,7 @@ grantHelper.enable('grant',false).update(0);assert.ok(Math.abs(grantMesh.skeleto
 grantHelper.remove(grantMesh);grantMesh.geometry.dispose();grantMesh.material.forEach(m=>m.dispose());
 assert.throws( () => new entry.MMDPhysics( null, [] ), /Import ammo.js/ );
 for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )} ) ) {
-  const module = await import( 'three-mmd-loader/' + path );
+  const module = await import( '@takahirox/three-mmd/' + path );
   for ( const name of names ) assert.equal( module[ name ], entry[ name ] );
 }
 ` );
@@ -227,7 +249,10 @@ for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )
 			join( root, 'node_modules/typescript/bin/tsc' ), '--noEmit', '--strict',
 			'--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', 'consumer.ts'
 		], options );
-		const installed: { peerDependencies: { three: string }; dependencies?: Record<string, string> } = JSON.parse( readFileSync( join( consumer, 'node_modules/three-mmd-loader/package.json' ), 'utf8' ) );
+		const installed: PackageManifest & { peerDependencies: { three: string } } = JSON.parse( readFileSync( join( consumer, 'node_modules/@takahirox/three-mmd/package.json' ), 'utf8' ) );
+		assert.equal( installed.name, manifest.name );
+		assert.equal( installed.version, manifest.version );
+		assert.deepEqual( installed.publishConfig, manifest.publishConfig );
 		assert.equal( installed.peerDependencies.three, '~0.186.0' );
 		assert.deepEqual( installed.dependencies, { 'mmd-parser': '^1.1.4' } );
 		assert.equal( installed.dependencies[ 'mmd-parser' ], manifest.dependencies[ 'mmd-parser' ] );

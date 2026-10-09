@@ -6,7 +6,7 @@ retain their original order, including unsupported morph types. Public
 `mmd-parser@1.1.4` parses the fixtures; no parser changes are required.
 
 ```ts
-import { mmdAdditionalUV, updateMMDUVs } from 'three-mmd-loader';
+import { mmdAdditionalUV, updateMMDUVs } from '@takahirox/three-mmd';
 
 mesh.morphTargetInfluences[mesh.morphTargetDictionary['uv-name']] = 0.5;
 helper.update(0); // immediately updates attributes for inspection
@@ -15,7 +15,7 @@ helper.update(0); // immediately updates attributes for inspection
 material.fragmentNode = mmdAdditionalUV(1); // Node<'vec4'>, all xyzw components
 ```
 
-The accessor is also available at `three-mmd-loader/materials/MMDUV.js`.
+The accessor is also available at `@takahirox/three-mmd/materials/MMDUV.js`.
 The TSL attribute names are `mmdAdditionalUV1` through `mmdAdditionalUV4`.
 They contain **morphed vec4 values**, rather than unmodified bases. The accessor
 returns `vec4(0)` when a channel was not declared. Missing-channel morphs retain

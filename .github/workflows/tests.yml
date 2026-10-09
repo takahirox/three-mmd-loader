@@ -17,3 +17,15 @@ jobs:
       - run: npm run test:browser
         env:
           CHROME_BIN: /usr/bin/google-chrome
+      - name: Build generated example fixtures (validation only)
+        run: npm run build:examples
+        env:
+          MMD_EXAMPLE_FIXTURES: '1'
+      - name: Validate the fixture site under the existing Pages path
+        run: npm run test:examples
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+          MMD_EXAMPLE_SITE: dist/examples
+      - run: npm pack --dry-run
+      - name: Validate npm release lifecycle (dry-run only, no upload)
+        run: npm publish --dry-run --access public

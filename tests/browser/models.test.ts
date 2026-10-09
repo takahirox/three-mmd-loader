@@ -22,7 +22,7 @@ for ( const webgl of [ true, false ] ) test( `imported model picker loads Unicod
 	const local = createSdefServer( { modelsDirectory: join( root, 'models' ), installedExamplesDirectory: join( temporary, 'missing' ) } );
 	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
 <pre id="result">pending</pre><script type="module">
-import {MMDAnimationHelper} from 'three-mmd-loader';
+import {MMDAnimationHelper} from '@takahirox/three-mmd';
 import {WebGPURenderer} from 'three/webgpu';
 const result=document.getElementById('result'),errors=[];console.error=(...args)=>errors.push(args.map(String).join(' '));
 addEventListener('error',event=>errors.push(event.error?.stack||event.message));

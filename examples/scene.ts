@@ -9,10 +9,10 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { WebGPURenderer } from 'three/webgpu';
-import { MMDOutlineEffect } from 'three-mmd-loader/effects/MMDOutlineEffect.js';
+import { MMDOutlineEffect } from '@takahirox/three-mmd/effects/MMDOutlineEffect.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { MMDLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
-import { MMDAnimationHelper } from 'three-mmd-loader/animation/MMDAnimationHelper.js';
+import { MMDLoader } from '@takahirox/three-mmd/loaders/MMDLoader.js';
+import { MMDAnimationHelper } from '@takahirox/three-mmd/animation/MMDAnimationHelper.js';
 
 interface ExampleContext {
 	mesh: MMDMesh;

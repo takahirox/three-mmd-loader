@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import { InterleavedBufferAttribute, Matrix4, Quaternion, Texture, Vector3 } from 'three';
-import { MMDLoader } from 'three-mmd-loader';
+import { MMDLoader } from '@takahirox/three-mmd';
 import { referenceSdef } from './sdef-reference.ts';
 import { sdefCenter, sdefNormal, sdefPmxBuffer, sdefProbeVertices, sdefR0, sdefR1 } from './fixtures.ts';
 

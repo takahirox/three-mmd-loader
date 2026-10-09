@@ -3,7 +3,7 @@
 These scenes follow the model/animation, audio/camera, and VPD pose examples
 from [Three.js r171](https://github.com/mrdoob/three.js/tree/r171/examples).
 They import compiled MMD modules from this checkout's `dist/` directory through the
-`three-mmd-loader/` import map. Only retained Three.js utilities such as
+`@takahirox/three-mmd/` import map. Only retained Three.js utilities such as
 OrbitControls and lil-gui come from `three/addons`. MMD shading uses TSL
 `MMDToonMaterial` and per-material inverted hulls use `MMDOutlineEffect` from
 this package. `WebGPURenderer` comes from `three/webgpu`. The

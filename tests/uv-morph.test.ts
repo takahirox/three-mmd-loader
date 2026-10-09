@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import { Texture, Vector3 } from 'three';
-import { MMDAnimationHelper, MMDLoader, updateMMDUVs } from 'three-mmd-loader';
-import type { MMDMesh } from 'three-mmd-loader';
+import { MMDAnimationHelper, MMDLoader, updateMMDUVs } from '@takahirox/three-mmd';
+import type { MMDMesh } from '@takahirox/three-mmd';
 import { sdefPmxBuffer, vmdBuffer } from './fixtures.ts';
 import { referenceUV } from './uv-morph-reference.ts';
 

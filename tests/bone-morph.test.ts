@@ -4,8 +4,8 @@ import { test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import type { Pmx, Vpd } from 'mmd-parser';
 import { LoopOnce, Quaternion, Texture, Vector3 } from 'three';
-import { MMDAnimationHelper, MMDLoader } from 'three-mmd-loader';
-import type { AmmoAPI, MMDMesh } from 'three-mmd-loader';
+import { MMDAnimationHelper, MMDLoader } from '@takahirox/three-mmd';
+import type { AmmoAPI, MMDMesh } from '@takahirox/three-mmd';
 import { authoredBoneMorphs, sdefPmxBuffer, vmdBuffer } from './fixtures.ts';
 import { referenceBonePose, weightedRotation } from './bone-morph-reference.ts';
 

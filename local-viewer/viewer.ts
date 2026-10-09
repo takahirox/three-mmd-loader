@@ -2,8 +2,8 @@ import { AmbientLight, Box3, Clock, Color, DataTexture, NearestFilter, RepeatWra
 import type { AnimationClip, BufferAttribute, InterleavedBufferAttribute, Texture } from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { MMDAnimationHelper, MMDLoader, MMDOutlineEffect } from 'three-mmd-loader';
-import type { AmmoAPI, MMDMesh } from 'three-mmd-loader';
+import { MMDAnimationHelper, MMDLoader, MMDOutlineEffect } from '@takahirox/three-mmd';
+import type { AmmoAPI, MMDMesh } from '@takahirox/three-mmd';
 
 const element = <T extends HTMLElement>( id: string ) => document.getElementById( id ) as T;
 const status = element<HTMLParagraphElement>( 'status' );

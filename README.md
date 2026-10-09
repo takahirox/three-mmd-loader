@@ -1,4 +1,4 @@
-# three-mmd-loader
+# @takahirox/three-mmd
 
 Standalone MMD addons restored from Three.js r171, after the MMD modules were
 removed from the official addons in r172. Loads PMD/PMX models, VMD animation,
@@ -10,22 +10,23 @@ Three.js instance, including its retained TGALoader and SkeletonUtils addons.
 `mmd-parser ^1.1.4` is an external runtime dependency installed automatically
 with this package; its implementation and public types come from that package.
 
-Install the package alongside the supported Three.js version:
+After the maintainer publishes the first release, install the package alongside
+the supported Three.js version:
 
 ```sh
-npm install three-mmd-loader three@~0.186.0
+npm install @takahirox/three-mmd three@~0.186.0
 ```
 
 Use native ES module imports, either from the package root or from addon-style
 subpaths:
 
 ```js
-import { MMDLoader, MMDAnimationHelper, MMDOutlineEffect } from 'three-mmd-loader';
+import { MMDLoader, MMDAnimationHelper, MMDOutlineEffect } from '@takahirox/three-mmd';
 import { WebGPURenderer } from 'three/webgpu';
 
 // Equivalent individual imports:
-// import { MMDLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
-// import { MMDAnimationHelper } from 'three-mmd-loader/animation/MMDAnimationHelper.js';
+// import { MMDLoader } from '@takahirox/three-mmd/loaders/MMDLoader.js';
+// import { MMDAnimationHelper } from '@takahirox/three-mmd/animation/MMDAnimationHelper.js';
 
 const loader = new MMDLoader();
 const mesh = await loader.loadAsync( 'model.pmx' );
@@ -42,7 +43,7 @@ const outlines = new MMDOutlineEffect( renderer );
 
 The public subpaths are:
 
-| Subpath (after `three-mmd-loader/`) | Named exports |
+| Subpath (after `@takahirox/three-mmd/`) | Named exports |
 | --- | --- |
 | `loaders/MMDLoader.js` | `MMDLoader` |
 | `animation/MMDAnimationHelper.js` | `MMDAnimationHelper` |
@@ -51,8 +52,9 @@ The public subpaths are:
 | `exporters/MMDExporter.js` | `MMDExporter` |
 | `materials/MMDToonMaterial.js` | `MMDToonMaterial` |
 | `effects/MMDOutlineEffect.js` | `MMDOutlineEffect` |
+| `materials/MMDUV.js` | `mmdAdditionalUV` |
 
-All named exports are also available from `three-mmd-loader`. The APIs follow
+All named exports are also available from `@takahirox/three-mmd`. The APIs follow
 the r171 addons except for the migrated rendering path described below. For parser APIs and raw model/motion/pose types, import
 directly from `mmd-parser`:
 
@@ -60,7 +62,7 @@ directly from `mmd-parser`:
 import { Parser, CharsetEncoder } from 'mmd-parser';
 ```
 
-The old `three-mmd-loader/libs/mmdparser.module.js` subpath and package-root
+The internal `libs/mmdparser.module.js` subpath and package-root
 `MMDParser`, `Parser`, and `CharsetEncoder` exports have been removed.
 `MMDExporter` exports VPD poses, not PMD/PMX models or VMD animations.
 
@@ -165,7 +167,11 @@ The published artifact contains compiled native ES modules and TypeScript
 declarations; consumers need no build step. Maintained sources are TypeScript
 and `npm run build` emits JavaScript and declarations into `dist/`. `npm test`
 and the browser/example commands build the package first; `npm pack` builds it
-through `prepack`. TypeScript consumers should install matching Three.js types
+through `prepack`. Manual `npm publish` also runs strict type checks and the
+offline Node/package regression tests before uploading. See the
+[release guide](docs/releases.md) for maintainer prerequisites and dry-runs.
+Before publication, validate consumers with a local packed tarball rather than
+installing an unpublished registry package. TypeScript consumers should install matching Three.js types
 with `npm install --save-dev @types/three@~0.186.0`. Root and documented `.js`
 subpath imports resolve to the same API in both JavaScript and TypeScript.
 
