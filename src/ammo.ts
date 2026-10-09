@@ -24,6 +24,12 @@ export interface AmmoBodyInfo {
 	set_m_restitution( restitution: number ): void;
 }
 export interface AmmoBody {
+	setInterpolationWorldTransform?( transform: AmmoTransform ): void;
+	setInterpolationLinearVelocity?( velocity: AmmoVector3 ): void;
+	setInterpolationAngularVelocity?( velocity: AmmoVector3 ): void;
+	setLinearVelocity?( velocity: AmmoVector3 ): void;
+	setAngularVelocity?( velocity: AmmoVector3 ): void;
+	clearForces?(): void;
 	getCenterOfMassTransform(): AmmoTransform;
 	setCenterOfMassTransform( transform: AmmoTransform ): void;
 	getMotionState(): AmmoMotionState;
@@ -46,6 +52,8 @@ export interface AmmoWorld {
 	setGravity( gravity: AmmoVector3 ): void;
 	stepSimulation( time: number, maxSteps: number, unitStep: number ): number;
 	addRigidBody( body: AmmoBody, group: number, mask: number ): void;
+	removeRigidBody?( body: AmmoBody ): void;
+	removeConstraint?( constraint: AmmoConstraint ): void;
 	addConstraint( constraint: AmmoConstraint, disableCollisions: boolean ): void;
 }
 export interface AmmoAPI {

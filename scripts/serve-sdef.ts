@@ -1,5 +1,5 @@
-import { grantPmxBuffer, sdefPmxBuffer } from '../tests/fixtures.ts';
-import { readFile, realpath } from 'node:fs/promises';
+import { grantPmxBuffer, physicsLayersPmxBuffer, sdefPmxBuffer } from '../tests/fixtures.ts';
+import { lstat, readFile, realpath } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,7 @@ const root = fileURLToPath( new URL( '../', import.meta.url ) );
 const assetRoot = resolve( root, 'examples/assets/private/yyb-miku-10th' );
 const groupMorphRoot = resolve( root, 'examples/assets/private/group-morph' );
 const materialMorphRoot = resolve( root, 'examples/assets/private/material-morph' );
+const physicsLayersRoot = resolve( root, 'examples/assets/private/physics-layers' );
 const grantRoot = resolve( root, 'examples/assets/private/grant' );
 const uvMorphRoot = resolve( root, 'examples/assets/private/uv-morph' );
 const boneMorphRoot = resolve( root, 'examples/assets/private/bone-morph' );
@@ -17,13 +18,14 @@ const types: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg
 
 // A separate loopback-only entry. Public builds copy neither scripts nor
 // local-viewer/, and npm's file allowlist excludes both and all example assets.
-export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirectory = boneMorphRoot, groupMorphDirectory = groupMorphRoot, materialMorphDirectory = materialMorphRoot, uvMorphDirectory = uvMorphRoot, grantDirectory = grantRoot }: { privateDirectory?: string; boneMorphDirectory?: string; groupMorphDirectory?: string; materialMorphDirectory?: string; uvMorphDirectory?: string; grantDirectory?: string } = {} ) {
+export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirectory = boneMorphRoot, groupMorphDirectory = groupMorphRoot, materialMorphDirectory = materialMorphRoot, uvMorphDirectory = uvMorphRoot, grantDirectory = grantRoot, physicsLayersDirectory = physicsLayersRoot }: { privateDirectory?: string; boneMorphDirectory?: string; groupMorphDirectory?: string; materialMorphDirectory?: string; uvMorphDirectory?: string; grantDirectory?: string; physicsLayersDirectory?: string } = {} ) {
 
-	const directories: Record<string, string> = { 'yyb-miku-10th': privateDirectory, 'bone-morph': boneMorphDirectory, 'group-morph': groupMorphDirectory, 'material-morph': materialMorphDirectory, 'uv-morph': uvMorphDirectory, 'grant': grantDirectory };
+	const directories: Record<string, string> = { 'yyb-miku-10th': privateDirectory, 'bone-morph': boneMorphDirectory, 'group-morph': groupMorphDirectory, 'material-morph': materialMorphDirectory, 'uv-morph': uvMorphDirectory, 'grant': grantDirectory, 'physics-layers': physicsLayersDirectory };
 
 	const dependencies = createExamplesServer();
 	return createServer( async ( request, response ) => {
 
+		if ( ! [ '127.0.0.1', '::1', '::ffff:127.0.0.1' ].includes( request.socket.remoteAddress ?? '' ) ) { response.writeHead( 403 ).end(); return; }
 		if ( request.method !== 'GET' && request.method !== 'HEAD' ) { response.writeHead( 405 ).end(); return; }
 		try {
 
@@ -38,6 +40,10 @@ export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirec
 			if ( path === '/' || path === '/local-sdef/' ) {
 
 				content = await readFile( resolve( root, 'local-viewer/index.html' ) ); type = 'text/html; charset=utf-8';
+
+			} else if ( path === '/local-sdef/generated-physics-layers.pmx' ) {
+
+				content = Buffer.from( physicsLayersPmxBuffer() ); type = 'application/octet-stream';
 
 			} else if ( path === '/local-sdef/generated-grant.pmx' ) {
 
@@ -57,7 +63,16 @@ export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirec
 				const match = /^\/private-assets\/([^/]+)\/(.+)$/.exec( path );
 				if ( ! match || ! directories[ match[ 1 ] ] ) throw new Error( 'Not a private directory' );
 				const base = await realpath( directories[ match[ 1 ] ] );
-				const file = await realpath( resolve( base, match[ 2 ] ) );
+				const parts = match[ 2 ].split( '/' );
+				if ( parts.some( part => ! part || part === '.' || part === '..' ) ) throw new Error( 'Invalid private path' );
+				let candidate = base;
+				for ( const part of parts ) {
+
+					candidate = resolve( candidate, part );
+					if ( ( await lstat( candidate ) ).isSymbolicLink() ) throw new Error( 'Private symlinks are not served' );
+
+				}
+				const file = await realpath( candidate );
 				if ( ! file.startsWith( base + sep ) || ! types[ extname( file ).toLowerCase() ] ) throw new Error( 'Not a local model asset' );
 				content = await readFile( file ); type = types[ extname( file ).toLowerCase() ];
 

@@ -26,7 +26,7 @@ export class MMDBoneMorphController {
 
 	}
 
-	watchAnimationMixer( mixer: AnimationMixer & { _bindings: { restoreOriginalState(): void }[]; _activateAction( action: AnimationAction ): void } ) {
+	watchAnimationMixer( mixer: AnimationMixer & { _accuIndex: number; _bindings: { restoreOriginalState(): void; buffer: number[]; valueSize: number; binding: { getValue( buffer: number[], offset: number ): void } }[]; _activateAction( action: AnimationAction ): void } ) {
 
 		this.watchAnimationBindings( mixer._bindings );
 		if ( this.watchedMixers.has( mixer ) ) return;
@@ -51,6 +51,10 @@ export class MMDBoneMorphController {
 			// authored value equal to the last procedural output stays authored.
 			// The next helper pass must not undo it, even if mixer caches skip writes.
 			controller.restore();
+			// Absolute edits/pose resets can differ from the cached mixer value.
+			// Refresh the preceding accumulator so an unchanged/paused VMD track
+			// writes its authored value again, without touching saved originals.
+			for ( const binding of mixer._bindings ) binding.binding.getValue( binding.buffer, ( mixer._accuIndex + 1 ) * binding.valueSize );
 			return update.call( this, delta );
 
 		};

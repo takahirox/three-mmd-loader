@@ -8,6 +8,7 @@ const finite = ( values: number[] ) => values.every( Number.isFinite );
 export class GrantSolver {
 
 	private invalid = new Set<number>();
+	invalidPoseIndices = new Set<number>();
 	private localRestPositions: Vector3[];
 	private restPositions: Vector3[];
 	private inverseRestRotations: Quaternion[];
@@ -21,6 +22,7 @@ export class GrantSolver {
 	private resultRotation = new Quaternion();
 	private beforePhysicsPositions: Vector3[];
 	private beforePhysicsRotations: Quaternion[];
+	private postProcedural = new Map<number, { position: Vector3; rotation: Quaternion }>();
 
 	constructor( public mesh: MMDMesh, public grants: Grant[] = [] ) {
 
@@ -91,14 +93,45 @@ export class GrantSolver {
 
 	}
 
-	captureBeforePhysics() {
+	captureBeforePhysics( authored?: Float64Array ) {
+
+		this.postProcedural.clear();
 
 		this.mesh.skeleton.bones.forEach( ( b, i ) => {
 
-			this.beforePhysicsPositions[ i ].copy( b.position );
-			this.beforePhysicsRotations[ i ].copy( b.quaternion );
+			if ( authored && ( ( this.mesh.geometry.userData.MMD.bones[ i ].flag ?? 0 ) & 0x1000 ) ) {
+
+				this.beforePhysicsPositions[ i ].fromArray( authored, i * 7 );
+				this.beforePhysicsRotations[ i ].fromArray( authored, i * 7 + 3 );
+
+			} else {
+
+				this.beforePhysicsPositions[ i ].copy( b.position );
+				this.beforePhysicsRotations[ i ].copy( b.quaternion );
+
+			}
 
 		} );
+
+	}
+
+	/** Ordinary append reads procedural motion, excluding the Bullet baseline. */
+	capturePostProcedural( index: number, raw: Float64Array ) {
+
+		const data = this.mesh.geometry.userData.MMD.bones[ index ];
+		if ( ! data || data.rigidBodyType <= 0 ) return;
+		const bone = this.mesh.skeleton.bones[ index ];
+		let pose = this.postProcedural.get( index );
+		if ( ! pose ) { pose = { position: new Vector3(), rotation: new Quaternion() }; this.postProcedural.set( index, pose ); }
+		pose.position.copy( bone.position ).sub( this.position.fromArray( raw, index * 7 ) );
+		pose.rotation.fromArray( raw, index * 7 + 3 ).invert().multiply( bone.quaternion );
+		if ( ( data.flag ?? 0 ) & 0x1000 ) pose.position.add( this.localRestPositions[ index ] );
+		else {
+
+			pose.position.add( this.beforePhysicsPositions[ index ] );
+			pose.rotation.premultiply( this.beforePhysicsRotations[ index ] );
+
+		}
 
 	}
 
@@ -107,12 +140,13 @@ export class GrantSolver {
 		const bones = this.mesh.skeleton.bones;
 		const target = bones[ grant.index ], source = bones[ grant.parentIndex ];
 		if ( ! Number.isInteger( grant.index ) || ! Number.isInteger( grant.parentIndex ) || ! target || ! source ||
-			grant.index === grant.parentIndex || this.invalid.has( grant.index ) || ! Number.isFinite( grant.ratio ) || grant.ratio === 0 ) return this;
+			grant.index === grant.parentIndex || this.invalid.has( grant.index ) || this.invalidPoseIndices.has( grant.parentIndex ) || ! Number.isFinite( grant.ratio ) || grant.ratio === 0 ) return this;
 		const data = this.mesh.geometry.userData.MMD.bones;
 		if ( ! data[ grant.index ] || ! data[ grant.parentIndex ] ) return this;
 		const dynamicSource = afterPhysics && data[ grant.parentIndex ].rigidBodyType > 0;
-		this.position.copy( dynamicSource ? this.beforePhysicsPositions[ grant.parentIndex ] : source.position ).sub( this.localRestPositions[ grant.parentIndex ] );
-		this.rotation.copy( dynamicSource ? this.beforePhysicsRotations[ grant.parentIndex ] : source.quaternion );
+		const procedural = dynamicSource ? this.postProcedural.get( grant.parentIndex ) : undefined;
+		this.position.copy( dynamicSource ? procedural?.position ?? this.beforePhysicsPositions[ grant.parentIndex ] : source.position ).sub( this.localRestPositions[ grant.parentIndex ] );
+		this.rotation.copy( dynamicSource ? procedural?.rotation ?? this.beforePhysicsRotations[ grant.parentIndex ] : source.quaternion );
 		if ( grant.isLocal ) {
 
 			const visited = new Set<number>();
@@ -120,7 +154,7 @@ export class GrantSolver {
 			while ( data[ index ] && ! visited.has( index ) ) {
 
 				const bone = bones[ index ];
-				if ( ! bone || ! finite( bone.position.toArray() ) || ! finite( bone.quaternion.toArray() ) || bone.quaternion.lengthSq() === 0 ) return this;
+				if ( this.invalidPoseIndices.has( index ) || ! bone || ! finite( bone.position.toArray() ) || ! finite( bone.quaternion.toArray() ) || bone.quaternion.lengthSq() === 0 ) return this;
 				visited.add( index ); index = data[ index ].parent;
 
 			}
@@ -150,7 +184,7 @@ export class GrantSolver {
 			this.resultRotation.multiply( this.weighted );
 
 		}
-		if ( ! finite( this.resultPosition.toArray() ) || ! finite( this.resultRotation.toArray() ) ) return this;
+		if ( ! finite( this.resultPosition.toArray() ) || this.resultPosition.toArray().some( value => Math.abs( value ) >= 1e15 ) || ! finite( this.resultRotation.toArray() ) ) return this;
 		target.position.copy( this.resultPosition ); target.quaternion.copy( this.resultRotation );
 		target.updateMatrixWorld( true );
 		return this;

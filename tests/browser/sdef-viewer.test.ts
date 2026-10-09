@@ -268,3 +268,52 @@ try {
 	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
 
 } );
+
+test( 'private generated physics viewer runs Ammo, reports actual layers/body modes, steps and resets', { timeout: 60000 }, async () => {
+
+	const profile = await mkdtemp( join( tmpdir(), 'mmd-physics-viewer-profile-' ) );
+	const local = createSdefServer();
+	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
+<pre id="result">pending</pre><script type="module">
+import { MMDAnimationHelper } from 'three-mmd-loader';
+const result=document.getElementById('result'),errors=[]; console.error=(...args)=>errors.push(args.map(String).join(' '));
+let helper;const update=MMDAnimationHelper.prototype.update;MMDAnimationHelper.prototype.update=function(delta){helper=this;return update.call(this,delta);};
+function check(value,message){if(!value)throw new Error(message);}
+async function until(check){const start=performance.now();while(!check()){if(performance.now()-start>15000)throw new Error('viewer timeout '+document.getElementById('status').textContent);await new Promise(resolve=>setTimeout(resolve,30));}}
+try {
+ await until(()=>document.getElementById('generated-physics-layers').onclick);document.getElementById('generated-physics-layers').click();
+ const info=document.getElementById('physics-info');await until(()=>info.textContent.includes('postKinematic'));
+ const mesh=helper.meshes[0],state=helper.objects.get(mesh),physics=state.physics;
+ check(physics?.bodies.length===5 && physics.constraints.length===1,'actual Ammo fixture missing');
+ for(const text of ['postKinematic":1','postDynamic":1','postMode2":1','flag=0x1380','Grant:','IK:','Authored','Pre','Physics','Final','NEXT-step'])check(info.textContent.includes(text),'missing diagnostic '+text);
+ check(document.getElementById('physics').checked,'physics disabled');
+ const translation=document.getElementById('translation');translation.value='1';translation.dispatchEvent(new Event('input'));
+ check(Math.abs(mesh.skeleton.bones[0].position.x-0.5)<1e-5,'post grant absent');
+ check(Math.abs(physics.bodies[0].body.getCenterOfMassTransform().getOrigin().x())<1e-5,'post pose cosmetically teleported body');
+ document.getElementById('physics-step').click();
+ check(Math.abs(physics.bodies[0].body.getCenterOfMassTransform().getOrigin().x()-0.5)<1e-5,'next-step kinematic input incomplete');
+ check(Math.abs(mesh.skeleton.bones[1].position.x-2.25)<1e-5,'dynamic post grant absent');
+ check(Math.abs(physics.bodies[1].body.getCenterOfMassTransform().getOrigin().x()-2)<1e-5,'dynamic body teleported');
+ document.getElementById('physics-reset').click();check(translation.value==='0','reset pose control');
+ check(Math.abs(mesh.skeleton.bones[1].position.y)<1e-6 && Math.abs(physics.bodies[1].body.getCenterOfMassTransform().getOrigin().y())<1e-6,'paused reset left stale rendered/body pose');
+ const toggle=document.getElementById('physics');toggle.checked=false;toggle.dispatchEvent(new Event('change'));check(info.textContent.includes('Ammo disabled'),'physics toggle disconnected');
+ toggle.checked=true;toggle.dispatchEvent(new Event('change'));document.getElementById('physics-step').click();
+ check(info.textContent.includes('simulation snapshot') && info.textContent.includes('paused'),'body diagnostics missing');
+ result.textContent=encodeURIComponent(JSON.stringify({bodies:5,errors}));
+} catch(error){result.textContent=encodeURIComponent(JSON.stringify({error:error.stack||String(error)}));}
+</script>`;
+	const server = createServer( ( request, response ) => {
+
+		if ( request.url?.startsWith( '/local-sdef/?' ) ) { response.setHeader( 'Content-Type', 'text/html' ); response.end( html ); }
+		else local.emit( 'request', request, response );
+
+	} );
+	try {
+
+		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+		const result = await runBrowser<{ error?: string; bodies: number; errors: string[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/local-sdef/?webgl`, profile );
+		assert.equal( result.error, undefined, result.error ); assert.equal( result.bodies, 5 ); assert.deepEqual( result.errors, [] );
+
+	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
+
+} );

@@ -33,6 +33,8 @@ export interface Grant {
 type RigidBodyBase = Omit<RigidBody, 'name' | 'shapeType' | 'height' | 'depth'> & {
 	name?: string;
 	englishName?: string;
+	/** PMX mode before the MMD joint compatibility conversion. */
+	originalType?: number;
 };
 
 export type RigidBodyParameters = RigidBodyBase & (
@@ -52,6 +54,8 @@ export interface MMDBone {
 	flag?: number;
 	index: number;
 	name: string;
+	/** Invalid original parent reference, when the runtime edge was detached. */
+	originalParent?: number;
 	parent: number;
 	pos: number[];
 	rotq: number[];
