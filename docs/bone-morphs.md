@@ -93,7 +93,8 @@ palette for surfaces, normals, outlines and shadows.
 ## Scope and inherited limitations
 
 [PMX group morphs](group-morphs.md) propagate direct type 1/type 2 references.
-UV/additional-UV and material morph dispatch remain unsupported. The
+UV/additional-UV morph dispatch remains unsupported.
+[Material morph playback](material-morphs.md) is supported separately. The
 wire rope candidate's UV interaction cannot be reproduced by this issue.
 
 This change preserves the helper's existing solver limitations: local grants

@@ -48,6 +48,53 @@ class Writer {
 
 }
 
+/** Type 8 fixture with three surfaces, shared samplers, all channels and ordered links. */
+export function materialPmxBuffer( { allAdd = false }: { allAdd?: boolean } = {} ) {
+
+	const w = new Writer();
+	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
+	for ( const value of [ 0, 0, 1, 1, 1, 1, 1, 1 ] ) w.u8( value );
+	w.text( 'Material probes' ).text( '' ).text( '' ).text( '' );
+	w.u32( 9 );
+	for ( let m = 0; m < 3; m ++ ) for ( const p of [ [ - 0.5, - 0.5, 0 ], [ 0.5, - 0.5, 0 ], [ 0, 0.5, 0 ] ] ) w.f32( ...p, 0, 0, 1, 0, 0 ).u8( 0 ).u8( 0 ).f32( 1 );
+	w.u32( 9 ); for ( let i = 0; i < 9; i ++ ) w.u8( i );
+	w.u32( 1 ).text( 'shared.png' ).u32( 3 );
+	for ( let m = 0; m < 3; m ++ ) {
+
+		w.text( `material-${m}` ).text( '' ).f32( ...( m === 2 ? [ 0.4, 0.2, 0.8, 1 ] : [ 0.8, 0.6, 0.4, 1 ] ), 0.2, 0.4, 0.6, 20, 0.4, 0.6, 0.8 );
+		w.u8( 0x10 ).f32( 0.2, 0.4, 0.6, 1, 3 ).u8( m === 2 ? 255 : 0 ).u8( m === 2 ? 255 : 0 ).u8( m === 2 ? 0 : m + 1 );
+		w.u8( m === 2 ? 1 : 0 ).u8( 0 ).text( '' ).u32( 3 );
+
+	}
+	w.u32( 1 ).text( 'root' ).text( '' ).f32( 0, 0, 0 ).u8( 255 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
+	w.u32( 8 );
+	w.text( 'uv-placeholder' ).text( '' ).u8( 4 ).u8( 3 ).u32( 1 ).u8( 0 ).f32( 0.1, 0.2, 0.3, 0.4 );
+	const material = ( name: string, elements: { index: number; type: number; values: number[] }[] ) => {
+
+		w.text( name ).text( '' ).u8( 4 ).u8( 8 ).u32( elements.length );
+		for ( const e of elements ) w.u8( e.index ).u8( e.type ).f32( ...e.values );
+
+	};
+	// diffuse, specular, shininess, ambient, edge RGBA/size, texture/sphere/toon RGBA
+	material( 'multiply-all', [ { index: - 1, type: 0, values: [ 0.5, 1.5, 0.25, 0, 2, 0.5, 1.5, 0.5, 0.5, 1.5, 0.25, 2, 0.5, 1.5, 0, 0, 0.5, 1.5, 0.25, 0.5, 1.5, 0.25, 0.5, 0.75, 0.25, 0.5, 1.5, 0.5 ] } ] );
+	material( 'add-first', [ { index: allAdd ? - 1 : 0, type: 1, values: [ 0.2, - 0.2, 0.4, - 0.5, 0.1, 0.2, - 0.1, 10, 0.1, - 0.2, 0.2, 0.4, 0.1, - 0.2, - 0.5, - 3, - 0.5, - 0.25, 0, - 0.5, 0, - 0.5, - 0.25, - 0.25, - 0.25, 0, - 0.5, - 0.5 ] } ] );
+	const late = [ 0.5, 1, 0.5, 1, 0.5, 1, 0.5, 2, 0.5, 1, 0.5, 0.5, 1, 0.5, 1, 2, 0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1 ];
+	material( 'late-multiply', [ { index: 0, type: 0, values: late }, { index: 0, type: 0, values: late } ] );
+	const group = ( name: string, links: number[][] ) => {
+
+		w.text( name ).text( '' ).u8( 4 ).u8( 0 ).u32( links.length );
+		for ( const [ index, ratio ] of links ) w.u8( index ).f32( ratio );
+
+	};
+	group( 'material-group', [ [ 1, 0.25 ], [ 2, 0.5 ], [ 1, 0.125 ] ] );
+	group( 'shared-group', [ [ 1, - 0.25 ], [ 2, 0.25 ], [ 3, 0.5 ] ] );
+	group( 'nested-group', [ [ 4, 100 ], [ 6, 100 ], [ 1, 0.5 ], [ - 1, 1 ], [ 120, 1 ], [ 1, NaN ], [ 1, Infinity ] ] );
+	material( 'invalid-material', [ { index: - 2, type: 1, values: late }, { index: 120, type: 0, values: late }, { index: - 1, type: 3, values: late } ] );
+	w.u32( 0 ).u32( 0 ).u32( 0 );
+	return w.buffer();
+
+}
+
 const vertices = [ [ 0, 0, 1 ], [ 1, 0, 1 ], [ 0, 1, 1 ] ];
 
 export function pmdBuffer() {

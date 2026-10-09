@@ -1,6 +1,6 @@
 # PMX group morph playback
 
-PMX type 0 groups support direct **type 1 vertex** and **type 2 bone** targets
+PMX type 0 groups support direct **type 1 vertex**, **type 2 bone** and **type 8 material** targets
 with the released `mmd-parser ^1.1.4`. The loader keeps every original morph
 name/index in `morphTargetDictionary` and `morphTargetInfluences`, including
 unsupported types. VMD name lookup and interactive sliders use those same
@@ -40,10 +40,9 @@ apply. This follows the MMD compatibility policy in
 [babylon-mmd's group evaluator](https://github.com/noname0310/babylon-mmd/blob/master/src/Runtime/mmdMorphControllerBase.ts)
 and its [0.45.0 changelog](https://github.com/noname0310/babylon-mmd/blob/main/CHANGELOG.md).
 No recursive traversal occurs. Negative, noninteger and out-of-range morph
-indices and nonfinite ratios are ignored. UV (type 3), additional UV (4–7),
-material (8) and other unimplemented targets remain unsupported; group weights
-do not change their UV/material state. Existing material transparency
-classification at load time is unchanged.
+indices and nonfinite ratios are ignored. UV (type 3), additional UV (4–7) and other unimplemented targets remain
+unsupported. Type 8 targets use the [material morph evaluator](material-morphs.md)
+and its independent `materialMorph` feature toggle; group links do not change UVs.
 
 The loader exposes original group references for diagnostics, without removing
 ignored links, in `mesh.geometry.userData.MMD.groupMorphs`:
@@ -102,7 +101,7 @@ screenshots, asset manifest and URLs are unchanged.
 
 Generated PMX bytes parsed by the installed release include nonzero asymmetric
 vertex/bone data, fractional/negative ratios, repeated/shared targets, nested
-and cyclic groups, invalid links and unsupported UV/material targets. Explicit
+and cyclic groups, invalid links and unsupported UV targets (material targets are now supported by Issue #33). Explicit
 CPU equations and scalar quaternion calculations compare direct, group,
 combined and multiple-group weights at 0, 0.5, 1 and reset, including actual
 bones and BDEF positions. Playback checks cover VMD, static changes, repeated

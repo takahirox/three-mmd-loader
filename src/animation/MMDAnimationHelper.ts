@@ -1,3 +1,4 @@
+import { MMDMaterialMorphController } from './MMDMaterialMorphController.js';
 import type { Audio, Camera, Object3D as ThreeObject } from 'three';
 import type { AnimationAction, AnimationClip, Bone } from 'three';
 import type { Vpd } from 'mmd-parser';
@@ -27,7 +28,7 @@ export interface MMDAnimationParameters extends MMDPhysicsParameters {
 	delayTime?: number;
 }
 export interface MMDPoseParameters { resetPose?: boolean; ik?: boolean; grant?: boolean }
-export type MMDAnimationFeature = 'animation' | 'boneMorph' | 'ik' | 'grant' | 'physics' | 'cameraAnimation';
+export type MMDAnimationFeature = 'animation' | 'materialMorph' | 'boneMorph' | 'ik' | 'grant' | 'physics' | 'cameraAnimation';
 export type MMDCamera = Camera & { updateProjectionMatrix(): void };
 // Three.js exposes no public API for enumerating mixer actions/bindings.
 type MMDMixer = AnimationMixer & {
@@ -62,6 +63,7 @@ export interface MMDAnimationState {
  */
 class MMDAnimationHelper {
 
+	private materialMorphControllers = new WeakMap<MMDMesh, MMDMaterialMorphController>();
 	private boneMorphControllers = new WeakMap<MMDMesh, MMDBoneMorphController>();
 
 	meshes: MMDMesh[];
@@ -105,6 +107,7 @@ class MMDAnimationHelper {
 		this.enabled = {
 			animation: true,
 			boneMorph: true,
+			materialMorph: true,
 			ik: true,
 			grant: true,
 			physics: true,
@@ -275,6 +278,7 @@ class MMDAnimationHelper {
 		}
 
 		boneMorphs?.apply( this.enabled.boneMorph );
+		this._getMaterialMorphController( mesh )?.apply( this.enabled.materialMorph );
 		mesh.updateMatrixWorld( true );
 
 		// PMX animation system special path
@@ -438,6 +442,7 @@ class MMDAnimationHelper {
 
 				// Release the authored pose so a new helper cannot bake in bone morphs.
 				this.boneMorphControllers.get( mesh )?.restore();
+				this.materialMorphControllers.get( mesh )?.apply( false );
 				this.objects.delete( mesh );
 				found = true;
 
@@ -610,6 +615,7 @@ class MMDAnimationHelper {
 		}
 
 		boneMorphs?.apply( this.enabled.boneMorph );
+		this._getMaterialMorphController( mesh )?.apply( this.enabled.materialMorph );
 
 		if ( ( mixer && this.enabled.animation ) || boneMorphs ) {
 
@@ -661,6 +667,20 @@ class MMDAnimationHelper {
 		}
 
 		boneMorphs?.capture();
+
+	}
+
+	_getMaterialMorphController( mesh: MMDMesh ) {
+
+		if ( ! mesh.geometry.userData.MMD.materialMorphs?.length ) return undefined;
+		let controller = this.materialMorphControllers.get( mesh );
+		if ( ! controller ) {
+
+			controller = new MMDMaterialMorphController( mesh );
+			this.materialMorphControllers.set( mesh, controller );
+
+		}
+		return controller;
 
 	}
 

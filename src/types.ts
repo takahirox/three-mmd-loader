@@ -71,6 +71,26 @@ export interface MMDGeometryData {
 	boneMorphs?: MMDBoneMorph[];
 	/** PMX type 0 references in file order, including ignored/unsupported links. */
 	groupMorphs?: MMDGroupMorph[];
+	/** PMX type 8 payloads in file order, without coordinate conversion. */
+	materialMorphs?: MMDMaterialMorph[];
+}
+
+export interface MMDMaterialValues {
+	diffuse: number[];
+	specular: number[];
+	shininess: number;
+	ambient: number[];
+	edgeColor: number[];
+	edgeSize: number;
+	textureColor: number[];
+	sphereTextureColor: number[];
+	toonColor: number[];
+}
+
+export interface MMDMaterialMorph {
+	index: number;
+	name: string;
+	elements: ( MMDMaterialValues & { index: number; type: number } )[];
 }
 
 export interface MMDGroupMorph {

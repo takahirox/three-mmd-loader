@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { createSdefServer } from '../../scripts/serve-sdef.ts';
-import { sdefPmxBuffer, vmdBuffer } from '../fixtures.ts';
+import { sdefPmxBuffer, materialPmxBuffer, vmdBuffer } from '../fixtures.ts';
 import { referenceGroupPose } from '../group-morph-reference.ts';
 import { referenceBonePose } from '../bone-morph-reference.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
@@ -68,10 +68,13 @@ test( 'private group/bone viewer enumerates parsed links, loads textures/VMD, co
 	const profile = await mkdtemp( join( tmpdir(), 'mmd-bone-viewer-profile-' ) );
 	await mkdir( join( directory, 'umbrella/tex' ), { recursive: true } );
 	await writeFile( join( directory, 'umbrella/傘.pmx' ), Buffer.from( sdefPmxBuffer( { groupMorphs: true, texturePath: 'tex/色.png' } ) ) );
+	await writeFile( join( directory, 'material.pmx' ), Buffer.from( materialPmxBuffer() ) );
+	await writeFile( join( directory, 'shared.png' ), Buffer.from( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64' ) );
+	await writeFile( join( directory, 'material.vmd' ), Buffer.from( vmdBuffer( { morphs: [ { morphName: 'multiply-all', frameNum: 0, weight: 0 }, { morphName: 'multiply-all', frameNum: 30, weight: 1 } ] } ) ) );
 	await writeFile( join( directory, 'empty.pmx' ), Buffer.from( sdefPmxBuffer() ) );
 	await writeFile( join( directory, 'umbrella/tex/色.png' ), Buffer.from( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64' ) );
 	await writeFile( join( directory, 'group.vmd' ), Buffer.from( vmdBuffer( { boneName: 'bone0', morphs: [ { morphName: 'mixed-group', frameNum: 0, weight: 0 }, { morphName: 'mixed-group', frameNum: 30, weight: 1 } ] } ) ) );
-	const local = createSdefServer( { boneMorphDirectory: directory, groupMorphDirectory: directory } );
+	const local = createSdefServer( { boneMorphDirectory: directory, groupMorphDirectory: directory, materialMorphDirectory: directory } );
 	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
 <pre id="result">pending</pre><script type="module">
 import {MMDAnimationHelper} from 'three-mmd-loader';
@@ -122,6 +125,20 @@ try {
  check(weight.disabled && select.disabled && group.disabled && groupWeight.disabled,'absent morph controls enabled');
  check(groupInfo.textContent.includes('No group → bone relation'),'absent group bone diagnostic missing');
  check(info.textContent.includes('not implemented'),'unsupported morphs falsely claimed');
+ const materialSelect=document.getElementById('material-morph'),materialWeight=document.getElementById('material-weight'),materialInfo=document.getElementById('material-info');
+ check(materialSelect.disabled&&materialWeight.disabled&&materialInfo.textContent.includes('no type 8'),'missing material warning absent');
+ document.getElementById('asset-directory').value='material-morph';document.getElementById('model').value='material.pmx';document.getElementById('load').click();
+ await until(()=>mesh?.geometry.userData.MMD.materialMorphs?.length===4);
+ check(materialSelect.options.length===4&&!materialWeight.disabled,'material controls absent');
+ check(materialInfo.textContent.includes('multiply-all')&&materialInfo.textContent.includes('Material -1: all materials')&&materialInfo.textContent.includes('mode multiply')&&materialInfo.textContent.includes('mode add')&&materialInfo.textContent.includes('Evaluated material / outline parameters'),'material diagnostics absent');
+ materialSelect.value='1';materialSelect.dispatchEvent(new Event('change'));
+ for(const value of [0,0.5,1,0]) {materialWeight.value=String(value);materialWeight.dispatchEvent(new Event('input'));await new Promise(resolve=>setTimeout(resolve,40));check(Math.abs(mesh.material[0].opacity-(1-value))<1e-6,'material slider drift');check(mesh.material[0].userData.outlineParameters.visible===(value<1),'edge visibility failed');}
+ group.value='4';group.dispatchEvent(new Event('change'));check(target.options.length===2,'group material targets absent');
+ groupWeight.value='0.5';groupWeight.dispatchEvent(new Event('input'));check(Math.abs(mesh.material[0].opacity-0.6875)<1e-6,'group material weight wrong');
+ target.value='1';target.dispatchEvent(new Event('change'));targetWeight.value='0.25';targetWeight.dispatchEvent(new Event('input'));check(Math.abs(mesh.material[0].opacity-0.4375)<1e-6,'direct plus group material weight wrong');
+ document.getElementById('reset').click();check(mesh.material[0].opacity===1,'material reset failed');
+ document.getElementById('motion').value='material.vmd';document.getElementById('play').click();await until(()=>mesh.material[0].opacity<0.95);check(materialInfo.textContent.includes('weight 0.'),'material VMD report missing');
+ document.getElementById('stop').click();check(mesh.material[0].opacity===1&&mesh.morphTargetInfluences.every(v=>v===0),'material stop failed');
  result.textContent=encodeURIComponent(JSON.stringify({morphs:3,texture:true,errors}));
 } catch(error){result.textContent=encodeURIComponent(JSON.stringify({error:error.stack||String(error)}));}
 </script>`;

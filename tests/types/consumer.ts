@@ -3,7 +3,7 @@ import {
 	MMDLoader, MMDAnimationHelper, CCDIKSolver, MMDPhysics, MMDExporter,
 	MMDToonMaterial, MMDOutlineEffect
 } from 'three-mmd-loader';
-import type { AmmoAPI, IK, MMDMesh, MMDBoneMorph, MMDGroupMorph } from 'three-mmd-loader';
+import type { AmmoAPI, IK, MMDMesh, MMDBoneMorph, MMDGroupMorph, MMDMaterialMorph, MMDMaterialValues } from 'three-mmd-loader';
 import { MMDLoader as SubpathLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
 import { MMDAnimationHelper as SubpathHelper } from 'three-mmd-loader/animation/MMDAnimationHelper.js';
 import { CCDIKHelper } from 'three-mmd-loader/animation/CCDIKSolver.js';
@@ -23,7 +23,14 @@ const helper: MMDAnimationHelper = new SubpathHelper( { sync: false, pmxAnimatio
 helper.add( mesh, { physics: false, animation: new AnimationClip() } ).update( 1 / 60 );
 helper.add( new PerspectiveCamera(), { animation: new AnimationClip() } );
 helper.onBeforePhysics = model => { model.skeleton.bones[ 0 ].position.x = 1; };
-helper.enable( 'ik', false ).enable( 'boneMorph', true );
+helper.enable( 'ik', false ).enable( 'boneMorph', true ).enable( 'materialMorph', true );
+const materialMorphs: MMDMaterialMorph[] = mesh.geometry.userData.MMD.materialMorphs ?? [];
+for ( const morph of materialMorphs ) {
+	const values: MMDMaterialValues = morph.elements[ 0 ];
+	mesh.morphTargetInfluences![ morph.index ] = 0.5;
+	void values;
+}
+mesh.material[ 0 ].mmdTextureColor.set( 1, 1, 1, 1 );
 const boneMorphs: MMDBoneMorph[] = mesh.geometry.userData.MMD.boneMorphs ?? [];
 for ( const morph of boneMorphs ) mesh.morphTargetInfluences![ morph.index ] = 0.5;
 const groupMorphs: MMDGroupMorph[] = mesh.geometry.userData.MMD.groupMorphs ?? [];

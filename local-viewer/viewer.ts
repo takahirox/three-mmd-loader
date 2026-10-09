@@ -3,7 +3,7 @@ import type { AnimationClip, BufferAttribute, InterleavedBufferAttribute } from 
 import { WebGPURenderer } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MMDAnimationHelper, MMDLoader, MMDOutlineEffect } from 'three-mmd-loader';
-import type { MMDMesh } from '../src/types.js';
+import type { MMDMesh } from 'three-mmd-loader';
 
 const element = <T extends HTMLElement>( id: string ) => document.getElementById( id ) as T;
 const status = element<HTMLParagraphElement>( 'status' );
@@ -38,6 +38,9 @@ const groupWeight = element<HTMLInputElement>( 'group-weight' );
 const groupTarget = element<HTMLSelectElement>( 'group-target' );
 const targetWeight = element<HTMLInputElement>( 'target-weight' );
 const groupInfo = element<HTMLPreElement>( 'group-info' );
+const materialMorph = element<HTMLSelectElement>( 'material-morph' );
+const materialWeight = element<HTMLInputElement>( 'material-weight' );
+const materialInfo = element<HTMLPreElement>( 'material-info' );
 let loadedDirectory = '';
 
 function privateURL( path: string, directory = assetDirectory.value ) {
@@ -93,7 +96,7 @@ function reportGroups() {
 		for ( const e of g.elements ) {
 
 			const line = document.createElement( 'span' );
-			const supported = ( e.type === 1 || e.type === 2 ) && Number.isFinite( e.ratio );
+			const supported = ( e.type === 1 || e.type === 2 || e.type === 8 ) && Number.isFinite( e.ratio );
 			line.textContent = `  → ${e.index}: ${e.name ?? 'missing'} (type ${e.type ?? 'invalid'}), ratio ${e.ratio}${supported ? '' : ' — ignored/unsupported'}\n`;
 			if ( e.type === 2 && supported ) {
 
@@ -108,7 +111,7 @@ function reportGroups() {
 
 	}
 	const diagnostic = document.createElement( 'span' );
-	diagnostic.textContent = ( boneLinks ? `${boneLinks} group → bone links. Bone links highlighted.` : 'No group → bone relation is present in this PMX.' ) + '\nNested groups are ignored; UV/additional-UV/material morphs are unsupported.';
+	diagnostic.textContent = ( boneLinks ? `${boneLinks} group → bone links. Bone links highlighted.` : 'No group → bone relation is present in this PMX.' ) + '\nNested groups are ignored; UV/additional-UV morphs are unsupported. Material links are supported.';
 	groupInfo.replaceChildren( ...lines, diagnostic );
 	groupWeight.value = String( mesh?.morphTargetInfluences?.[ Number( group.value ) ] ?? 0 );
 	targetWeight.value = String( mesh?.morphTargetInfluences?.[ Number( groupTarget.value ) ] ?? 0 );
@@ -119,7 +122,7 @@ function reportGroups() {
 function selectGroup() {
 
 	const selected = mesh?.geometry.userData.MMD.groupMorphs?.find( g => g.index === Number( group.value ) );
-	const targets = new Map( selected?.elements.filter( e => ( e.type === 1 || e.type === 2 ) && Number.isFinite( e.ratio ) ).map( e => [ e.index, e ] ) );
+	const targets = new Map( selected?.elements.filter( e => ( e.type === 1 || e.type === 2 || e.type === 8 ) && Number.isFinite( e.ratio ) ).map( e => [ e.index, e ] ) );
 	groupTarget.replaceChildren( ...Array.from( targets.values(), e => new Option( `${e.index}: ${e.name} (type ${e.type})`, String( e.index ) ) ) );
 	groupTarget.disabled = targetWeight.disabled = targets.size === 0;
 	reportGroups();
@@ -136,14 +139,30 @@ group.onchange = selectGroup;
 groupTarget.onchange = reportGroups;
 groupWeight.oninput = () => setWeight( group, groupWeight );
 targetWeight.oninput = () => setWeight( groupTarget, targetWeight );
+function reportMaterials() {
+
+	const morphs = mesh?.geometry.userData.MMD.materialMorphs ?? [];
+	materialWeight.value = String( mesh?.morphTargetInfluences?.[ Number( materialMorph.value ) ] ?? 0 );
+	element( 'material-weight-value' ).textContent = Number( materialWeight.value ).toFixed( 2 );
+	if ( ! morphs.length ) {
+
+		materialInfo.textContent = mesh ? 'Warning: this PMX has no type 8 material morph. Choose a verified candidate.' : 'Load a PMX to enumerate its actual type 8 material morphs.';
+		return;
+
+	}
+	materialInfo.textContent = morphs.map( m => `${m.index}: ${m.name} (type 8), weight ${mesh!.morphTargetInfluences![ m.index ].toFixed( 2 )}\n` + m.elements.map( e => `  Material ${e.index}: ${e.index === - 1 ? 'all materials' : mesh!.material[ e.index ]?.name ?? 'invalid'}; mode ${e.type === 0 ? 'multiply' : e.type === 1 ? 'add' : 'invalid'}\n    ${JSON.stringify( e )}` ).join( '\n' ) ).join( '\n' ) + '\n\nEvaluated material / outline parameters:\n' + mesh!.material.map( ( m, i ) => `${i}: ${m.name}\n${JSON.stringify( { values: m.userData.MMD.materialMorph ?? m.userData.MMD.materialBase, color: m.color.toArray(), emissive: m.emissive.toArray(), opacity: m.opacity, transparent: m.transparent, side: m.side, depthWrite: m.depthWrite, outline: m.userData.outlineParameters } )}` ).join( '\n' );
+
+}
+materialMorph.onchange = reportMaterials;
+materialWeight.oninput = () => setWeight( materialMorph, materialWeight );
 function reportMorphs() {
 
-	reportGroups();
+	reportGroups(); reportMaterials();
 
 	const boneMorphs = mesh?.geometry.userData.MMD.boneMorphs ?? [];
 	if ( ! boneMorphs.length ) {
 
-		morphInfo.textContent = mesh ? 'No type 2 bone morph is present in this PMX. UV and material morphs are not implemented by this viewer.' : 'Load a PMX to enumerate its actual type 2 bone morphs.';
+		morphInfo.textContent = mesh ? 'No type 2 bone morph is present in this PMX. UV morphs are not implemented by this viewer.' : 'Load a PMX to enumerate its actual type 2 bone morphs.';
 		weight.value = '0'; element( 'weight-value' ).textContent = '0.00'; return;
 
 	}
@@ -155,7 +174,7 @@ function reportMorphs() {
 		const lines = m.elements.map( e => `  Bone ${e.index}: ${mesh!.skeleton.bones[ e.index ]?.name ?? 'missing'}\n    translation: [${e.position.join( ', ' )}]\n    rotation (xyzw): [${e.rotation.join( ', ' )}]` );
 		return `${m.index}: ${m.name} — weight ${mesh!.morphTargetInfluences![ m.index ].toFixed( 2 )}\n${lines.join( '\n' )}`;
 
-	} ).join( '\n\n' ) + '\n\nDirect type 2 controls. Group links to vertex/bone targets are supported; UV and material morph dispatch are unsupported. Values are in right-handed local space.';
+	} ).join( '\n\n' ) + '\n\nDirect type 2 controls. Group links to vertex/bone/material targets are supported; UV morph dispatch is unsupported. Values are in right-handed local space.';
 
 }
 morph.onchange = reportMorphs;
@@ -179,6 +198,9 @@ element( 'load' ).onclick = async () => {
 		if ( mesh ) { helper.remove( mesh ); scene.remove( mesh ); mesh.geometry.dispose(); mesh.skeleton.dispose(); mesh.material.forEach( m => m.dispose() ); }
 		mesh = next; mesh.frustumCulled = false; scene.add( mesh ); loadedDirectory = directory;
 		helper.add( mesh, { physics: false } );
+		const materials = mesh.geometry.userData.MMD.materialMorphs ?? [];
+		materialMorph.replaceChildren( ...materials.map( m => new Option( `${m.index}: ${m.name}`, String( m.index ) ) ) );
+		materialMorph.disabled = materialWeight.disabled = materials.length === 0;
 		const boneMorphs = mesh.geometry.userData.MMD.boneMorphs ?? [];
 		morph.replaceChildren( ...boneMorphs.map( m => new Option( `${m.index}: ${m.name}`, String( m.index ) ) ) );
 		morph.disabled = weight.disabled = boneMorphs.length === 0;

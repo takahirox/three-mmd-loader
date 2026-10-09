@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { pmdBuffer, pmxBuffer, sdefPmxBuffer, vmdBuffer } from './fixtures.ts';
+import { pmdBuffer, pmxBuffer, sdefPmxBuffer, materialPmxBuffer, vmdBuffer } from './fixtures.ts';
 
 const root = resolve( dirname( fileURLToPath( import.meta.url ) ), '..' );
 interface PackageManifest { exports: Record<string, Record<string, string>>; devDependencies: { three: string }; dependencies: { 'mmd-parser': string } }
@@ -84,7 +84,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		execFileSync( npm, [
 			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
 		], options );
-		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { groupMorphs: true } ) ] ] as const ) {
+		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { groupMorphs: true } ) ], [ 'material.pmx', materialPmxBuffer() ] ] as const ) {
 
 			writeFileSync( join( consumer, name ), Buffer.from( buffer ) );
 
@@ -170,6 +170,16 @@ morphHelper.update(0);assert.deepEqual(sdefMesh.skeleton.bones[0].quaternion.toA
 sdefMesh.morphTargetInfluences.fill(0);morphHelper.update(0);
 assert.deepEqual(sdefMesh.skeleton.bones[0].position.toArray(),[0,0,0]);
 sdefMesh.geometry.dispose(); sdefMesh.material.forEach( material => material.dispose() );
+const materialMesh = await loader.loadAsync( 'data:application/octet-stream;base64,' + readFileSync('material.pmx').toString('base64') );
+const materialHelper = new entry.MMDAnimationHelper(); materialHelper.add(materialMesh,{physics:false});
+assert.equal(materialMesh.morphTargetDictionary['multiply-all'],1);
+assert.equal(materialMesh.geometry.userData.MMD.materialMorphs.length,4);
+materialMesh.morphTargetInfluences[4]=0.5;materialHelper.update(0);
+assert.ok(Math.abs(materialMesh.material[0].opacity - 0.6875)<1e-6);
+const materialResult=materialMesh.material[0].color.toArray();
+materialHelper.update(0);assert.deepEqual(materialMesh.material[0].color.toArray(),materialResult);
+materialHelper.enable('materialMorph',false).update(0);assert.equal(materialMesh.material[0].opacity,1);
+materialHelper.remove(materialMesh);materialMesh.geometry.dispose();materialMesh.material.forEach(m=>m.dispose());
 assert.throws( () => new entry.MMDPhysics( null, [] ), /Import ammo.js/ );
 for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )} ) ) {
   const module = await import( 'three-mmd-loader/' + path );
