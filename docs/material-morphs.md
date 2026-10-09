@@ -73,10 +73,12 @@ raises an initially zero edge size.
 Per-material `mmdTextureColor`, `mmdSphereColor`, and `mmdToonColor` Vector4
 values are TSL uniforms. Base-map RGB/alpha affects diffuse; toon RGB tints
 direct diffuse and Phong specular irradiance; sphere RGB affects the existing
-add/multiply output operation. Sampler alpha factors multiply surface opacity
-once. Missing samplers ignore their factors. Existing sphere texture alpha
-semantics remain unchanged. No texture images, sampling settings or shared
-texture contents are changed by playback. Clones have independent factors.
+add/multiply output operation for modes 1/2, or the [SubTexture layer](subtexture.md)
+for mode 3. Sampler alpha factors multiply surface opacity once. Missing
+samplers ignore their factors. Sphere modes 1/2 keep their existing texture
+alpha semantics; mode 3 multiplies sampled RGBA before specular lighting. No
+texture images, sampling settings or shared texture contents are changed by
+playback. Clones have independent factors.
 
 Every material with a valid morph that can change surface or edge alpha is
 classified for transparency at load time, including both modes and all-material
@@ -132,5 +134,5 @@ Generated fixtures also exercise the private viewer and isolated JS/TS package
 consumers. No human review, licensed asset or post-merge check is required to
 complete Issue #33.
 
-UV/additional-UV morphs, PMX 2.1 flip/impulse morphs, sphere envFlag 3 and full
+UV/additional-UV morphs, PMX 2.1 flip/impulse morphs and full
 Grant support remain separate work.

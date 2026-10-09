@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { grantPmxBuffer, pmdBuffer, pmxBuffer, sdefPmxBuffer, materialPmxBuffer, vmdBuffer } from './fixtures.ts';
+import { grantPmxBuffer, pmdBuffer, pmxBuffer, sdefPmxBuffer, materialPmxBuffer, subtexturePmxBuffer, vmdBuffer } from './fixtures.ts';
 
 const root = resolve( dirname( fileURLToPath( import.meta.url ) ), '..' );
 interface PackageManifest { exports: Record<string, Record<string, string>>; devDependencies: { three: string }; dependencies: { 'mmd-parser': string } }
@@ -85,7 +85,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		execFileSync( npm, [
 			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
 		], options );
-		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { groupMorphs: true } ) ], [ 'material.pmx', materialPmxBuffer() ], [ 'uv.pmx', sdefPmxBuffer( { uvMorphs: true } ) ], [ 'grant.pmx', grantPmxBuffer() ] ] as const ) {
+		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { groupMorphs: true } ) ], [ 'material.pmx', materialPmxBuffer() ], [ 'uv.pmx', sdefPmxBuffer( { uvMorphs: true } ) ], [ 'grant.pmx', grantPmxBuffer() ], [ 'subtexture.pmx', subtexturePmxBuffer() ] ] as const ) {
 
 			writeFileSync( join( consumer, name ), Buffer.from( buffer ) );
 
@@ -189,6 +189,13 @@ assert.ok(Math.abs(uvMesh.geometry.attributes.mmdAdditionalUV4.getW(3)-(0.52-0.2
 assert.ok(entry.mmdAdditionalUV(4).isNode);entry.updateMMDUVs(uvMesh);
 uvMesh.morphTargetInfluences.fill(0);uvHelper.update(0);assert.ok(Math.abs(uvMesh.geometry.attributes.uv.getY(3)-0.2)<1e-6);
 uvHelper.remove(uvMesh);uvMesh.geometry.dispose();uvMesh.material.forEach(m=>m.dispose());
+const subtextureMesh=await loader.loadAsync('data:application/octet-stream;base64,'+readFileSync('subtexture.pmx').toString('base64'));
+assert.equal(subtextureMesh.material[3].matcapMode,'subtexture');
+assert.equal(subtextureMesh.material[3].userData.MMD.envFlag,3);
+assert.equal(subtextureMesh.material[3].clone().matcapMode,'subtexture');
+subtextureMesh.morphTargetInfluences[1]=0.5;entry.updateMMDUVs(subtextureMesh);
+assert.ok(Math.abs(subtextureMesh.geometry.attributes.mmdAdditionalUV1.getX(9)-0.525)<1e-6);
+subtextureMesh.geometry.dispose();subtextureMesh.material.forEach(m=>m.dispose());
 const grantMesh=await loader.loadAsync('data:application/octet-stream;base64,'+readFileSync('grant.pmx').toString('base64'));
 assert.equal(grantMesh.geometry.userData.MMD.grants.length,6);
 assert.equal(grantMesh.geometry.userData.MMD.bones[3].flag,0x1280);

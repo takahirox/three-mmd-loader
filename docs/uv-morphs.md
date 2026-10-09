@@ -25,8 +25,8 @@ Applications should use the accessor for this safe fallback; raw TSL
 
 The standard material samples UV0 via Three's `uv()` / `uv` attribute, including
 color-map alpha, alpha maps, displacement and the shadow alpha mask. Sphere
-mapping still uses view coordinates; toon shading still uses lighting
-coordinates. Default MMD materials do not consume additional UV channels.
+modes 1/2 use view coordinates; [SubTexture mode 3](subtexture.md) samples
+morphed additional UV1 XY. Toon shading still uses lighting coordinates.
 The accessor lets application NodeMaterials consume them without custom GLSL
 or WGSL. The standard UV attribute is vec2: UV0 offset z/w are retained in
 `geometry.userData.MMD.uvMorphs`, but are unused for ordinary sampling.
@@ -113,7 +113,7 @@ or the existing private bone/group/material directories. Read the actual
 README/license **before** loading them. The viewer does not download assets,
 serve license/archives, or include private assets in npm or public builds.
 Issue #30 and optional human real-model inspection remain independent.
-Flip/impulse morphs, MME effects, sphere mode 3 and Grant fixes are excluded.
+Flip/impulse morphs, MME effects and Grant fixes are excluded.
 
 Automated checks: `npm run typecheck`, `npm test`, `npm run test:browser`,
 `MMD_EXAMPLE_FIXTURES=1 npm run build:examples`, and `npm run test:examples`.

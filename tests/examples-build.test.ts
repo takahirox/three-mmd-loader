@@ -34,6 +34,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		await writeFile( join( assetDirectory, 'private/material-morph/README.txt' ), 'local only' );
 		await mkdir( join( assetDirectory, 'private/uv-morph' ), { recursive: true } );
 		await writeFile( join( assetDirectory, 'private/uv-morph/model.pmx' ), 'private UV sentinel' );
+		for ( const name of [ 'generated-subtexture.pmx', 'generated-subtexture.png' ] ) await writeFile( join( assetDirectory, 'private/uv-morph', name ), 'private SubTexture sentinel' );
 		await mkdir( join( assetDirectory, 'private/grant' ), { recursive: true } );
 		for ( const name of [ 'model.pmx', 'motion.vmd', 'archive.zip', 'README.txt', 'screenshot.png' ] ) await writeFile( join( assetDirectory, 'private/grant', name ), 'private grant sentinel' );
 		await mkdir( join( assetDirectory, 'private/physics-layers' ), { recursive: true } );
@@ -82,7 +83,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			assert.deepEqual( await readFile( join( outputDirectory, path ) ), await readFile( new URL( '../' + path.replace( /^src\//, 'dist/' ).replace( /^examples\/(.+\.js)$/, 'dist/example-modules/$1' ), import.meta.url ) ), path );
 
 		}
-		for ( const path of [ 'src/libs/mmdparser.module.js', 'node_modules/mmd-parser/build/mmdparser.js', 'stale.html', 'local-sdef', 'local-viewer', 'scripts/serve-sdef.ts', 'examples/assets/private', 'examples/assets/mmd/private/physics-layers/model.pmx', 'examples/assets/mmd/private/physics-layers/motion.vmd', 'examples/assets/mmd/private/physics-layers/texture.png', 'examples/assets/mmd/private/physics-layers/README.txt', 'local-sdef/generated-physics-layers.pmx', 'examples/assets/mmd/private/bone-morph/model.pmx', 'examples/assets/mmd/private/group-morph/model.pmx', 'examples/assets/mmd/private/group-morph/README.txt', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {
+		for ( const path of [ 'local-sdef/generated-subtexture.pmx', 'local-sdef/generated-subtexture.png', 'examples/assets/mmd/private/uv-morph/generated-subtexture.pmx', 'examples/assets/mmd/private/uv-morph/generated-subtexture.png', 'src/libs/mmdparser.module.js', 'node_modules/mmd-parser/build/mmdparser.js', 'stale.html', 'local-sdef', 'local-viewer', 'scripts/serve-sdef.ts', 'examples/assets/private', 'examples/assets/mmd/private/physics-layers/model.pmx', 'examples/assets/mmd/private/physics-layers/motion.vmd', 'examples/assets/mmd/private/physics-layers/texture.png', 'examples/assets/mmd/private/physics-layers/README.txt', 'local-sdef/generated-physics-layers.pmx', 'examples/assets/mmd/private/bone-morph/model.pmx', 'examples/assets/mmd/private/group-morph/model.pmx', 'examples/assets/mmd/private/group-morph/README.txt', 'package.json', 'tests', '.git', '.github', 'node_modules/three/package.json' ] ) {
 
 			await assert.rejects( readFile( join( outputDirectory, path ) ), { code: 'ENOENT' }, path );
 

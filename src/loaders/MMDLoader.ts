@@ -57,11 +57,11 @@ function isPmd( data: Model ): data is Pmd {
 
 type OnProgress = ( event: ProgressEvent ) => void;
 type OnError = ( error: unknown ) => void;
-type MMDTexture = Texture & { readyCallbacks?: ( ( texture: MMDTexture ) => void )[]; transparent?: boolean; isCompressedTexture?: boolean };
+type MMDTexture = Texture & { readyCallbacks?: ( ( texture: MMDTexture ) => void )[]; transparent?: boolean; failed?: boolean; errorCallbacks?: OnError[]; isCompressedTexture?: boolean };
 type TextureOptions = { isToonTexture?: boolean; isDefaultToonTexture?: boolean };
 type MMDMaterialParameters = MMDToonMaterialParameters & {
 	map?: MMDTexture;
-	userData: { MMD: { mapFileName?: string; matcapFileName?: string }; outlineParameters?: MMDOutlineParameters };
+	userData: { MMD: { mapFileName?: string; matcapFileName?: string; envFlag?: number }; outlineParameters?: MMDOutlineParameters };
 };
 
 
@@ -1056,13 +1056,13 @@ class GeometryBuilder {
 		geometry.setAttribute( 'normal', new Float32BufferAttribute( normals, 3 ) );
 		geometry.setAttribute( 'skinIndex', new Uint16BufferAttribute( skinIndices, 4 ) );
 		geometry.setAttribute( 'skinWeight', new Float32BufferAttribute( skinWeights, 4 ) );
-		const extraCount = isPmd( data ) ? 0 : Math.min( 4, Math.max( 0, data.metadata.additionalUvNum ) );
+		const extraCount = isPmd( data ) ? 0 : Number.isInteger( data.metadata.additionalUvNum ) ? Math.min( 4, Math.max( 0, data.metadata.additionalUvNum ) ) : 0;
 		const uvBases: number[][] = Array.from( { length: extraCount + 1 }, () => [] );
 		const finite = ( value: number | undefined ) => value !== undefined && Number.isFinite( Math.fround( value ) ) ? value : 0;
 		for ( const v of data.vertices ) {
 
 			uvBases[ 0 ].push( finite( v.uv[ 0 ] ), finite( v.uv[ 1 ] ), 0, 0 );
-			for ( let c = 1; c <= extraCount; c ++ ) for ( let k = 0; k < 4; k ++ ) uvBases[ c ].push( finite( 'auvs' in v ? v.auvs[ c - 1 ]?.[ k ] : 0 ) );
+			for ( let c = 1; c <= extraCount; c ++ ) for ( let k = 0; k < 4; k ++ ) uvBases[ c ].push( finite( 'auvs' in v ? v.auvs?.[ c - 1 ]?.[ k ] : 0 ) );
 
 		}
 		// UVs and SDEF share one buffer. Even with tangent and four vec4 channels,
@@ -1203,6 +1203,8 @@ class MaterialBuilder {
 			const material = data.materials[ i ];
 
 			const params: MMDMaterialParameters = { userData: { MMD: {} } };
+			let subtextureFailed = false;
+			let builtMaterial: MMDToonMaterial | undefined;
 
 			if ( 'name' in material ) params.name = material.name;
 
@@ -1319,21 +1321,30 @@ class MaterialBuilder {
 
 				}
 
-				// matcap TODO: support m.envFlag === 3
+				// Preserve the source mode even when its texture reference is unusable.
+				params.userData.MMD.envFlag = material.envFlag;
+				const spherePath = Number.isInteger( material.envTextureIndex ) && material.envTextureIndex >= 0
+					? data.textures?.[ material.envTextureIndex ] : undefined;
+				if ( typeof spherePath === 'string' && spherePath.length > 0 && [ 1, 2, 3 ].includes( material.envFlag ) ) {
 
-				if ( material.envTextureIndex !== - 1 && ( material.envFlag === 1 || material.envFlag == 2 ) ) {
+					params.matcap = this._loadTexture( spherePath, textures, {}, undefined, material.envFlag === 3 ? error => {
 
-					params.matcap = this._loadTexture(
-						data.textures[ material.envTextureIndex ],
-						textures
-					);
+						// A failed SubTexture is a neutral absent layer, including shared maps.
+						subtextureFailed = true;
+						if ( builtMaterial ) { builtMaterial.matcap = null; builtMaterial.needsUpdate = true; }
+						_onError?.( error );
 
-					// Same as color map above, keep file name in userData for further usage.
-					params.userData.MMD.matcapFileName = data.textures[ material.envTextureIndex ];
+					} : undefined );
+					params.userData.MMD.matcapFileName = spherePath;
+					params.matcapCombine = material.envFlag === 2 ? AddOperation : MultiplyOperation;
+					if ( material.envFlag === 3 ) {
 
-					params.matcapCombine = material.envFlag === 1
-						? MultiplyOperation
-						: AddOperation;
+						params.matcapMode = 'subtexture';
+						// UV1/texture transforms and morphs can reach any alpha texel.
+						params.transparent = true;
+						if ( subtextureFailed ) params.matcap = null;
+
+					}
 
 				}
 
@@ -1387,6 +1398,7 @@ class MaterialBuilder {
 			}
 
 			const toonMaterial = new MMDToonMaterial( params );
+			builtMaterial = toonMaterial;
 			if ( ! isPmd( data ) ) {
 
 				const source = data.materials[ i ];
@@ -1508,7 +1520,18 @@ class MaterialBuilder {
 
 		}
 
-		if ( textures[ fullPath ] !== undefined ) return textures[ fullPath ];
+		if ( textures[ fullPath ] !== undefined ) {
+
+			const cached = textures[ fullPath ];
+			if ( onError ) {
+
+				if ( cached.failed ) onError( new Error( `THREE.MMDLoader: Failed texture ${filePath}` ) );
+				else cached.errorCallbacks?.push( onError );
+
+			}
+			return cached;
+
+		}
 
 		let loader = this.manager.getHandler( fullPath ) as Loader<MMDTexture> | TextureLoader | TGALoader | null;
 
@@ -1547,10 +1570,19 @@ class MaterialBuilder {
 			}
 
 			delete texture.readyCallbacks;
+			delete texture.errorCallbacks;
 
-		}, onProgress, onError ) as MMDTexture;
+		}, onProgress, error => {
+
+			texture.failed = true;
+			for ( const callback of texture.errorCallbacks ?? [] ) callback( error );
+			delete texture.errorCallbacks;
+			delete texture.readyCallbacks;
+
+		} ) as MMDTexture;
 
 		texture.readyCallbacks = [];
+		texture.errorCallbacks = onError ? [ onError ] : [];
 
 		textures[ fullPath ] = texture;
 

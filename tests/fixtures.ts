@@ -1,3 +1,5 @@
+import { deflateSync } from 'node:zlib';
+
 // Small, generated MMD assets keep tests independent of third-party models.
 class Writer {
 
@@ -416,3 +418,68 @@ export const physicsLayerBones = [
 ];
 export const physicsLayerBodies = [ { bone: 0, mode: 0, radius: 0.4 }, { bone: 1, mode: 1, radius: 0.1 }, { bone: 2, mode: 2, radius: 0.1 }, { bone: 3, mode: 1, radius: 0.1 }, { bone: 8, mode: 1, radius: 0.4 } ];
 export function physicsLayersPmxBuffer() { return sdefPmxBuffer( { physicsLayers: true } ); }
+
+// Authored RGBA and binary PMX mode-3 probes. No external model or image data.
+export const subtextureTexels = [
+	[ 255, 32, 16, 255 ], [ 16, 255, 64, 255 ], [ 40, 100, 220, 128 ], [ 180, 80, 40, 0 ],
+	[ 220, 160, 60, 255 ], [ 60, 220, 140, 200 ], [ 100, 40, 240, 255 ], [ 200, 120, 20, 64 ]
+];
+export function subtexturePmxBuffer( { additionalUVCount = 1, sphereIndex = 0, spherePath = 'generated-subtexture.png' }: { additionalUVCount?: number; sphereIndex?: number; spherePath?: string } = {} ) {
+
+	const w = new Writer();
+	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
+	for ( const value of [ 0, additionalUVCount, 1, 1, 1, 1, 1, 1 ] ) w.u8( value );
+	w.text( 'SubTexture modes 0–3' ).text( '' ).text( 'Generated test fixture (MIT)' ).text( '' );
+	w.u32( 12 );
+	for ( let mode = 0; mode < 4; mode ++ ) for ( const p of [ [ - 0.5, - 0.5, 0 ], [ 0.5, - 0.5, 0 ], [ 0, 0.5, 0 ] ] ) {
+
+		w.f32( p[ 0 ] + ( mode - 1.5 ) * 1.2, p[ 1 ], p[ 2 ], 0, 0, 1, 0.875, 0.75 );
+		for ( let c = 0; c < additionalUVCount; c ++ ) w.f32( 0.125, 0.75, 0.35, - 0.2 );
+		w.u8( 0 ).u8( 0 ).f32( 1 );
+
+	}
+	w.u32( 12 ); for ( let i = 0; i < 12; i ++ ) w.u8( i );
+	w.u32( 1 ).text( spherePath ).u32( 4 );
+	for ( let mode = 0; mode < 4; mode ++ ) {
+
+		w.text( `sphere-mode-${mode}` ).text( '' ).f32( 0.8, 0.6, 0.4, 1, 0, 0, 0, 8, 0, 0, 0 );
+		w.u8( 0x11 ).f32( 0, 0, 0, 1, 3 ).u8( 255 ).u8( sphereIndex ).u8( mode ).u8( 1 ).u8( 0 ).text( '' ).u32( 3 );
+
+	}
+	w.u32( 1 ).text( 'root' ).text( '' ).f32( 0, 0, 0 ).u8( 255 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
+	w.u32( 4 );
+	w.text( 'subtexture-uv1' ).text( '' ).u8( 4 ).u8( 4 ).u32( 12 );
+	for ( let i = 0; i < 12; i ++ ) w.u8( i ).f32( 0.8, - 0.6, 0.5, - 0.4 );
+	w.text( 'subtexture-grp' ).text( '' ).u8( 4 ).u8( 0 ).u32( 1 ).u8( 0 ).f32( 1 );
+	w.text( 'ordinary-uv' ).text( '' ).u8( 4 ).u8( 3 ).u32( 12 );
+	for ( let i = 0; i < 12; i ++ ) w.u8( i ).f32( - 0.6, - 0.4, 0, 0 );
+	w.text( 'subtexture-color' ).text( '' ).u8( 4 ).u8( 8 ).u32( 1 ).u8( 3 ).u8( 0 );
+	w.f32( 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.25, 0.75, 0.5, 1, 1, 1, 1 );
+	w.u32( 0 ).u32( 0 ).u32( 0 );
+	return w.buffer();
+
+}
+
+// Lossless RGBA PNG: exercise the loader's actual image decoder and origins.
+export function subtexturePngBuffer() {
+
+	const chunk = ( type: string, data: Buffer ) => {
+
+		const payload = Buffer.concat( [ Buffer.from( type ), data ] );
+		let crc = 0xffffffff;
+		for ( const byte of payload ) {
+
+			crc ^= byte;
+			for ( let bit = 0; bit < 8; bit ++ ) crc = ( crc >>> 1 ) ^ ( crc & 1 ? 0xedb88320 : 0 );
+
+		}
+		const header = Buffer.alloc( 4 ), footer = Buffer.alloc( 4 );
+		header.writeUInt32BE( data.length ); footer.writeUInt32BE( ( crc ^ 0xffffffff ) >>> 0 );
+		return Buffer.concat( [ header, payload, footer ] );
+
+	};
+	const header = Buffer.alloc( 13 ); header.writeUInt32BE( 4 ); header.writeUInt32BE( 2, 4 ); header[ 8 ] = 8; header[ 9 ] = 6;
+	const rows = Buffer.from( [ 0, ...subtextureTexels.slice( 0, 4 ).flat(), 0, ...subtextureTexels.slice( 4 ).flat() ] );
+	return Buffer.concat( [ Buffer.from( [ 137, 80, 78, 71, 13, 10, 26, 10 ] ), chunk( 'IHDR', header ), chunk( 'IDAT', deflateSync( rows ) ), chunk( 'IEND', Buffer.alloc( 0 ) ) ] );
+
+}
