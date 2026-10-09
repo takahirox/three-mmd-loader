@@ -13,20 +13,27 @@ function gitHash( bytes: Uint8Array ) {
 
 }
 
-console.log( 'Downloading the r171 MMD example assets for local use. See examples/README.md for asset terms and credits.' );
-for ( const { path, sha } of manifest.files ) {
+if ( process.env.MMD_EXAMPLE_FIXTURES === '1' ) {
 
-	const target = new URL( path, destination );
-	const existing = await readFile( target ).catch( () => null );
-	if ( existing && gitHash( existing ) === sha ) continue;
-	const url = `https://raw.githubusercontent.com/mrdoob/three.js/${manifest.commit}/examples/models/mmd/${path}`;
-	const response = await fetch( url, { signal: AbortSignal.timeout( 30000 ) } );
-	if ( ! response.ok ) throw new Error( `${path}: HTTP ${response.status}` );
-	const bytes = Buffer.from( await response.arrayBuffer() );
-	if ( gitHash( bytes ) !== sha ) throw new Error( `${path}: downloaded content does not match r171` );
-	await mkdir( dirname( fileURLToPath( target ) ), { recursive: true } );
-	await writeFile( target, bytes );
-	console.log( path );
+	console.log( 'Generated fixture build selected; no assets will be downloaded.' );
+
+} else {
+	console.log( 'Downloading the r171 MMD example assets for local use. See examples/README.md for asset terms and credits.' );
+	for ( const { path, sha } of manifest.files ) {
+
+		const target = new URL( path, destination );
+		const existing = await readFile( target ).catch( () => null );
+		if ( existing && gitHash( existing ) === sha ) continue;
+		const url = `https://raw.githubusercontent.com/mrdoob/three.js/${manifest.commit}/examples/models/mmd/${path}`;
+		const response = await fetch( url, { signal: AbortSignal.timeout( 30000 ) } );
+		if ( ! response.ok ) throw new Error( `${path}: HTTP ${response.status}` );
+		const bytes = Buffer.from( await response.arrayBuffer() );
+		if ( gitHash( bytes ) !== sha ) throw new Error( `${path}: downloaded content does not match r171` );
+		await mkdir( dirname( fileURLToPath( target ) ), { recursive: true } );
+		await writeFile( target, bytes );
+		console.log( path );
+
+	}
+	console.log( 'Assets ready. Run npm run dev and open http://127.0.0.1:8080/.' );
 
 }
-console.log( 'Assets ready. Run npm run dev and open http://127.0.0.1:8080/.' );

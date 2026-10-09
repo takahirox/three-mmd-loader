@@ -1,3 +1,4 @@
+import { updateMMDUVs } from './MMDUVMorphController.js';
 import { MMDMaterialMorphController } from './MMDMaterialMorphController.js';
 import type { Audio, Camera, Object3D as ThreeObject } from 'three';
 import type { AnimationAction, AnimationClip, Bone } from 'three';
@@ -28,7 +29,7 @@ export interface MMDAnimationParameters extends MMDPhysicsParameters {
 	delayTime?: number;
 }
 export interface MMDPoseParameters { resetPose?: boolean; ik?: boolean; grant?: boolean }
-export type MMDAnimationFeature = 'animation' | 'materialMorph' | 'boneMorph' | 'ik' | 'grant' | 'physics' | 'cameraAnimation';
+export type MMDAnimationFeature = 'animation' | 'uvMorph' | 'materialMorph' | 'boneMorph' | 'ik' | 'grant' | 'physics' | 'cameraAnimation';
 export type MMDCamera = Camera & { updateProjectionMatrix(): void };
 // Three.js exposes no public API for enumerating mixer actions/bindings.
 type MMDMixer = AnimationMixer & {
@@ -108,6 +109,7 @@ class MMDAnimationHelper {
 			animation: true,
 			boneMorph: true,
 			materialMorph: true,
+			uvMorph: true,
 			ik: true,
 			grant: true,
 			physics: true,
@@ -279,6 +281,7 @@ class MMDAnimationHelper {
 
 		boneMorphs?.apply( this.enabled.boneMorph );
 		this._getMaterialMorphController( mesh )?.apply( this.enabled.materialMorph );
+		updateMMDUVs( mesh, this.enabled.uvMorph );
 		mesh.updateMatrixWorld( true );
 
 		// PMX animation system special path
@@ -443,6 +446,7 @@ class MMDAnimationHelper {
 				// Release the authored pose so a new helper cannot bake in bone morphs.
 				this.boneMorphControllers.get( mesh )?.restore();
 				this.materialMorphControllers.get( mesh )?.apply( false );
+				updateMMDUVs( mesh, false );
 				this.objects.delete( mesh );
 				found = true;
 
@@ -616,6 +620,7 @@ class MMDAnimationHelper {
 
 		boneMorphs?.apply( this.enabled.boneMorph );
 		this._getMaterialMorphController( mesh )?.apply( this.enabled.materialMorph );
+		updateMMDUVs( mesh, this.enabled.uvMorph );
 
 		if ( ( mixer && this.enabled.animation ) || boneMorphs ) {
 

@@ -40,9 +40,10 @@ apply. This follows the MMD compatibility policy in
 [babylon-mmd's group evaluator](https://github.com/noname0310/babylon-mmd/blob/master/src/Runtime/mmdMorphControllerBase.ts)
 and its [0.45.0 changelog](https://github.com/noname0310/babylon-mmd/blob/main/CHANGELOG.md).
 No recursive traversal occurs. Negative, noninteger and out-of-range morph
-indices and nonfinite ratios are ignored. UV (type 3), additional UV (4–7) and other unimplemented targets remain
-unsupported. Type 8 targets use the [material morph evaluator](material-morphs.md)
-and its independent `materialMorph` feature toggle; group links do not change UVs.
+indices and nonfinite ratios are ignored. UV (type 3) and additional UV (4–7)
+use the [UV evaluator](uv-morphs.md) and its independent `uvMorph` toggle.
+Type 8 targets use the [material morph evaluator](material-morphs.md)
+and its independent `materialMorph` feature toggle. Other unimplemented targets remain unsupported.
 
 The loader exposes original group references for diagnostics, without removing
 ignored links, in `mesh.geometry.userData.MMD.groupMorphs`:
@@ -101,7 +102,7 @@ screenshots, asset manifest and URLs are unchanged.
 
 Generated PMX bytes parsed by the installed release include nonzero asymmetric
 vertex/bone data, fractional/negative ratios, repeated/shared targets, nested
-and cyclic groups, invalid links and unsupported UV targets (material targets are now supported by Issue #33). Explicit
+and cyclic groups, invalid links and UV targets with absent extra channels (UV targets are supported by Issue #35). Explicit
 CPU equations and scalar quaternion calculations compare direct, group,
 combined and multiple-group weights at 0, 0.5, 1 and reset, including actual
 bones and BDEF positions. Playback checks cover VMD, static changes, repeated

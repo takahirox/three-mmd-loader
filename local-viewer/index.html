@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Local PMX material/group/bone morph and SDEF inspection</title>
+<title>Local PMX UV/material/group/bone morph and SDEF inspection</title>
 <style>body{margin:0;font:14px system-ui;background:#20242b;color:white}canvas{display:block}#panel{position:absolute;top:12px;left:12px;max-width:440px;max-height:calc(100vh - 48px);overflow:auto;padding:12px;background:#18202de8}label{display:block;margin:8px 0}input[type=text]{width:100%;box-sizing:border-box}button,select,input{font:inherit}.bone-link{color:#8deda7;font-weight:bold}#status{white-space:pre-wrap}</style>
 <script type="importmap">{"imports":{
 "three":"/node_modules/three/build/three.module.js",
@@ -11,10 +11,14 @@
 "mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs",
 "three-mmd-loader":"/src/index.js"}}</script></head>
 <body><div id="panel">
-<strong>Private PMX material/group/bone morph and SDEF inspection</strong>
-<label>Local directory <select id="asset-directory"><option value="yyb-miku-10th">yyb-miku-10th/</option><option value="bone-morph">bone-morph/</option><option value="group-morph">group-morph/</option><option value="material-morph">material-morph/</option></select></label>
+<strong>Private PMX UV/material/group/bone morph and SDEF inspection</strong>
+<label>Local directory <select id="asset-directory"><option value="yyb-miku-10th">yyb-miku-10th/</option><option value="bone-morph">bone-morph/</option><option value="group-morph">group-morph/</option><option value="material-morph">material-morph/</option><option value="uv-morph">uv-morph/</option></select></label>
 <label>PMX path relative to the selected directory<input id="model" type="text" value="model.pmx"></label>
-<button id="load">Load PMX</button>
+<button id="load">Load PMX</button> <button id="generated-uv">Generated UV fixture</button>
+<label>Direct type 3–7 UV morph <select id="uv-morph" disabled></select></label>
+<label>UV weight <input id="uv-weight" type="range" min="0" max="1" step="0.01" value="0" disabled> <span id="uv-weight-value">0.00</span></label>
+<label><input id="checker" type="checkbox"> Generated asymmetric checker texture (UV0)</label>
+<pre id="uv-info" style="max-height:240px;overflow:auto;white-space:pre-wrap">Load PMX or the generated fixture to inspect UV0 / extra vec4 channels.</pre>
 <label>Type 0 group <select id="group" disabled></select></label>
 <label>Group weight <input id="group-weight" type="range" min="0" max="1" step="0.01" value="0" disabled> <span id="group-weight-value">0.00</span></label>
 <label>Direct group target <select id="group-target" disabled></select></label>

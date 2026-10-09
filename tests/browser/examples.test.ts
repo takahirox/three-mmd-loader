@@ -153,6 +153,10 @@ try {
 		await resizeFrame( index, 1024, 768 );
 		indexChecks.resizedWide = wideLayout( 300 );
 		page.location.hash = '#unknown_example';
+		// Clearing src navigates the iframe asynchronously; wait for its actual
+		// blank document instead of assuming it finishes in a 30 ms timer.
+		const clearStarted = performance.now();
+		while ( viewer.contentWindow.location.href !== 'about:blank' && performance.now() - clearStarted < 3000 ) await settle();
 		await settle();
 		indexChecks.invalidHash = viewer.contentWindow.location.href === 'about:blank' && viewer.hidden && !viewer.hasAttribute( 'src' ) && !placeholder.hidden && !doc.querySelector( '.selected' );
 		page.location.hash = '';

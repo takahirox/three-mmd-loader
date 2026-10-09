@@ -124,7 +124,7 @@ try {
  await until(()=>info.textContent.includes('No type 2 bone morph'));
  check(weight.disabled && select.disabled && group.disabled && groupWeight.disabled,'absent morph controls enabled');
  check(groupInfo.textContent.includes('No group → bone relation'),'absent group bone diagnostic missing');
- check(info.textContent.includes('not implemented'),'unsupported morphs falsely claimed');
+ check(document.getElementById('uv-info').textContent.includes('No type 3–7')&&document.getElementById('uv-weight').disabled,'absent UV morphs falsely claimed');
  const materialSelect=document.getElementById('material-morph'),materialWeight=document.getElementById('material-weight'),materialInfo=document.getElementById('material-info');
  check(materialSelect.disabled&&materialWeight.disabled&&materialInfo.textContent.includes('no type 8'),'missing material warning absent');
  document.getElementById('asset-directory').value='material-morph';document.getElementById('model').value='material.pmx';document.getElementById('load').click();
@@ -160,5 +160,61 @@ try {
 		await rm( directory, { recursive: true, force: true } ); await removeBrowserDirectory( profile );
 
 	}
+
+} );
+
+test( 'generated private UV viewer reports real payloads and independent direct/group sliders without external assets', { timeout: 60000 }, async () => {
+
+	const profile = await mkdtemp( join( tmpdir(), 'mmd-uv-viewer-profile-' ) );
+	const local = createSdefServer();
+	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
+<pre id="result">pending</pre><script type="module">
+import { MMDAnimationHelper } from 'three-mmd-loader';
+let mesh;const original=MMDAnimationHelper.prototype.update;
+MMDAnimationHelper.prototype.update=function(delta){const r=original.call(this,delta);mesh=this.meshes[0];return r;};
+const result=document.getElementById('result'),errors=[];console.error=(...args)=>errors.push(args.map(String).join(' '));
+const check=(v,m)=>{if(!v)throw new Error(m);};
+async function until(fn){const start=performance.now();while(!fn()){if(performance.now()-start>15000)throw new Error('viewer timeout '+document.getElementById('status').textContent);await new Promise(r=>setTimeout(r,30));}}
+try {
+ await until(()=>document.getElementById('generated-uv').onclick);document.getElementById('generated-uv').click();
+ await until(()=>mesh?.geometry.userData.MMD.uvMorphs?.length===5);
+ const select=document.getElementById('uv-morph'),slider=document.getElementById('uv-weight'),info=document.getElementById('uv-info');
+ check(select.options.length===5&&!slider.disabled,'UV controls absent');
+ check(document.getElementById('asset-directory').querySelector('option[value="uv-morph"]'),'UV directory absent');
+ check(info.textContent.includes('channel 4')&&info.textContent.includes('offset xyzw')&&info.textContent.includes('base [')&&info.textContent.includes('morphed [')&&info.textContent.includes('uv-group × 0.5'),'actual UV diagnostics absent');
+ check(mesh.material[0].map.image.width===8&&document.getElementById('checker').checked,'generated checker absent');
+ const position=mesh.geometry.attributes.position;check(position.getX(0)!==position.getX(1),'generated mesh is degenerate');
+ const group=document.getElementById('group'),groupWeight=document.getElementById('group-weight');group.value='6';group.dispatchEvent(new Event('change'));
+ check(document.getElementById('group-target').options.length===6,'UV group targets absent');
+ let assertions=0;
+ for(let c=0;c<5;c++) {
+  select.value=String(c+1);select.dispatchEvent(new Event('change'));
+  for(const direct of [0,0.5,1,0]) for(const g of [0,0.5,1,0]) {
+   slider.value=String(direct);slider.dispatchEvent(new Event('input'));groupWeight.value=String(g);groupWeight.dispatchEvent(new Event('input'));
+   const a=mesh.geometry.getAttribute(c?'mmdAdditionalUV'+c:'uv');const base=c?[c*0.1,0.2+c*0.01,0.3+c*0.02,0.4+c*0.03]:[0.125,0.2,0,0];
+   const delta=c?[c*0.03,-c*0.02,c*0.04,-c*0.05]:[0.6,0.35,0.2,-0.4];const w=direct+g*(c===0?0.75:0.5);
+   const actual=c?[a.getX(3),a.getY(3),a.getZ(3),a.getW(3)]:[a.getX(3),a.getY(3)];
+   actual.forEach((v,k)=>check(Math.abs(v-base[k]-w*delta[k])<1e-6,'viewer channel '+c+' component '+k));assertions++;
+  }
+ }
+ document.getElementById('reset').click();check(mesh.morphTargetInfluences.every(v=>v===0),'UV reset weights');
+ check(Math.abs(mesh.geometry.attributes.uv.getX(3)-0.125)<1e-6,'UV reset base');
+ document.getElementById('checker').checked=false;document.getElementById('checker').dispatchEvent(new Event('change'));check(mesh.material[0].map===null,'checker map restore');
+ result.textContent=encodeURIComponent(JSON.stringify({errors,assertions}));
+}catch(e){result.textContent=encodeURIComponent(JSON.stringify({errors:[e.stack||String(e)]}));}
+</script>`;
+	const server = createServer( ( request, response ) => {
+
+		if ( request.url?.startsWith( '/local-sdef/?' ) ) { response.setHeader( 'Content-Type', 'text/html' ); response.end( html ); }
+		else local.emit( 'request', request, response );
+
+	} );
+	try {
+
+		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+		const result = await runBrowser<{ errors: string[]; assertions: number }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/local-sdef/?webgl`, profile );
+		assert.deepEqual( result.errors, [] ); assert.equal( result.assertions, 80 );
+
+	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
 
 } );

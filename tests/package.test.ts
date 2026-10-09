@@ -18,13 +18,14 @@ const publicModules = {
 	'exporters/MMDExporter.js': [ 'MMDExporter' ],
 	'loaders/MMDLoader.js': [ 'MMDLoader' ],
 	'materials/MMDToonMaterial.js': [ 'MMDToonMaterial' ],
-	'effects/MMDOutlineEffect.js': [ 'MMDOutlineEffect' ]
+	'effects/MMDOutlineEffect.js': [ 'MMDOutlineEffect' ],
+	'materials/MMDUV.js': [ 'mmdAdditionalUV' ]
 };
 
 test( 'root and addon-style subpaths expose every public module', async () => {
 
 	const entry = await import( 'three-mmd-loader' );
-	assert.deepEqual( Object.keys( entry ).sort(), Object.values( publicModules ).flat().sort() );
+	assert.deepEqual( Object.keys( entry ).sort(), [ ...Object.values( publicModules ).flat(), 'updateMMDUVs' ].sort() );
 	await assert.rejects( import( 'three-mmd-loader/' + 'shaders/MMDToonShader.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
 	await assert.rejects( import( 'three-mmd-loader/' + 'libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
 	for ( const [ path, exports ] of Object.entries( publicModules ) ) {
@@ -84,7 +85,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		execFileSync( npm, [
 			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
 		], options );
-		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { groupMorphs: true } ) ], [ 'material.pmx', materialPmxBuffer() ] ] as const ) {
+		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { groupMorphs: true } ) ], [ 'material.pmx', materialPmxBuffer() ], [ 'uv.pmx', sdefPmxBuffer( { uvMorphs: true } ) ] ] as const ) {
 
 			writeFileSync( join( consumer, name ), Buffer.from( buffer ) );
 
@@ -103,7 +104,7 @@ assert.equal( REVISION, '186' );
 assert.ok( new entry.MMDLoader() instanceof Loader );
 new entry.MMDAnimationHelper();
 new entry.MMDExporter();
-assert.deepEqual( Object.keys( entry ).sort(), ${JSON.stringify( Object.values( publicModules ).flat().sort() )} );
+assert.deepEqual( Object.keys( entry ).sort(), ${JSON.stringify( [ ...Object.values( publicModules ).flat(), 'updateMMDUVs' ].sort() )} );
 for ( const name of [ 'MMDParser', 'Parser', 'CharsetEncoder' ] ) assert.ok( ! ( name in entry ) );
 await assert.rejects( import( 'three-mmd-loader/libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
 const loader = new entry.MMDLoader();
@@ -180,6 +181,14 @@ const materialResult=materialMesh.material[0].color.toArray();
 materialHelper.update(0);assert.deepEqual(materialMesh.material[0].color.toArray(),materialResult);
 materialHelper.enable('materialMorph',false).update(0);assert.equal(materialMesh.material[0].opacity,1);
 materialHelper.remove(materialMesh);materialMesh.geometry.dispose();materialMesh.material.forEach(m=>m.dispose());
+const uvMesh=await loader.loadAsync('data:application/octet-stream;base64,'+readFileSync('uv.pmx').toString('base64'));
+const uvHelper=new entry.MMDAnimationHelper();uvHelper.add(uvMesh,{physics:false});
+uvMesh.morphTargetInfluences[6]=1;uvHelper.update(0);
+assert.ok(Math.abs(uvMesh.geometry.attributes.uv.getX(3)-(0.125+0.6*0.75))<1e-6);
+assert.ok(Math.abs(uvMesh.geometry.attributes.mmdAdditionalUV4.getW(3)-(0.52-0.2*0.5))<1e-6);
+assert.ok(entry.mmdAdditionalUV(4).isNode);entry.updateMMDUVs(uvMesh);
+uvMesh.morphTargetInfluences.fill(0);uvHelper.update(0);assert.ok(Math.abs(uvMesh.geometry.attributes.uv.getY(3)-0.2)<1e-6);
+uvHelper.remove(uvMesh);uvMesh.geometry.dispose();uvMesh.material.forEach(m=>m.dispose());
 assert.throws( () => new entry.MMDPhysics( null, [] ), /Import ammo.js/ );
 for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )} ) ) {
   const module = await import( 'three-mmd-loader/' + path );

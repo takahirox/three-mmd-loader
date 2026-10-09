@@ -1,5 +1,7 @@
 import { assetManifest as manifest } from './assets-manifest.ts';
-import { cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { writeGeneratedExampleAssets } from './generated-example-assets.ts';
+import { tmpdir } from 'node:os';
+import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -71,7 +73,18 @@ export async function buildExamples( {
 
 if ( process.argv[ 1 ] && resolve( process.argv[ 1 ] ) === fileURLToPath( import.meta.url ) ) {
 
-	await buildExamples();
+	if ( process.env.MMD_EXAMPLE_FIXTURES === '1' ) {
+
+		const temporary = await mkdtemp( join( tmpdir(), 'mmd-generated-example-assets-' ) );
+		try {
+
+			await writeGeneratedExampleAssets( temporary );
+			await buildExamples( { assetDirectory: temporary } );
+			console.log( 'Generated fixture artifact only; do not deploy as the public examples.' );
+
+		} finally { await rm( temporary, { recursive: true, force: true } ); }
+
+	} else await buildExamples();
 	console.log( 'Static examples built in dist/examples/.' );
 
 }

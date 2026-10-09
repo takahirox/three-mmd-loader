@@ -92,3 +92,11 @@ import 'three-mmd-loader/libs/mmdparser.module.js';
 
 // @ts-expect-error the GLSL shader subpath was removed by the TSL migration
 import 'three-mmd-loader/shaders/MMDToonShader.js';
+
+import { mmdAdditionalUV, updateMMDUVs } from 'three-mmd-loader';
+import type { Node } from 'three/webgpu';
+const extraUV: Node<'vec4'> = mmdAdditionalUV( 4 );
+material.colorNode = extraUV;
+updateMMDUVs( mesh ); helper.enable( 'uvMorph', false );
+// @ts-expect-error PMX has only four extra UV channels
+mmdAdditionalUV( 5 );

@@ -32,6 +32,8 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		await mkdir( join( assetDirectory, 'private/material-morph' ), { recursive: true } );
 		await writeFile( join( assetDirectory, 'private/material-morph/model.pmx' ), 'private material sentinel' );
 		await writeFile( join( assetDirectory, 'private/material-morph/README.txt' ), 'local only' );
+		await mkdir( join( assetDirectory, 'private/uv-morph' ), { recursive: true } );
+		await writeFile( join( assetDirectory, 'private/uv-morph/model.pmx' ), 'private UV sentinel' );
 		await mkdir( outputDirectory );
 		await writeFile( join( outputDirectory, 'stale.html' ), 'old build' );
 		const commit = 'c'.repeat( 40 );

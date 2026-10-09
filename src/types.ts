@@ -73,6 +73,18 @@ export interface MMDGeometryData {
 	groupMorphs?: MMDGroupMorph[];
 	/** PMX type 8 payloads in file order, without coordinate conversion. */
 	materialMorphs?: MMDMaterialMorph[];
+	/** PMX types 3–7; all four authored offset components, without spatial conversion. */
+	uvMorphs?: MMDUVMorph[];
+	/** Immutable flattened vec4 bases: UV0 has zero z/w; only declared extra channels exist. */
+	uvBases?: readonly ( readonly number[] )[];
+}
+
+export interface MMDUVMorph {
+	index: number;
+	name: string;
+	/** 0 is standard UV; 1–4 are additional UV. */
+	channel: number;
+	elements: { index: number; uv: number[] }[];
 }
 
 export interface MMDMaterialValues {

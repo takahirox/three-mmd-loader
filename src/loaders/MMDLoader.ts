@@ -1,3 +1,4 @@
+import { installMMDUVUpdates } from '../animation/MMDUVMorphController.js';
 import { copyMaterialValues, freezeMaterialValues } from '../animation/MMDMaterialMorphController.js';
 import { protectMMDMorphWeights } from '../animation/MMDMorphWeights.js';
 import { enableSdefShadows } from '../skinning/MMDSdef.js';
@@ -5,7 +6,7 @@ import { Camera, InterleavedBuffer, InterleavedBufferAttribute, LoadingManager }
 import type { Texture, TypedArray, KeyframeTrack } from 'three';
 import { Parser } from 'mmd-parser';
 import type { Model, Pmd, Pmx, PmdMorph, PmxVertexMorph, Vmd, VmdMotion, VmdMorph, Vpd } from 'mmd-parser';
-import type { MMDBone, MMDBoneMorph, MMDGroupMorph, MMDMaterialMorph, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
+import type { MMDBone, MMDBoneMorph, MMDGroupMorph, MMDMaterialMorph, MMDUVMorph, MMDGeometry, MMDMesh, IK, IKLink, Grant, RigidBodyParameters, ConstraintParameters } from '../types.js';
 import {
 	AddOperation,
 	AnimationClip,
@@ -88,7 +89,6 @@ type MMDMaterialParameters = MMDToonMaterialParameters & {
  *
  * TODO
  *  - light motion in vmd support.
- *  - UV morphing support. Nested groups are intentionally ignored.
  *  - more precise grant skinning support.
  *  - shadow support.
  */
@@ -506,11 +506,12 @@ class MeshBuilder {
 			.build( data, geometry, onProgress, onError );
 
 		const mesh = new SkinnedMesh( geometry, material );
-		if ( geometry.userData.MMD.materialMorphs?.length ) protectMMDMorphWeights( mesh );
+		if ( geometry.morphTargets.length ) protectMMDMorphWeights( mesh );
 
 		const skeleton = new Skeleton( initBones( mesh ) );
 		mesh.bind( skeleton );
 		if ( geometry.hasAttribute( 'mmdSdefC' ) ) enableSdefShadows( mesh );
+		installMMDUVUpdates( mesh );
 
 		// console.log( mesh ); // for console debug
 
@@ -595,7 +596,6 @@ class GeometryBuilder {
 
 		// for geometry
 		const positions: number[] = [];
-		const uvs = [];
 		const normals = [];
 
 		const indices = [];
@@ -614,6 +614,7 @@ class GeometryBuilder {
 		const boneMorphs: MMDBoneMorph[] = [];
 		const groupMorphs: MMDGroupMorph[] = [];
 		const materialMorphs: MMDMaterialMorph[] = [];
+		const uvMorphs: MMDUVMorph[] = [];
 		const morphPositions = [];
 
 		const iks: IK[] = [];
@@ -646,12 +647,6 @@ class GeometryBuilder {
 			for ( let j = 0, jl = v.normal.length; j < jl; j ++ ) {
 
 				normals.push( v.normal[ j ] );
-
-			}
-
-			for ( let j = 0, jl = v.uv.length; j < jl; j ++ ) {
-
-				uvs.push( v.uv[ j ] );
 
 			}
 
@@ -988,7 +983,7 @@ class GeometryBuilder {
 						} else {
 
 							// Bone links run in MMDBoneMorphController. Nested groups
-							// are ignored for MMD compatibility; UV unsupported.
+							// are ignored for MMD compatibility; UVs use their own evaluator.
 
 						}
 
@@ -1009,25 +1004,10 @@ class GeometryBuilder {
 						} ) )
 					} );
 
-				} else if ( morph.type === 3 ) { // uv
+				} else if ( morph.type === 3 || morph.type === 4 || morph.type === 5 || morph.type === 6 || morph.type === 7 ) {
 
-					// TODO: implement
-
-				} else if ( morph.type === 4 ) { // additional uv1
-
-					// TODO: implement
-
-				} else if ( morph.type === 5 ) { // additional uv2
-
-					// TODO: implement
-
-				} else if ( morph.type === 6 ) { // additional uv3
-
-					// TODO: implement
-
-				} else if ( morph.type === 7 ) { // additional uv4
-
-					// TODO: implement
+					uvMorphs.push( { index: i, name: morph.name, channel: morph.type - 3,
+						elements: morph.elements.map( e => ( { index: e.index, uv: e.uv.slice() } ) ) } );
 
 				} else if ( morph.type === 8 ) { // material
 
@@ -1104,18 +1084,38 @@ class GeometryBuilder {
 
 		geometry.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
 		geometry.setAttribute( 'normal', new Float32BufferAttribute( normals, 3 ) );
-		geometry.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
 		geometry.setAttribute( 'skinIndex', new Uint16BufferAttribute( skinIndices, 4 ) );
 		geometry.setAttribute( 'skinWeight', new Float32BufferAttribute( skinWeights, 4 ) );
+		const extraCount = isPmd( data ) ? 0 : Math.min( 4, Math.max( 0, data.metadata.additionalUvNum ) );
+		const uvBases: number[][] = Array.from( { length: extraCount + 1 }, () => [] );
+		const finite = ( value: number | undefined ) => value !== undefined && Number.isFinite( Math.fround( value ) ) ? value : 0;
+		for ( const v of data.vertices ) {
+
+			uvBases[ 0 ].push( finite( v.uv[ 0 ] ), finite( v.uv[ 1 ] ), 0, 0 );
+			for ( let c = 1; c <= extraCount; c ++ ) for ( let k = 0; k < 4; k ++ ) uvBases[ c ].push( finite( 'auvs' in v ? v.auvs[ c - 1 ]?.[ k ] : 0 ) );
+
+		}
+		// UVs and SDEF share one buffer. Even with tangent and four vec4 channels,
+		// only seven buffers / fifteen locations are needed by a full SDEF shader.
+		const stride = 2 + extraCount * 4 + ( hasSdef ? 10 : 0 );
+		const packed = new Float32Array( data.metadata.vertexCount * stride );
+		for ( let i = 0; i < data.metadata.vertexCount; i ++ ) {
+
+			packed.set( uvBases[ 0 ].slice( i * 4, i * 4 + 2 ), i * stride );
+			for ( let c = 1; c <= extraCount; c ++ ) packed.set( uvBases[ c ].slice( i * 4, i * 4 + 4 ), i * stride + 2 + ( c - 1 ) * 4 );
+			if ( hasSdef ) packed.set( sdefData.slice( i * 10, i * 10 + 10 ), i * stride + 2 + extraCount * 4 );
+
+		}
+		const vertexData = new InterleavedBuffer( packed, stride );
+		geometry.setAttribute( 'uv', new InterleavedBufferAttribute( vertexData, 2, 0 ) );
+		for ( let c = 1; c <= extraCount; c ++ ) geometry.setAttribute( `mmdAdditionalUV${c}`, new InterleavedBufferAttribute( vertexData, 4, 2 + ( c - 1 ) * 4 ) );
 		if ( hasSdef ) {
 
-			// One GPU vertex buffer for all four SDEF attributes, staying below
-			// WebGPU's default eight-buffer limit alongside UVs and tangents.
-			const sdef = new InterleavedBuffer( new Float32Array( sdefData ), 10 );
-			geometry.setAttribute( 'mmdSkinningType', new InterleavedBufferAttribute( sdef, 1, 0 ) );
-			geometry.setAttribute( 'mmdSdefC', new InterleavedBufferAttribute( sdef, 3, 1 ) );
-			geometry.setAttribute( 'mmdSdefR0', new InterleavedBufferAttribute( sdef, 3, 4 ) );
-			geometry.setAttribute( 'mmdSdefR1', new InterleavedBufferAttribute( sdef, 3, 7 ) );
+			const offset = 2 + extraCount * 4;
+			geometry.setAttribute( 'mmdSkinningType', new InterleavedBufferAttribute( vertexData, 1, offset ) );
+			geometry.setAttribute( 'mmdSdefC', new InterleavedBufferAttribute( vertexData, 3, offset + 1 ) );
+			geometry.setAttribute( 'mmdSdefR0', new InterleavedBufferAttribute( vertexData, 3, offset + 4 ) );
+			geometry.setAttribute( 'mmdSdefR1', new InterleavedBufferAttribute( vertexData, 3, offset + 7 ) );
 
 		} else {
 
@@ -1146,6 +1146,8 @@ class GeometryBuilder {
 			boneMorphs: boneMorphs,
 			groupMorphs: groupMorphs,
 			materialMorphs: materialMorphs,
+			uvMorphs,
+			uvBases: Object.freeze( uvBases.map( base => Object.freeze( base ) ) ),
 			bones: bones,
 			iks: iks,
 			grants: grants,
@@ -1402,6 +1404,8 @@ class MaterialBuilder {
 
 			if ( params.map ) {
 
+				// UV morphs can reach alpha texels outside the rest triangle.
+				if ( geometry.userData.MMD.uvMorphs?.some( m => m.channel === 0 ) ) params.transparent = true;
 				if ( ! params.transparent ) {
 
 					this._checkImageTransparency( params.map, geometry, i );
@@ -1624,7 +1628,7 @@ class MaterialBuilder {
 
 			}
 
-			function detectImageTransparency( image: ImageData, uvs: TypedArray, indices: TypedArray ) {
+			function detectImageTransparency( image: ImageData, uvs: MMDGeometry[ 'attributes' ][ string ], indices: TypedArray ) {
 
 				const width = image.width;
 				const height = image.height;
@@ -1640,7 +1644,7 @@ class MaterialBuilder {
 					for ( let j = 0; j < 3; j ++ ) {
 
 						const index = indices[ i * 3 + j ];
-						const uv = { x: uvs[ index * 2 + 0 ], y: uvs[ index * 2 + 1 ] };
+						const uv = { x: uvs.getX( index ), y: uvs.getY( index ) };
 
 						if ( getAlphaByUv( image, uv ) < threshold ) return true;
 
@@ -1708,7 +1712,7 @@ class MaterialBuilder {
 
 			if ( detectImageTransparency(
 				imageData,
-				geometry.attributes.uv.array,
+				geometry.attributes.uv,
 				geometry.index!.array.slice( group.start, group.start + group.count ) ) ) {
 
 				map.transparent = true;

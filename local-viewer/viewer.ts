@@ -1,5 +1,5 @@
-import { AmbientLight, Box3, Clock, Color, DirectionalLight, PerspectiveCamera, Quaternion, Scene, Vector3 } from 'three';
-import type { AnimationClip, BufferAttribute, InterleavedBufferAttribute } from 'three';
+import { AmbientLight, Box3, Clock, Color, DataTexture, NearestFilter, RepeatWrapping, DirectionalLight, PerspectiveCamera, Quaternion, Scene, Vector3 } from 'three';
+import type { AnimationClip, BufferAttribute, InterleavedBufferAttribute, Texture } from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MMDAnimationHelper, MMDLoader, MMDOutlineEffect } from 'three-mmd-loader';
@@ -41,6 +41,17 @@ const groupInfo = element<HTMLPreElement>( 'group-info' );
 const materialMorph = element<HTMLSelectElement>( 'material-morph' );
 const materialWeight = element<HTMLInputElement>( 'material-weight' );
 const materialInfo = element<HTMLPreElement>( 'material-info' );
+const uvMorph = element<HTMLSelectElement>( 'uv-morph' );
+const uvWeight = element<HTMLInputElement>( 'uv-weight' );
+const uvInfo = element<HTMLPreElement>( 'uv-info' );
+const checker = element<HTMLInputElement>( 'checker' );
+const pixels = new Uint8Array( 8 * 8 * 4 );
+for ( let y = 0; y < 8; y ++ ) for ( let x = 0; x < 8; x ++ ) pixels.set( [ x % 2 ? 240 : 40, y % 2 ? 180 : 30, x < y ? 220 : 60, 255 ], ( y * 8 + x ) * 4 );
+const checkerMap = new DataTexture( pixels, 8, 8 );
+checkerMap.minFilter = checkerMap.magFilter = NearestFilter;
+checkerMap.wrapS = checkerMap.wrapT = RepeatWrapping;
+checkerMap.flipY = false; checkerMap.needsUpdate = true;
+let originalMaps: ( Texture | null )[] = [];
 let loadedDirectory = '';
 
 function privateURL( path: string, directory = assetDirectory.value ) {
@@ -96,7 +107,7 @@ function reportGroups() {
 		for ( const e of g.elements ) {
 
 			const line = document.createElement( 'span' );
-			const supported = ( e.type === 1 || e.type === 2 || e.type === 8 ) && Number.isFinite( e.ratio );
+			const supported = ( e.type !== null && e.type >= 1 && e.type <= 8 ) && Number.isFinite( e.ratio );
 			line.textContent = `  → ${e.index}: ${e.name ?? 'missing'} (type ${e.type ?? 'invalid'}), ratio ${e.ratio}${supported ? '' : ' — ignored/unsupported'}\n`;
 			if ( e.type === 2 && supported ) {
 
@@ -111,7 +122,7 @@ function reportGroups() {
 
 	}
 	const diagnostic = document.createElement( 'span' );
-	diagnostic.textContent = ( boneLinks ? `${boneLinks} group → bone links. Bone links highlighted.` : 'No group → bone relation is present in this PMX.' ) + '\nNested groups are ignored; UV/additional-UV morphs are unsupported. Material links are supported.';
+	diagnostic.textContent = ( boneLinks ? `${boneLinks} group → bone links. Bone links highlighted.` : 'No group → bone relation is present in this PMX.' ) + '\nNested groups are ignored; vertex, bone, UV and material links are supported. Extra UV channels require a shader consumer.';
 	groupInfo.replaceChildren( ...lines, diagnostic );
 	groupWeight.value = String( mesh?.morphTargetInfluences?.[ Number( group.value ) ] ?? 0 );
 	targetWeight.value = String( mesh?.morphTargetInfluences?.[ Number( groupTarget.value ) ] ?? 0 );
@@ -122,7 +133,7 @@ function reportGroups() {
 function selectGroup() {
 
 	const selected = mesh?.geometry.userData.MMD.groupMorphs?.find( g => g.index === Number( group.value ) );
-	const targets = new Map( selected?.elements.filter( e => ( e.type === 1 || e.type === 2 || e.type === 8 ) && Number.isFinite( e.ratio ) ).map( e => [ e.index, e ] ) );
+	const targets = new Map( selected?.elements.filter( e => ( e.type !== null && e.type >= 1 && e.type <= 8 ) && Number.isFinite( e.ratio ) ).map( e => [ e.index, e ] ) );
 	groupTarget.replaceChildren( ...Array.from( targets.values(), e => new Option( `${e.index}: ${e.name} (type ${e.type})`, String( e.index ) ) ) );
 	groupTarget.disabled = targetWeight.disabled = targets.size === 0;
 	reportGroups();
@@ -155,14 +166,42 @@ function reportMaterials() {
 }
 materialMorph.onchange = reportMaterials;
 materialWeight.oninput = () => setWeight( materialMorph, materialWeight );
+function reportUVs() {
+
+	const morphs = mesh?.geometry.userData.MMD.uvMorphs ?? [];
+	uvWeight.value = String( mesh?.morphTargetInfluences?.[ Number( uvMorph.value ) ] ?? 0 );
+	element( 'uv-weight-value' ).textContent = Number( uvWeight.value ).toFixed( 2 );
+	uvInfo.textContent = morphs.length ? morphs.map( m => {
+
+		const base = mesh!.geometry.userData.MMD.uvBases?.[ m.channel ];
+		const a = mesh!.geometry.getAttribute( m.channel ? `mmdAdditionalUV${m.channel}` : 'uv' );
+		const links = mesh!.geometry.userData.MMD.groupMorphs?.flatMap( g => g.elements.filter( e => e.index === m.index ).map( e => `${g.name} × ${e.ratio}` ) ) ?? [];
+		return `${m.index}: ${m.name} (type ${m.channel + 3}), channel ${m.channel}; ${m.elements.filter( e => e.uv.some( v => Number.isFinite( v ) && v !== 0 ) ).length} nonzero elements\nGroups: ${links.join( ', ' ) || 'none'}\n` + m.elements.slice( 0, 200 ).map( e => {
+
+			const valid = a && e.index >= 0 && e.index < a.count;
+			const current = valid ? [ a.getX( e.index ), a.getY( e.index ), ...( m.channel ? [ a.getZ( e.index ), a.getW( e.index ) ] : [] ) ] : [];
+			return `  Vertex ${e.index}, offset xyzw [${e.uv}]; base [${base?.slice( e.index * 4, e.index * 4 + 4 ) ?? 'absent'}]; morphed [${current}]`;
+
+		} ).join( '\n' );
+
+	} ).join( '\n\n' ) + '\nUV0 samples xy only (offset z/w retained above). Extra UV1–4 are vec4 data; default material has no consumer. First 200 elements per morph shown.' : 'No type 3–7 UV morph is present.';
+
+}
+uvMorph.onchange = reportUVs;
+uvWeight.oninput = () => setWeight( uvMorph, uvWeight );
+checker.onchange = () => {
+
+	mesh?.material.forEach( ( m, i ) => { m.map = checker.checked ? checkerMap : originalMaps[ i ]; m.needsUpdate = true; } );
+
+};
 function reportMorphs() {
 
-	reportGroups(); reportMaterials();
+	reportGroups(); reportMaterials(); reportUVs();
 
 	const boneMorphs = mesh?.geometry.userData.MMD.boneMorphs ?? [];
 	if ( ! boneMorphs.length ) {
 
-		morphInfo.textContent = mesh ? 'No type 2 bone morph is present in this PMX. UV morphs are not implemented by this viewer.' : 'Load a PMX to enumerate its actual type 2 bone morphs.';
+		morphInfo.textContent = mesh ? 'No type 2 bone morph is present in this PMX. Inspect type 3–7 in the UV panel.' : 'Load a PMX to enumerate its actual type 2 bone morphs.';
 		weight.value = '0'; element( 'weight-value' ).textContent = '0.00'; return;
 
 	}
@@ -174,7 +213,7 @@ function reportMorphs() {
 		const lines = m.elements.map( e => `  Bone ${e.index}: ${mesh!.skeleton.bones[ e.index ]?.name ?? 'missing'}\n    translation: [${e.position.join( ', ' )}]\n    rotation (xyzw): [${e.rotation.join( ', ' )}]` );
 		return `${m.index}: ${m.name} — weight ${mesh!.morphTargetInfluences![ m.index ].toFixed( 2 )}\n${lines.join( '\n' )}`;
 
-	} ).join( '\n\n' ) + '\n\nDirect type 2 controls. Group links to vertex/bone/material targets are supported; UV morph dispatch is unsupported. Values are in right-handed local space.';
+	} ).join( '\n\n' ) + '\n\nDirect type 2 controls. Group links to vertex/bone/material targets are supported; UV morph dispatch is supported. Values are in right-handed local space.';
 
 }
 morph.onchange = reportMorphs;
@@ -187,17 +226,21 @@ weight.oninput = () => {
 	report( `Bone morph ${morph.selectedOptions[ 0 ].text}: weight ${value.toFixed( 2 )}.` );
 
 };
-element( 'load' ).onclick = async () => {
+async function loadModel( generated = false ) {
 
 	try {
 
 		status.textContent = 'Loading local PMX and textures…';
 		const directory = assetDirectory.value;
-		const next = await loader.loadAsync( privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
+		const next = await loader.loadAsync( generated ? '/local-sdef/generated-uv.pmx' : privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
 		reset();
 		if ( mesh ) { helper.remove( mesh ); scene.remove( mesh ); mesh.geometry.dispose(); mesh.skeleton.dispose(); mesh.material.forEach( m => m.dispose() ); }
 		mesh = next; mesh.frustumCulled = false; scene.add( mesh ); loadedDirectory = directory;
 		helper.add( mesh, { physics: false } );
+		originalMaps = mesh.material.map( m => m.map ); checker.checked = generated; checker.onchange!( new Event( 'change' ) );
+		const uvs = mesh.geometry.userData.MMD.uvMorphs ?? [];
+		uvMorph.replaceChildren( ...uvs.map( m => new Option( `${m.index}: ${m.name} (UV${m.channel})`, String( m.index ) ) ) );
+		uvMorph.disabled = uvWeight.disabled = uvs.length === 0;
 		const materials = mesh.geometry.userData.MMD.materialMorphs ?? [];
 		materialMorph.replaceChildren( ...materials.map( m => new Option( `${m.index}: ${m.name}`, String( m.index ) ) ) );
 		materialMorph.disabled = materialWeight.disabled = materials.length === 0;
@@ -226,7 +269,9 @@ element( 'load' ).onclick = async () => {
 
 	} catch ( error ) { status.textContent = String( error ); }
 
-};
+}
+element( 'load' ).onclick = () => loadModel();
+element( 'generated-uv' ).onclick = () => loadModel( true );
 bend.oninput = applyBend; axis.onchange = applyBend;
 bone.onchange = () => { bend.value = '0'; applyBend(); };
 element( 'reset' ).onclick = reset;
