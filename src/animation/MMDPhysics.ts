@@ -422,7 +422,9 @@ class MMDPhysics {
 
 		for ( let i = 0, il = this.bodies.length; i < il; i ++ ) {
 
-			this.bodies[ i ].updateFromBone();
+			// Only the helper stages post-phase inputs. Standalone adapters read
+			// the caller's current pose synchronously, including post PMX bones.
+			this.bodies[ i ].updateFromBone( Boolean( this.poseLayers ) );
 
 		}
 
@@ -446,7 +448,7 @@ class MMDPhysics {
 
 		for ( let i = 0, il = this.bodies.length; i < il; i ++ ) {
 
-			this.bodies[ i ].updateBone( alignPosition );
+			this.bodies[ i ].updateBone( alignPosition, Boolean( this.poseLayers ) );
 
 		}
 
@@ -1011,9 +1013,9 @@ class RigidBody {
 	 *
 	 * @return {RidigBody}
 	 */
-	updateFromBone() {
+	updateFromBone( defer = false ) {
 
-		if ( this.deferred ) {
+		if ( this.deferred && defer ) {
 
 			if ( this.pending ) {
 
@@ -1050,7 +1052,7 @@ class RigidBody {
 	 *
 	 * @return {RidigBody}
 	 */
-	updateBone( alignPosition = true ) {
+	updateBone( alignPosition = true, defer = false ) {
 
 		if ( this.params.type === 0 || this.params.boneIndex === - 1 ) {
 
@@ -1068,7 +1070,7 @@ class RigidBody {
 
 		this.bone.updateMatrixWorld( true );
 
-		if ( this.params.type === 2 && alignPosition && ! this.deferred ) {
+		if ( this.params.type === 2 && alignPosition && ! ( this.deferred && defer ) ) {
 
 			this._setPositionFromBone();
 

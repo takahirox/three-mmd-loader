@@ -5,7 +5,7 @@ import { Parser } from 'mmd-parser';
 import { Texture, Vector3 } from 'three';
 import { MMDAnimationHelper, MMDLoader, MMDPhysics } from 'three-mmd-loader';
 import type { AmmoAPI, MMDMesh } from 'three-mmd-loader';
-import { physicsLayerBones, physicsLayerBodies, physicsLayersPmxBuffer, vmdBuffer } from './fixtures.ts';
+import { physicsLayerBones, physicsLayerBodies, physicsLayersPmxBuffer, pmdBuffer, vmdBuffer } from './fixtures.ts';
 import { product } from './bone-morph-reference.ts';
 import { power, rotate } from './grant-reference.ts';
 
@@ -185,6 +185,10 @@ for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ fal
 		delete data.bones[ 2 ].grant;
 		data.bones[ 2 ].parentIndex = 1; data.bones[ 2 ].position = [ 2, 0, 1 ]; data.bones[ 2 ].transformationClass = 3;
 		data.rigidBodies[ 2 ].type = 1; data.rigidBodies[ 2 ].position = [ 2, 0, 1 ];
+		// A later independent local grant must read the rebased source, rather
+		// than its temporarily displaced pose under the rotated ancestor.
+		data.bones[ 7 ].flag = 0x1380; data.bones[ 7 ].transformationClass = 7;
+		data.bones[ 7 ].grant = { parentIndex: 1, ratio: 1, isLocal: true, affectPosition: true, affectRotation: true };
 		if ( contributions === 'ik' ) {
 
 			data.bones[ 5 ].parentIndex = 1; data.bones[ 5 ].position = [ 2, 1, 0 ]; data.bones[ 5 ].flag = 0x1000;
@@ -220,8 +224,80 @@ for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ fal
 			near( mesh.skeleton.bones[ 1 ].getWorldQuaternion( mesh.skeleton.bones[ 1 ].quaternion.clone() ).toArray(), rotation );
 			near( mesh.skeleton.bones[ 2 ].getWorldPosition( new Vector3() ).toArray(), [ 2, 0, 1 ] );
 			near( mesh.skeleton.bones[ 2 ].getWorldQuaternion( mesh.skeleton.bones[ 2 ].quaternion.clone() ).toArray(), [ 0, 0, 0, 1 ] );
+			near( mesh.skeleton.bones[ 7 ].position.toArray(), [ 0.5 + offset[ 1 ], 0.5 - offset[ 0 ], offset[ 2 ] ] );
+			near( mesh.skeleton.bones[ 7 ].quaternion.toArray(), rotation );
 
 		}
+
+	} finally { delete ammoGlobal.Ammo; }
+
+} );
+
+for ( const pmxAnimation of [ false, true ] ) for ( const pmxFirst of [ false, true ] ) test( `mixed shared world pauses independently of master format pmx=${pmxAnimation} pmxFirst=${pmxFirst}`, async () => {
+
+	await initializeAmmo();
+	try {
+
+		const { mesh, loader } = setup(), pmd = loader.meshBuilder.build( new Parser().parsePmd( pmdBuffer(), true ), '' );
+		const helper = new MMDAnimationHelper( { pmxAnimation } ); helper.sharedPhysics = true;
+		for ( const participant of pmxFirst ? [ mesh, pmd ] : [ pmd, mesh ] ) helper.add( participant, { warmup: 0, animationWarmup: false, gravity: new Vector3(), unitStep: 1 / 60 } );
+		const physics = helper.objects.get( mesh )!.physics!, velocity = new ammoGlobal.Ammo!.btVector3( 1, 0, 0 );
+		physics.bodies[ 1 ].body.setLinearVelocity!( velocity );
+		for ( let frame = 0; frame < 5; frame ++ ) {
+
+			helper.update( 0 );
+			near( bodyPosition( helper, mesh, 1 ), [ 2, 0, 0 ] );
+			near( physics.bodyResults[ 1 ].position, [ 2, 0, 0 ] ); assert.equal( physics.bodyResultPhase, 'reset' );
+			near( mesh.skeleton.bones[ 1 ].getWorldPosition( new Vector3() ).toArray(), [ 2, 0, 0 ] );
+
+		}
+		for ( let frame = 1; frame <= 5; frame ++ ) {
+
+			helper.update( 1 / 60 ); helper.update( 0 );
+			near( bodyPosition( helper, mesh, 1 ), [ 2 + frame / 60, 0, 0 ] );
+			near( physics.bodyResults[ 1 ].position, [ 2 + frame / 60, 0, 0 ] ); assert.equal( physics.bodyResultPhase, 'step' );
+
+		}
+
+	} finally { delete ammoGlobal.Ammo; }
+
+} );
+
+for ( const phase of [ 'pre', 'post', 'post-parent' ] ) test( `standalone physics synchronizes kinematic and mode2 bodies during update/reset/warmup phase=${phase}`, async () => {
+
+	await initializeAmmo();
+	try {
+
+		const { data, loader } = setup();
+		data.bones[ 0 ].flag = phase === 'post' ? 0x1000 : 0;
+		data.bones[ 2 ].flag = phase === 'post' ? 0x1000 : 0;
+		if ( phase === 'post-parent' ) {
+
+			data.bones[ 7 ].flag = 0x1000; data.bones[ 0 ].parentIndex = 7;
+
+		}
+		const mesh = loader.meshBuilder.build( data, '' ), meta = mesh.geometry.userData.MMD;
+		const physics = new MMDPhysics( mesh, meta.rigidBodies, meta.constraints, { gravity: new Vector3(), unitStep: 1 / 60 } );
+		const position = ( index: number ) => { const p = physics.bodies[ index ].body.getCenterOfMassTransform().getOrigin(); return [ p.x(), p.y(), p.z() ]; };
+		const verify = ( x: number ) => {
+
+			near( position( 0 ), [ x, 0, 0 ] ); near( physics.bodyResults[ 0 ].position, [ x, 0, 0 ] );
+			near( position( 2 ), [ -2 + x, 0, 0 ] );
+			near( mesh.skeleton.bones[ 2 ].getWorldPosition( new Vector3() ).toArray(), [ -2 + x, 0, 0 ] );
+			assert.equal( physics.bodies[ 0 ].getDeferredPose(), null ); assert.equal( physics.bodies[ 2 ].getDeferredPose(), null );
+
+		};
+		for ( const x of [ 3, 4, 5 ] ) {
+
+			mesh.skeleton.bones[ 0 ].position.x = x - ( phase === 'post-parent' ? 0.5 : 0 );
+			mesh.skeleton.bones[ 2 ].position.x = -2.5 + x; mesh.updateMatrixWorld( true );
+			physics.update( 1 / 60 ); verify( x ); assert.equal( physics.bodyResultPhase, 'step' );
+			physics.warmup( 3 ); verify( x );
+			physics.reset(); verify( x ); assert.equal( physics.bodyResultPhase, 'reset' );
+			physics.warmup( 3 ); verify( x );
+
+		}
+		physics.dispose();
 
 	} finally { delete ammoGlobal.Ammo; }
 

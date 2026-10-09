@@ -736,14 +736,22 @@ class MMDAnimationHelper {
 		// Later post IK/grants can move ancestors of already processed dynamic
 		// bones in either phase. Rebase parent first, preserving each bone's own
 		// post contributions, so correcting a parent cannot move a corrected child.
-		if ( physicsActive && objects.poseLayers ) for ( const index of objects.poseLayers.parentFirstIndices ) {
+		if ( physicsActive ) this._reprojectDynamicBones( mesh );
+		objects.poseLayers?.capture( objects.poseLayers.final );
+		objects.physics?.deferAfterPhysics();
+
+	}
+
+	_reprojectDynamicBones( mesh: MMDMesh ) {
+
+		const objects = this.objects.get( mesh )!;
+		if ( ! objects.poseLayers || ! objects.physics ) return;
+		for ( const index of objects.poseLayers.parentFirstIndices ) {
 
 			if ( mesh.geometry.userData.MMD.bones[ index ].rigidBodyType <= 0 ) continue;
 			objects.poseLayers.reprojectDynamic( index, () => objects.physics!.projectBone( index ) );
 
 		}
-		objects.poseLayers?.capture( objects.poseLayers.final );
-		objects.physics?.deferAfterPhysics();
 
 	}
 
@@ -807,18 +815,17 @@ class MMDAnimationHelper {
 		for ( const data of sortedBonesData ) {
 
 			if ( afterPhysics !== undefined && Boolean( ( data.flag ?? 0 ) & 0x1000 ) !== afterPhysics ) continue;
-			if ( afterPhysics === true && physicsActive && data.rigidBodyType > 0 ) {
-
-				this.objects.get( mesh )?.poseLayers?.reprojectDynamic( data.index, () => this.objects.get( mesh )!.physics!.projectBone( data.index ) );
-
-			}
 			if ( grantSolver && data.grant ) {
 
+				// Earlier post operations may have moved any source/target ancestor.
+				// Publish body authority before consumers read accumulated matrices.
+				if ( afterPhysics === true && physicsActive ) this._reprojectDynamicBones( mesh );
 				grantSolver.updateOne( data.grant, afterPhysics === true && physicsActive );
 
 			}
 			if ( ikSolver && data.ik ) {
 
+				if ( afterPhysics === true && physicsActive ) this._reprojectDynamicBones( mesh );
 				mesh.updateMatrixWorld( true );
 				ikSolver.updateOne( data.ik );
 
@@ -1140,6 +1147,12 @@ class MMDAnimationHelper {
 
 		if ( physics === null ) return;
 
+		// A shared world has one clock. Any PMX participant requires zero-time
+		// pose evaluation to leave every body's simulation state unchanged,
+		// regardless of which mesh supplied the master adapter.
+		const evaluateOnly = ! Number.isFinite( delta ) || ( delta <= 0 && this.meshes.some( mesh =>
+			mesh.geometry.userData.MMD.format === 'pmx' && Boolean( this.objects.get( mesh )?.physics ) ) );
+
 		for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
 			const p = this.objects.get( this.meshes[ i ] )!.physics;
@@ -1147,13 +1160,13 @@ class MMDAnimationHelper {
 			if ( p !== null && p !== undefined ) {
 
 				this.onBeforePhysics( this.meshes[ i ] );
-				if ( delta > 0 || ! p.poseLayers ) p._updateRigidBodies();
+				if ( ! evaluateOnly ) p._updateRigidBodies();
 
 			}
 
 		}
 
-		physics._stepSimulation( delta );
+		if ( ! evaluateOnly ) physics._stepSimulation( delta );
 
 		for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
@@ -1162,7 +1175,7 @@ class MMDAnimationHelper {
 			if ( p !== null && p !== undefined ) {
 
 				if ( delta > 0 ) p._captureBodyResults( 'step' );
-				p._updateBones( delta > 0 || ! p.poseLayers );
+				p._updateBones( ! evaluateOnly );
 
 			}
 
