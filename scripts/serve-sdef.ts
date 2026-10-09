@@ -1,4 +1,4 @@
-import { grantPmxBuffer, physicsLayersPmxBuffer, sdefPmxBuffer } from '../tests/fixtures.ts';
+import { grantPmxBuffer, physicsLayersPmxBuffer, sdefPmxBuffer, subtexturePmxBuffer, subtexturePngBuffer } from '../tests/fixtures.ts';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
@@ -48,6 +48,14 @@ export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirec
 			} else if ( path === '/local-sdef/generated-grant.pmx' ) {
 
 				content = Buffer.from( grantPmxBuffer() ); type = 'application/octet-stream';
+
+			} else if ( path === '/local-sdef/generated-subtexture.pmx' ) {
+
+				content = Buffer.from( subtexturePmxBuffer() ); type = 'application/octet-stream';
+
+			} else if ( path === '/local-sdef/generated-subtexture.png' ) {
+
+				content = subtexturePngBuffer(); type = 'image/png';
 
 			} else if ( path === '/local-sdef/generated-uv.pmx' ) {
 
