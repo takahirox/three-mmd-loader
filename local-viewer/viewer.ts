@@ -50,6 +50,36 @@ const bone = element<HTMLSelectElement>( 'bone' );
 const axis = element<HTMLSelectElement>( 'axis' );
 const comparison = element<HTMLInputElement>( 'bdef' );
 const assetDirectory = element<HTMLSelectElement>( 'asset-directory' );
+const installedModel = element<HTMLSelectElement>( 'installed-model' );
+interface DiscoveredModel { directory: string; path: string; report: { name: string; features: Record<string, string> }; motions: string[]; noticePaths: string[]; notices: { path: string; text: string }[] }
+let discoveredModels: DiscoveredModel[] = [];
+async function refreshModels() {
+
+	try {
+
+		const response = await fetch( '/local-sdef/models.json' );
+		if ( ! response.ok ) throw new Error( 'Local model discovery failed' );
+		const catalog = await response.json() as { models: DiscoveredModel[]; errors: { directory: string; message: string }[] };
+		discoveredModels = catalog.models;
+		installedModel.replaceChildren( new Option( 'Choose a discovered local PMX…', '' ), ...discoveredModels.map( ( m, i ) => new Option( `${m.report.name || 'PMX'} — ${m.directory}/${m.path}`, String( i ) ) ) );
+		element( 'model-report' ).textContent = `${catalog.models.length} local PMX models discovered. Presence in a file is not a recorded visual test.\n${catalog.errors.map( e => `${e.directory}: ${e.message}` ).join( '\n' )}`;
+
+	} catch ( error ) { element( 'model-report' ).textContent = String( error ); }
+
+}
+installedModel.onchange = () => {
+
+	const selected = installedModel.value === '' ? undefined : discoveredModels[ Number( installedModel.value ) ];
+	if ( ! selected ) return;
+	assetDirectory.value = selected.directory;
+	element<HTMLInputElement>( 'model' ).value = selected.path;
+	element<HTMLInputElement>( 'motion' ).value = selected.motions[ 0 ] ?? '';
+	element( 'model-report' ).textContent = JSON.stringify( selected.report, null, 2 ) + '\nVMDs present: ' + selected.motions.join( ', ' ) + '\nOriginal notice paths: ' + selected.noticePaths.join( ', ' );
+	element( 'model-notices' ).textContent = selected.notices.length ? selected.notices.map( n => n.path + '\n' + n.text ).join( '\n\n' ) + '\nDisplay limited to 16 notices of at most 64 KiB each; inspect all original notice paths locally.' : 'No terms found. Inspect upstream/local notices before use; no license is inferred.';
+
+};
+element( 'refresh-models' ).onclick = refreshModels;
+void refreshModels();
 const morph = element<HTMLSelectElement>( 'morph' );
 const weight = element<HTMLInputElement>( 'weight' );
 const morphInfo = element<HTMLPreElement>( 'morph-info' );
@@ -269,12 +299,30 @@ async function loadModel( generated: boolean | 'grant' | 'physics-layers' | 'sub
 		status.textContent = 'Loading local PMX and textures…';
 		const directory = assetDirectory.value;
 		const next = await loader.loadAsync( generated ? ( generated === 'subtexture' ? '/local-sdef/generated-subtexture.pmx' : generated === 'physics-layers' ? '/local-sdef/generated-physics-layers.pmx' : generated === 'grant' ? '/local-sdef/generated-grant.pmx' : '/local-sdef/generated-uv.pmx' ) : privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
-		reset();
-		if ( mesh ) { helper.remove( mesh ); scene.remove( mesh ); mesh.geometry.dispose(); mesh.skeleton.dispose(); mesh.material.forEach( m => m.dispose() ); }
+		const nextPhysicsView = generated === 'physics-layers' || directory === 'physics-layers' || ( ! generated && physicsToggle.checked );
+		if ( nextPhysicsView ) await initializeAmmo();
+		if ( mesh ) {
+
+			helper.objects.get( mesh )?.mixer?.stopAllAction();
+			helper.remove( mesh ); scene.remove( mesh );
+			// Release the renderer's outline objects before their source materials,
+			// then free geometry, skeleton and model-owned textures.
+			effect.dispose();
+			const textures = new Set<Texture>( originalMaps.filter( ( map ): map is Texture => map !== null ) );
+			for ( const material of mesh.material ) {
+
+				for ( const value of Object.values( material ) ) if ( value?.isTexture ) textures.add( value as Texture );
+				material.dispose();
+
+			}
+			mesh.geometry.dispose(); mesh.skeleton.dispose();
+			for ( const texture of textures ) if ( texture !== checkerMap ) texture.dispose();
+
+		}
+		animation = false; bend.value = translation.value = '0'; element( 'degrees' ).textContent = '0°';
 		mesh = next; mesh.frustumCulled = false; scene.add( mesh ); loadedDirectory = directory;
-		physicsView = generated === 'physics-layers' || directory === 'physics-layers';
+		physicsView = nextPhysicsView;
 		physicsPaused = true; physicsToggle.checked = physicsView;
-		if ( physicsView ) await initializeAmmo();
 		helper.enable( 'physics', physicsView ).enable( 'ik', physicsView );
 		helper.add( mesh, { physics: physicsView, warmup: 0, unitStep: 1 / 60, gravity: new Vector3( 0, -9.8, 0 ) } );
 		originalMaps = mesh.material.map( m => m.map ); checker.checked = generated === true; checker.onchange!( new Event( 'change' ) );
@@ -383,7 +431,23 @@ function reportGrants() {
 
 }
 
-physicsToggle.onchange = () => { helper.enable( 'physics', physicsToggle.checked ).update( 0 ); reportPhysics(); };
+physicsToggle.onchange = async () => {
+
+	try {
+
+		if ( physicsToggle.checked && mesh && ! physicsView ) {
+
+			await initializeAmmo(); reset(); helper.remove( mesh ); physicsView = true; physicsPaused = true;
+			helper.enable( 'physics', true ).enable( 'ik', true );
+			helper.add( mesh, { physics: true, warmup: 0, unitStep: 1 / 60, gravity: new Vector3( 0, -9.8, 0 ) } );
+			report( 'Local Ammo physics initialized. Step or resume; Play local motion starts motion again.' );
+
+		}
+		helper.enable( 'physics', physicsToggle.checked ).update( 0 ); reportPhysics();
+
+	} catch ( error ) { physicsToggle.checked = false; report( String( error ) ); }
+
+};
 element( 'physics-step' ).onclick = () => { if ( physicsView ) { helper.update( 1 / 60 ); reportPhysics(); } };
 element( 'physics-pause' ).onclick = () => { physicsPaused = ! physicsPaused; reportPhysics(); };
 element( 'physics-reset' ).onclick = reset;

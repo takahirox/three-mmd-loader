@@ -212,3 +212,8 @@ step/pause/reset controls and reports authored, pre-physics, body and final
 transforms. Post kinematic inputs are explicitly deferred to the next step;
 dynamic post effects deform the skeleton without teleporting mode-1 bodies.
 Private models remain optional, ignored and excluded from published artifacts.
+
+Opt-in real-model setup: `npm run models:setup -- gene`, then `npm run dev:sdef`
+and choose Gene in **Installed models**. Safe manual acquisition import:
+`npm run models:import -- /path/to/model.zip --category sdef`. See
+[local model setup, source terms and diagnostics](docs/local-models.md).

@@ -37,6 +37,9 @@ export async function runBrowser<T>( url: string, profile: string, colorScheme =
 	const browser = spawn( chrome, [
 		'--headless', '--no-first-run', '--no-default-browser-check',
 		'--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-unsafe-webgpu',
+		// Linux WebGPU canvas presentation needs Vulkan shared-image backing.
+		// Without it Chrome destroys the device, leaving partially uploaded geometry.
+		...( process.platform === 'linux' ? [ '--enable-features=Vulkan', '--use-vulkan=swiftshader', '--disable-vulkan-surface' ] : [] ),
 		'--autoplay-policy=no-user-gesture-required', '--remote-debugging-pipe',
 		`--user-data-dir=${profile}`
 	], { stdio: [ 'ignore', 'ignore', 'ignore', 'pipe', 'pipe' ] } );

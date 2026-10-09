@@ -86,6 +86,13 @@ geometry. Existing PMD, material, animation and example tests remain in place.
 The viewer also supports direct type 2 morph inspection from a separate
 `bone-morph/` private directory; see [bone morph playback](bone-morphs.md).
 
+## One-command local models
+
+See [local model setup](local-models.md) for opt-in verified Gene downloading,
+safe ZIP/directory import and the viewer's Installed models picker. Gene has no
+SDEF vertices at the pinned revision; generated SDEF fixtures and manually
+acquired specialized models remain necessary for SDEF checks.
+
 ## Local YYB Miku viewing
 
 Manually obtain **YYB式初音ミク 10th v1.02** only from the author's
@@ -93,6 +100,11 @@ Manually obtain **YYB式初音ミク 10th v1.02** only from the author's
 Read the archive's actual README/license locally before using the model.
 No agent or CI job downloads it, logs into BowlRoll, or validates redistribution
 permission. This repository includes no copy of the model or its license.
+
+For a permitted local archive, run
+`npm run models:import -- /path/to/model.zip --category sdef`. This installs it
+with textures and notices intact; select it in
+**Installed models**. The existing manual layout below also remains supported.
 
 1. Extract the model under
    `examples/assets/private/yyb-miku-10th/`. Preserve its texture paths and

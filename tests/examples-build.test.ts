@@ -22,6 +22,8 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			await writeFile( join( assetDirectory, path ), path );
 
 		}
+		await mkdir( join( assetDirectory, 'private/models/gene' ), { recursive: true } );
+		for ( const name of [ 'Gene.pmx', 'texture.png', 'model.zip', 'README.md' ] ) await writeFile( join( assetDirectory, 'private/models/gene', name ), 'private setup/import sentinel' );
 		// A private-model sentinel beside public assets must never reach Pages.
 		await mkdir( join( assetDirectory, 'private/bone-morph' ), { recursive: true } );
 		await writeFile( join( assetDirectory, 'private/bone-morph/model.pmx' ), 'private model sentinel' );

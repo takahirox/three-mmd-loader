@@ -233,7 +233,7 @@ export const sdefR1 = [ - 0.3, 0.5, - 0.1 ];
 export const sdefNormal = [ 0.36, 0.48, 0.8 ];
 export const sdefMorph = [ 0.15, - 0.2, 0.25 ];
 
-export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, texturePath, uvMorphs = false, additionalUVCount = 4, grants = false, physicsLayers = false }: { physicsLayers?: boolean; grants?: boolean; boneMorphs?: boolean; groupMorphs?: boolean; texturePath?: string; uvMorphs?: boolean; additionalUVCount?: number } = {} ) {
+export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, texturePath, uvMorphs = false, additionalUVCount = 4, grants = false, physicsLayers = false, envFlag = 0 }: { envFlag?: number; physicsLayers?: boolean; grants?: boolean; boneMorphs?: boolean; groupMorphs?: boolean; texturePath?: string; uvMorphs?: boolean; additionalUVCount?: number } = {} ) {
 
 	boneMorphs ||= groupMorphs || physicsLayers;
 	grants ||= physicsLayers;
@@ -266,7 +266,7 @@ export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, textur
 	if ( texturePath ) w.text( texturePath );
 	w.u32( 1 );
 	w.text( 'probes' ).text( '' ).f32( 0.8, 0.6, 0.4, 1, 0, 0, 0, 30, 0, 0, 0 );
-	w.u8( 0x11 ).f32( 1, 0, 0, 1, 1 ).u8( texturePath ? 0 : 255 ).u8( 255 ).u8( 0 ).u8( 1 ).u8( 0 );
+	w.u8( 0x11 ).f32( 1, 0, 0, 1, 1 ).u8( texturePath ? 0 : 255 ).u8( 255 ).u8( envFlag ).u8( 1 ).u8( 0 );
 	w.text( '' ).u32( sdefProbeVertices.length * 3 );
 	const fixtureBones = physicsLayers ? physicsLayerBones : grantFixtureBones;
 	w.u32( grants ? fixtureBones.length : 4 );
