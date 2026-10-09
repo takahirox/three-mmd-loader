@@ -84,7 +84,9 @@
     "prebuild:examples": "npm run build",
     "pretypecheck": "npm run build",
     "check:typescript": "node --import tsx scripts/check-typescript.ts",
-    "dev:sdef": "npm run build && node --import tsx scripts/serve-sdef.ts"
+    "dev:sdef": "npm run build && node --import tsx scripts/serve-sdef.ts",
+    "models:setup": "node --import tsx scripts/setup-models.ts",
+    "models:import": "node --import tsx scripts/import-models.ts"
   },
   "peerDependencies": {
     "three": "~0.186.0"

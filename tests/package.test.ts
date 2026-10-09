@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +41,9 @@ test( 'root and addon-style subpaths expose every public module', async () => {
 test( 'packed npm package installs and imports in an isolated consumer', { timeout: 60000 }, () => {
 
 	const consumer = mkdtempSync( join( tmpdir(), 'three-mmd-loader-test-' ) );
+	const privateSentinel = join( root, 'examples/assets/private/pack-exclusion-fixture' );
+	mkdirSync( privateSentinel, { recursive: true } );
+	for ( const name of [ 'Gene.pmx', 'texture.png', 'model.zip', 'README.txt' ] ) writeFileSync( join( privateSentinel, name ), 'private generated sentinel' );
 	const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 	const options = { cwd: consumer, encoding: 'utf8' as const, timeout: 30000 };
 	try {
@@ -227,6 +230,7 @@ for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )
 	} finally {
 
 		rmSync( consumer, { recursive: true, force: true } );
+		rmSync( privateSentinel, { recursive: true, force: true } );
 
 	}
 
