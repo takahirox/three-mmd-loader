@@ -342,7 +342,7 @@ for ( const pmxAnimation of [ false, true ] ) {
 
 	} );
 
-	test( `existing local/position grant limitations stay unchanged with bone morphs (pmxAnimation=${pmxAnimation})`, () => {
+	test( `local/position grants consume bone morph displacement without drift (pmxAnimation=${pmxAnimation})`, () => {
 
 		for ( const isLocal of [ false, true ] ) {
 
@@ -350,7 +350,11 @@ for ( const pmxAnimation of [ false, true ] ) {
 			data.bones[ 3 ].grant = { parentIndex: 0, ratio: 0.5, isLocal, affectRotation: isLocal, affectPosition: true };
 			const { mesh } = setup( data ); const helper = new MMDAnimationHelper( { pmxAnimation } ); helper.add( mesh, { physics: false } );
 			weights( mesh, [ 1, 0, 0 ] ); helper.update( 0 );
-			checkPose( mesh, referenceBonePose( [ 1, 0, 0 ] ) );
+			const expected = referenceBonePose( [ 1, 0, 0 ] );
+			expected[ 3 ].position = expected[ 3 ].position.map( ( v, c ) => v + expected[ 0 ].position[ c ] * 0.5 );
+			if ( isLocal ) expected[ 3 ].rotation = weightedRotation( authoredBoneMorphs[ 0 ].elements[ 0 ].rotation, 0.5 );
+			checkPose( mesh, expected );
+			for ( let i = 0; i < 10; i ++ ) { helper.update( 0 ); checkPose( mesh, expected ); }
 
 		}
 

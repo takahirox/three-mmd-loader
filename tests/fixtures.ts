@@ -231,7 +231,7 @@ export const sdefR1 = [ - 0.3, 0.5, - 0.1 ];
 export const sdefNormal = [ 0.36, 0.48, 0.8 ];
 export const sdefMorph = [ 0.15, - 0.2, 0.25 ];
 
-export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, texturePath, uvMorphs = false, additionalUVCount = 4 }: { boneMorphs?: boolean; groupMorphs?: boolean; texturePath?: string; uvMorphs?: boolean; additionalUVCount?: number } = {} ) {
+export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, texturePath, uvMorphs = false, additionalUVCount = 4, grants = false }: { grants?: boolean; boneMorphs?: boolean; groupMorphs?: boolean; texturePath?: string; uvMorphs?: boolean; additionalUVCount?: number } = {} ) {
 
 	boneMorphs ||= groupMorphs;
 
@@ -265,9 +265,18 @@ export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, textur
 	w.text( 'probes' ).text( '' ).f32( 0.8, 0.6, 0.4, 1, 0, 0, 0, 30, 0, 0, 0 );
 	w.u8( 0x11 ).f32( 1, 0, 0, 1, 1 ).u8( texturePath ? 0 : 255 ).u8( 255 ).u8( 0 ).u8( 1 ).u8( 0 );
 	w.text( '' ).u32( sdefProbeVertices.length * 3 );
-	w.u32( 4 );
-	for ( let i = 0; i < 4; i ++ ) {
+	w.u32( grants ? grantFixtureBones.length : 4 );
+	for ( let i = 0; i < ( grants ? grantFixtureBones.length : 4 ); i ++ ) {
 
+		if ( grants ) {
+
+			const b = grantFixtureBones[ i ];
+			w.text( `bone${i}` ).text( '' ).f32( ...b.position ).u8( b.parent ).u32( b.transformationClass ).u16( b.flag ).f32( 0, 1, 0 );
+			if ( b.grant ) w.u8( b.grant.parentIndex ).f32( b.grant.ratio );
+			if ( b.flag & 0x0800 ) w.f32( 0, 1, 0, 1, 0, 0 );
+			continue;
+
+		}
 		w.text( `bone${i}` ).text( '' ).f32( i * 0.2, i * 0.1, i * - 0.15 ).u8( 255 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
 
 	}
@@ -354,3 +363,20 @@ export const authoredBoneMorphs = [
 		{ index: 1, position: [ 0.1, 0.2, 0.3 ], rotation: [ 0.0001, - 0.0002, 0.0003, Math.sqrt( 1 - 0.00000014 ) ] }
 	] }
 ];
+
+// Asymmetric bind positions, two distinct parent branches and all four PMX
+// append flag combinations. Vertices retain BDEF/SDEF indices 0..3.
+export const grantFixtureBones = [
+	{ position: [ 0.6, - 0.4, 0.3 ], parent: - 1, transformationClass: 2, flag: 0x0300, grant: { parentIndex: 6, ratio: 0.5 } },
+	{ position: [ - 0.7, 0.5, - 0.2 ], parent: 5, transformationClass: 2, flag: 0x0180, grant: { parentIndex: 6, ratio: - 0.5 } },
+	{ position: [ 0.4, 1, 0.7 ], parent: 4, transformationClass: 3, flag: 0x0200, grant: { parentIndex: 0, ratio: 1.5 } },
+	{ position: [ - 0.2, - 0.6, 0.4 ], parent: 5, transformationClass: 3, flag: 0x1280, grant: { parentIndex: 6, ratio: 0.25 } },
+	{ position: [ 0.3, 0.2, - 0.4 ], parent: 7, transformationClass: 0, flag: 0 },
+	{ position: [ - 0.5, 0.3, 0.1 ], parent: - 1, transformationClass: 0, flag: 0 },
+	{ position: [ 0.8, 0.7, - 0.5 ], parent: 4, transformationClass: 1, flag: 0x0380, grant: { parentIndex: 5, ratio: 0.75 } },
+	{ position: [ 0.1, - 0.3, 0.2 ], parent: - 1, transformationClass: 0, flag: 0 },
+	// Local AXES are an editor control definition, not the local GRANT flag.
+	{ position: [ 0.2, 0.4, - 0.6 ], parent: 5, transformationClass: 4, flag: 0x0900, grant: { parentIndex: 0, ratio: 0.75 } }
+];
+
+export function grantPmxBuffer() { return sdefPmxBuffer( { grants: true, boneMorphs: true } ); }

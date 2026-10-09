@@ -34,6 +34,8 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		await writeFile( join( assetDirectory, 'private/material-morph/README.txt' ), 'local only' );
 		await mkdir( join( assetDirectory, 'private/uv-morph' ), { recursive: true } );
 		await writeFile( join( assetDirectory, 'private/uv-morph/model.pmx' ), 'private UV sentinel' );
+		await mkdir( join( assetDirectory, 'private/grant' ), { recursive: true } );
+		for ( const name of [ 'model.pmx', 'motion.vmd', 'archive.zip', 'README.txt', 'screenshot.png' ] ) await writeFile( join( assetDirectory, 'private/grant', name ), 'private grant sentinel' );
 		await mkdir( outputDirectory );
 		await writeFile( join( outputDirectory, 'stale.html' ), 'old build' );
 		const commit = 'c'.repeat( 40 );

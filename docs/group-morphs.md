@@ -80,8 +80,9 @@ available. For groups:
    rest bones. The separate direct bone controls and SDEF comparison still work.
 4. Optionally enter a compatible private VMD relative to the selected directory.
    Playback updates the same group weights. Moving a slider stops playback;
-   **Stop motion** resets pose and weights. Static inspection disables IK/grants;
-   playback enables them, with physics disabled.
+   **Stop motion** resets pose and weights. Static inspection disables IK, with grants off by default;
+   **Apply PMX grants** enables grant inspection. Playback enables IK/grants,
+   with physics disabled.
 
 The creator's [DONburi Room cardboard box ver.1.1a distribution description](https://donburiroom.blog8.fc2.com/blog-entry-153.html)
 identifies `たたむ全` as a group combining folding and lid/bottom bone morphs.

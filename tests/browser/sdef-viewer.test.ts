@@ -218,3 +218,53 @@ try {
 	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
 
 } );
+
+test( 'private generated grant inspector exposes real flags, source controls and absence diagnostics', { timeout: 60000 }, async () => {
+
+	const profile = await mkdtemp( join( tmpdir(), 'mmd-grant-viewer-profile-' ) );
+	const local = createSdefServer();
+	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
+<pre id="result">pending</pre><script type="module">
+import {MMDAnimationHelper} from 'three-mmd-loader';
+let mesh;const original=MMDAnimationHelper.prototype.update;
+MMDAnimationHelper.prototype.update=function(delta){const r=original.call(this,delta);mesh=this.meshes[0];return r;};
+const result=document.getElementById('result'),errors=[];console.error=(...args)=>errors.push(args.map(String).join(' '));
+const check=(v,m)=>{if(!v)throw new Error(m);};
+async function until(fn){const start=performance.now();while(!fn()){if(performance.now()-start>15000)throw new Error('viewer timeout '+document.getElementById('status').textContent);await new Promise(r=>setTimeout(r,30));}}
+try {
+ await until(()=>document.getElementById('generated-grant').onclick);document.getElementById('generated-grant').click();
+ await until(()=>mesh?.geometry.userData.MMD.grants?.length===6);
+ const info=document.getElementById('grant-info'),translation=document.getElementById('translation'),bend=document.getElementById('bend');
+ check(document.getElementById('asset-directory').querySelector('option[value="grant"]'),'grant directory absent');
+ check(info.textContent.includes('isLocal=true')&&info.textContent.includes('position=true')&&info.textContent.includes('rotation=true')&&info.textContent.includes('ratio=-0.5')&&info.textContent.includes('class=3')&&info.textContent.includes('post-physics'),'real metadata absent');
+ check(info.querySelectorAll('.bone-link').length===6,'affected targets not highlighted');
+ check(!info.textContent.includes('No position grants')&&!info.textContent.includes('No local grants'),'false missing cases');
+ const rest=mesh.geometry.userData.MMD.bones.map(b=>b.pos.slice());
+ check(document.getElementById('bone').value==='6'&&document.getElementById('grants').checked,'source controls not selected');
+ translation.value='1';translation.dispatchEvent(new Event('input'));
+ check(Math.abs(mesh.skeleton.bones[0].position.x-rest[0][0]-0.5)<1e-6,'translation grant control');
+ bend.value='60';bend.dispatchEvent(new Event('input'));
+ check(Math.abs(mesh.skeleton.bones[0].quaternion.x-Math.sin(Math.PI/12))<1e-6,'rotation grant control');
+ check(info.textContent.includes('Target position [')&&info.textContent.includes('quaternion ['),'calculated transforms absent');
+ document.getElementById('reset').click();
+ check(mesh.skeleton.bones.every((b,i)=>b.position.toArray().every((v,c)=>Math.abs(v-rest[i][c])<1e-6)),'reset did not restore bind');
+ document.getElementById('generated-uv').click();await until(()=>mesh?.geometry.userData.MMD.grants?.length===0);
+ check(info.textContent.includes('No position grants present')&&info.textContent.includes('No local grants present'),'absent flag warning missing');
+ result.textContent=encodeURIComponent(JSON.stringify({errors}));
+}catch(e){result.textContent=encodeURIComponent(JSON.stringify({errors:[e.stack||String(e)]}));}
+</script>`;
+	const server = createServer( ( request, response ) => {
+
+		if ( request.url?.startsWith( '/local-sdef/?' ) ) { response.setHeader( 'Content-Type', 'text/html' ); response.end( html ); }
+		else local.emit( 'request', request, response );
+
+	} );
+	try {
+
+		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+		const result = await runBrowser<{ errors: string[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/local-sdef/?webgl`, profile );
+		assert.deepEqual( result.errors, [] );
+
+	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
+
+} );

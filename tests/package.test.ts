@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { pmdBuffer, pmxBuffer, sdefPmxBuffer, materialPmxBuffer, vmdBuffer } from './fixtures.ts';
+import { grantPmxBuffer, pmdBuffer, pmxBuffer, sdefPmxBuffer, materialPmxBuffer, vmdBuffer } from './fixtures.ts';
 
 const root = resolve( dirname( fileURLToPath( import.meta.url ) ), '..' );
 interface PackageManifest { exports: Record<string, Record<string, string>>; devDependencies: { three: string }; dependencies: { 'mmd-parser': string } }
@@ -85,7 +85,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		execFileSync( npm, [
 			'install', '--offline', '--cache', join( consumer, 'npm-cache' ), '--ignore-scripts', '--no-audit', '--no-fund'
 		], options );
-		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { groupMorphs: true } ) ], [ 'material.pmx', materialPmxBuffer() ], [ 'uv.pmx', sdefPmxBuffer( { uvMorphs: true } ) ] ] as const ) {
+		for ( const [ name, buffer ] of [ [ 'model.pmd', pmdBuffer() ], [ 'model.pmx', pmxBuffer( { additionalUvMorphs: true } ) ], [ 'motion.vmd', vmdBuffer() ], [ 'sdef.pmx', sdefPmxBuffer( { groupMorphs: true } ) ], [ 'material.pmx', materialPmxBuffer() ], [ 'uv.pmx', sdefPmxBuffer( { uvMorphs: true } ) ], [ 'grant.pmx', grantPmxBuffer() ] ] as const ) {
 
 			writeFileSync( join( consumer, name ), Buffer.from( buffer ) );
 
@@ -189,6 +189,15 @@ assert.ok(Math.abs(uvMesh.geometry.attributes.mmdAdditionalUV4.getW(3)-(0.52-0.2
 assert.ok(entry.mmdAdditionalUV(4).isNode);entry.updateMMDUVs(uvMesh);
 uvMesh.morphTargetInfluences.fill(0);uvHelper.update(0);assert.ok(Math.abs(uvMesh.geometry.attributes.uv.getY(3)-0.2)<1e-6);
 uvHelper.remove(uvMesh);uvMesh.geometry.dispose();uvMesh.material.forEach(m=>m.dispose());
+const grantMesh=await loader.loadAsync('data:application/octet-stream;base64,'+readFileSync('grant.pmx').toString('base64'));
+assert.equal(grantMesh.geometry.userData.MMD.grants.length,6);
+assert.equal(grantMesh.geometry.userData.MMD.bones[3].flag,0x1280);
+const grantHelper=new entry.MMDAnimationHelper();grantHelper.add(grantMesh,{physics:false});
+grantMesh.skeleton.bones[6].position.x+=1;grantHelper.update(0);
+assert.ok(Math.abs(grantMesh.skeleton.bones[0].position.x-1.1)<1e-6);
+const grantPosition=grantMesh.skeleton.bones[3].position.toArray();grantHelper.update(0);assert.deepEqual(grantMesh.skeleton.bones[3].position.toArray(),grantPosition);
+grantHelper.enable('grant',false).update(0);assert.ok(Math.abs(grantMesh.skeleton.bones[0].position.x-0.6)<1e-6);
+grantHelper.remove(grantMesh);grantMesh.geometry.dispose();grantMesh.material.forEach(m=>m.dispose());
 assert.throws( () => new entry.MMDPhysics( null, [] ), /Import ammo.js/ );
 for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )} ) ) {
   const module = await import( 'three-mmd-loader/' + path );

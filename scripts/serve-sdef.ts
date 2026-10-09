@@ -1,4 +1,4 @@
-import { sdefPmxBuffer } from '../tests/fixtures.ts';
+import { grantPmxBuffer, sdefPmxBuffer } from '../tests/fixtures.ts';
 import { readFile, realpath } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
@@ -10,15 +10,16 @@ const root = fileURLToPath( new URL( '../', import.meta.url ) );
 const assetRoot = resolve( root, 'examples/assets/private/yyb-miku-10th' );
 const groupMorphRoot = resolve( root, 'examples/assets/private/group-morph' );
 const materialMorphRoot = resolve( root, 'examples/assets/private/material-morph' );
+const grantRoot = resolve( root, 'examples/assets/private/grant' );
 const uvMorphRoot = resolve( root, 'examples/assets/private/uv-morph' );
 const boneMorphRoot = resolve( root, 'examples/assets/private/bone-morph' );
 const types: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.bmp': 'image/bmp', '.gif': 'image/gif', '.webp': 'image/webp', '.pmx': 'application/octet-stream', '.vmd': 'application/octet-stream', '.tga': 'application/octet-stream', '.sph': 'image/bmp', '.spa': 'image/bmp' };
 
 // A separate loopback-only entry. Public builds copy neither scripts nor
 // local-viewer/, and npm's file allowlist excludes both and all example assets.
-export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirectory = boneMorphRoot, groupMorphDirectory = groupMorphRoot, materialMorphDirectory = materialMorphRoot, uvMorphDirectory = uvMorphRoot }: { privateDirectory?: string; boneMorphDirectory?: string; groupMorphDirectory?: string; materialMorphDirectory?: string; uvMorphDirectory?: string } = {} ) {
+export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirectory = boneMorphRoot, groupMorphDirectory = groupMorphRoot, materialMorphDirectory = materialMorphRoot, uvMorphDirectory = uvMorphRoot, grantDirectory = grantRoot }: { privateDirectory?: string; boneMorphDirectory?: string; groupMorphDirectory?: string; materialMorphDirectory?: string; uvMorphDirectory?: string; grantDirectory?: string } = {} ) {
 
-	const directories: Record<string, string> = { 'yyb-miku-10th': privateDirectory, 'bone-morph': boneMorphDirectory, 'group-morph': groupMorphDirectory, 'material-morph': materialMorphDirectory, 'uv-morph': uvMorphDirectory };
+	const directories: Record<string, string> = { 'yyb-miku-10th': privateDirectory, 'bone-morph': boneMorphDirectory, 'group-morph': groupMorphDirectory, 'material-morph': materialMorphDirectory, 'uv-morph': uvMorphDirectory, 'grant': grantDirectory };
 
 	const dependencies = createExamplesServer();
 	return createServer( async ( request, response ) => {
@@ -37,6 +38,10 @@ export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirec
 			if ( path === '/' || path === '/local-sdef/' ) {
 
 				content = await readFile( resolve( root, 'local-viewer/index.html' ) ); type = 'text/html; charset=utf-8';
+
+			} else if ( path === '/local-sdef/generated-grant.pmx' ) {
+
+				content = Buffer.from( grantPmxBuffer() ); type = 'application/octet-stream';
 
 			} else if ( path === '/local-sdef/generated-uv.pmx' ) {
 

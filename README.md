@@ -198,3 +198,7 @@ Source provenance and licenses are recorded in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).
 
 See the [development flow](docs/development-flow.md) and [review guidelines](docs/review-guidelines.md) for contribution guidance.
+
+PMX rotation/translation grants, including local grants and physics phase
+ordering, are documented in [docs/grants.md](docs/grants.md), with generated
+fixture tests and a private loopback inspector.

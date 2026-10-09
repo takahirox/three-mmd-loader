@@ -22,6 +22,10 @@ const helper = new MMDAnimationHelper();
 const clock = new Clock();
 let mesh: MMDMesh | undefined;
 let baseRotations: Quaternion[] = [];
+let basePositions: Vector3[] = [];
+const grants = element<HTMLInputElement>( 'grants' );
+const translation = element<HTMLInputElement>( 'translation' );
+const grantInfo = element<HTMLPreElement>( 'grant-info' );
 let originalTypes: Float32Array | undefined;
 let animation = false;
 let count = 0;
@@ -69,7 +73,7 @@ function report( message = '' ) {
 function stop() {
 
 	if ( mesh && animation ) { helper.remove( mesh ); helper.add( mesh, { physics: false } ); }
-	helper.enable( 'ik', false ).enable( 'grant', false );
+	helper.enable( 'ik', false ).enable( 'grant', grants.checked );
 	animation = false;
 
 }
@@ -77,7 +81,7 @@ function reset() {
 
 	stop();
 	if ( mesh ) helper.pose( mesh, { metadata: { boneCount: 0, parentFile: '', coordinateSystem: 'right' }, bones: [] }, { ik: false, grant: false } );
-	bend.value = '0'; element( 'degrees' ).textContent = '0°';
+	bend.value = translation.value = '0'; element( 'degrees' ).textContent = '0°';
 	mesh?.morphTargetInfluences?.fill( 0 );
 	helper.update( 0 ); reportMorphs();
 
@@ -86,11 +90,15 @@ function applyBend() {
 
 	stop();
 	if ( ! mesh ) return;
+	// Restore before authored controls, including values equal to the last output.
+	helper.pose( mesh, { metadata: { boneCount: 0, parentFile: '', coordinateSystem: 'right' }, bones: [] }, { ik: false, grant: false } );
 	const index = Number( bone.value );
+	mesh.skeleton.bones[ index ].position.copy( basePositions[ index ] ).add( new Vector3( Number( translation.value ), 0, 0 ) );
 	const degrees = Number( bend.value );
 	const direction = axis.value === 'x' ? new Vector3( 1, 0, 0 ) : axis.value === 'y' ? new Vector3( 0, 1, 0 ) : new Vector3( 0, 0, 1 );
 	mesh.skeleton.bones[ index ].quaternion.copy( baseRotations[ index ] ).multiply( new Quaternion().setFromAxisAngle( direction, degrees * Math.PI / 180 ) );
 	element( 'degrees' ).textContent = `${degrees}°`;
+	helper.update( 0 ); reportGrants();
 	report( `Bending ${mesh.skeleton.bones[ index ].name}. Drag to orbit; scroll to zoom.` );
 
 }
@@ -226,18 +234,18 @@ weight.oninput = () => {
 	report( `Bone morph ${morph.selectedOptions[ 0 ].text}: weight ${value.toFixed( 2 )}.` );
 
 };
-async function loadModel( generated = false ) {
+async function loadModel( generated: boolean | 'grant' = false ) {
 
 	try {
 
 		status.textContent = 'Loading local PMX and textures…';
 		const directory = assetDirectory.value;
-		const next = await loader.loadAsync( generated ? '/local-sdef/generated-uv.pmx' : privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
+		const next = await loader.loadAsync( generated ? ( generated === 'grant' ? '/local-sdef/generated-grant.pmx' : '/local-sdef/generated-uv.pmx' ) : privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
 		reset();
 		if ( mesh ) { helper.remove( mesh ); scene.remove( mesh ); mesh.geometry.dispose(); mesh.skeleton.dispose(); mesh.material.forEach( m => m.dispose() ); }
 		mesh = next; mesh.frustumCulled = false; scene.add( mesh ); loadedDirectory = directory;
 		helper.add( mesh, { physics: false } );
-		originalMaps = mesh.material.map( m => m.map ); checker.checked = generated; checker.onchange!( new Event( 'change' ) );
+		originalMaps = mesh.material.map( m => m.map ); checker.checked = generated === true; checker.onchange!( new Event( 'change' ) );
 		const uvs = mesh.geometry.userData.MMD.uvMorphs ?? [];
 		uvMorph.replaceChildren( ...uvs.map( m => new Option( `${m.index}: ${m.name} (UV${m.channel})`, String( m.index ) ) ) );
 		uvMorph.disabled = uvWeight.disabled = uvs.length === 0;
@@ -253,6 +261,7 @@ async function loadModel( generated = false ) {
 		const folding = groups.find( g => g.name === 'たたむ全' );
 		if ( folding ) group.value = String( folding.index );
 		selectGroup(); reportMorphs();
+		basePositions = mesh.skeleton.bones.map( b => b.position.clone() );
 		baseRotations = mesh.skeleton.bones.map( b => b.quaternion.clone() );
 		const types = mesh.geometry.getAttribute( 'mmdSkinningType' ) as BufferAttribute | InterleavedBufferAttribute;
 		originalTypes = Float32Array.from( { length: types.count }, ( _, i ) => types.getX( i ) );
@@ -260,6 +269,9 @@ async function loadModel( generated = false ) {
 		bone.replaceChildren( ...mesh.skeleton.bones.map( ( b, i ) => new Option( `${i}: ${b.name}`, String( i ) ) ) );
 		const elbow = mesh.skeleton.bones.findIndex( b => /左ひじ|左肘|elbow/i.test( b.name ) );
 		bone.value = String( elbow >= 0 ? elbow : 0 ); comparison.checked = false;
+		grants.checked = generated === 'grant'; helper.enable( 'grant', grants.checked );
+		if ( generated === 'grant' ) bone.value = '6';
+		helper.update( 0 ); reportGrants();
 		mesh.updateMatrixWorld( true );
 		const box = new Box3().setFromObject( mesh );
 		const center = box.getCenter( new Vector3() );
@@ -271,6 +283,9 @@ async function loadModel( generated = false ) {
 
 }
 element( 'load' ).onclick = () => loadModel();
+element( 'generated-grant' ).onclick = () => loadModel( 'grant' );
+translation.oninput = applyBend;
+grants.onchange = () => { helper.enable( 'grant', grants.checked ).update( 0 ); reportGrants(); };
 element( 'generated-uv' ).onclick = () => loadModel( true );
 bend.oninput = applyBend; axis.onchange = applyBend;
 bone.onchange = () => { bend.value = '0'; applyBend(); };
@@ -300,4 +315,31 @@ element( 'play' ).onclick = async () => {
 element( 'stop' ).onclick = reset;
 function resize() { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize( innerWidth, innerHeight ); }
 addEventListener( 'resize', resize ); resize();
-renderer.setAnimationLoop( () => { const delta = clock.getDelta(); if ( mesh ) helper.update( animation ? delta : 0 ); reportMorphs(); controls.update(); effect.render( scene, camera ); } );
+renderer.setAnimationLoop( () => { const delta = clock.getDelta(); if ( mesh ) helper.update( animation ? delta : 0 ); reportMorphs(); reportGrants(); controls.update(); effect.render( scene, camera ); } );
+
+function reportGrants() {
+
+	if ( ! mesh ) return;
+	const data = mesh.geometry.userData.MMD;
+	const counts = { globalRotation: 0, globalPosition: 0, localRotation: 0, localPosition: 0 };
+	const lines: HTMLElement[] = [];
+	for ( const g of data.grants ) {
+
+		if ( g.affectRotation ) counts[ g.isLocal ? 'localRotation' : 'globalRotation' ] ++;
+		if ( g.affectPosition ) counts[ g.isLocal ? 'localPosition' : 'globalPosition' ] ++;
+		const source = mesh.skeleton.bones[ g.parentIndex ], target = mesh.skeleton.bones[ g.index ];
+		const line = document.createElement( 'span' );
+		line.className = 'bone-link';
+		line.textContent = `${g.parentIndex}: ${source?.name ?? 'missing'} → ${g.index}: ${target?.name ?? 'missing'}; isLocal=${g.isLocal}; rotation=${g.affectRotation}; position=${g.affectPosition}; ratio=${g.ratio}; class=${g.transformationClass}; ${( data.bones[ g.index ].flag ?? 0 ) & 0x1000 ? 'post' : 'pre'}-physics\n` +
+			`  Target position [${target?.position.toArray().map( v => v.toFixed( 4 ) )}], quaternion [${target?.quaternion.toArray().map( v => v.toFixed( 4 ) )}]\n`;
+		lines.push( line );
+
+	}
+	const summary = document.createElement( 'span' );
+	summary.textContent = `Grant counts: ${JSON.stringify( counts )}\n` +
+		( counts.globalPosition + counts.localPosition ? '' : 'No position grants present.\n' ) +
+		( counts.localRotation + counts.localPosition ? '' : 'No local grants present.\n' ) +
+		'Flags are parsed from this PMX; counts and transforms are diagnostics, not a visual pass. Physics disabled in this viewer.\n';
+	grantInfo.replaceChildren( summary, ...lines );
+
+}

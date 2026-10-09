@@ -1,9 +1,10 @@
+import { GrantSolver } from './GrantSolver.js';
 import { updateMMDUVs } from './MMDUVMorphController.js';
 import { MMDMaterialMorphController } from './MMDMaterialMorphController.js';
 import type { Audio, Camera, Object3D as ThreeObject } from 'three';
-import type { AnimationAction, AnimationClip, Bone } from 'three';
+import type { AnimationAction, AnimationClip } from 'three';
 import type { Vpd } from 'mmd-parser';
-import type { MMDMesh, MMDBone, Grant } from '../types.js';
+import type { MMDMesh, MMDBone } from '../types.js';
 import type { MMDPhysicsParameters } from './MMDPhysics.js';
 import {
 	AnimationMixer,
@@ -59,8 +60,6 @@ export interface MMDAnimationState {
  *  - MMDPhysics
  *  - CCDIKSolver
  *
- * TODO
- *  - more precise grant skinning support.
  */
 class MMDAnimationHelper {
 
@@ -225,7 +224,12 @@ class MMDAnimationHelper {
 		if ( this.sharedPhysics ) {
 
 			this._updateSharedPhysics( delta );
-			for ( const mesh of this.meshes ) this.boneMorphControllers.get( mesh )?.capture();
+			for ( const mesh of this.meshes ) {
+
+				this._animateAfterPhysics( mesh );
+				this.boneMorphControllers.get( mesh )?.capture();
+
+			}
 
 		}
 
@@ -285,8 +289,7 @@ class MMDAnimationHelper {
 		mesh.updateMatrixWorld( true );
 
 		// PMX animation system special path
-		if ( this.configuration.pmxAnimation &&
-			mesh.geometry.userData.MMD && mesh.geometry.userData.MMD.format === 'pmx' ) {
+		if ( mesh.geometry.userData.MMD.format === 'pmx' ) {
 
 			const sortedBonesData = this._sortBoneDataArray( mesh.geometry.userData.MMD.bones.slice() );
 			const ikSolver = params.ik !== false ? this._createCCDIKSolver( mesh ) : null;
@@ -625,8 +628,7 @@ class MMDAnimationHelper {
 		if ( ( mixer && this.enabled.animation ) || boneMorphs ) {
 
 			// PMX animation system special path
-			if ( this.configuration.pmxAnimation &&
-				mesh.geometry.userData.MMD && mesh.geometry.userData.MMD.format === 'pmx' ) {
+			if ( mesh.geometry.userData.MMD.format === 'pmx' ) {
 
 				if ( ! objects.sortedBonesData ) objects.sortedBonesData = this._sortBoneDataArray( mesh.geometry.userData.MMD.bones.slice() );
 
@@ -634,7 +636,8 @@ class MMDAnimationHelper {
 					mesh,
 					objects.sortedBonesData,
 					ikSolver && this.enabled.ik ? ikSolver : null,
-					grantSolver && this.enabled.grant ? grantSolver : null
+					grantSolver && this.enabled.grant ? grantSolver : null,
+					false
 				);
 
 			} else {
@@ -656,6 +659,8 @@ class MMDAnimationHelper {
 
 		}
 
+		grantSolver?.captureBeforePhysics();
+
 		if ( objects.looped === true && this.enabled.physics ) {
 
 			if ( physics && this.configuration.resetPhysicsOnLoop ) physics.reset();
@@ -671,7 +676,18 @@ class MMDAnimationHelper {
 
 		}
 
+		if ( ! this.sharedPhysics ) this._animateAfterPhysics( mesh );
 		boneMorphs?.capture();
+
+	}
+
+	_animateAfterPhysics( mesh: MMDMesh ) {
+
+		const objects = this.objects.get( mesh )!;
+		if ( mesh.geometry.userData.MMD.format !== 'pmx' || ! objects.sortedBonesData ) return;
+		this._animatePMXMesh( mesh, objects.sortedBonesData,
+			this.enabled.ik ? objects.ikSolver ?? null : null,
+			this.enabled.grant ? objects.grantSolver ?? null : null, true );
 
 	}
 
@@ -691,7 +707,7 @@ class MMDAnimationHelper {
 
 	_getBoneMorphController( mesh: MMDMesh ) {
 
-		if ( ! mesh.geometry.userData.MMD.boneMorphs?.length ) return undefined;
+		if ( ! mesh.geometry.userData.MMD.boneMorphs?.length && ! mesh.geometry.userData.MMD.grants.length ) return undefined;
 		let controller = this.boneMorphControllers.get( mesh );
 		if ( ! controller ) {
 
@@ -703,14 +719,18 @@ class MMDAnimationHelper {
 
 	}
 
-	// Sort bones in order by 1. transformationClass and 2. bone index.
+	// Sort bones by physics phase, transformationClass and bone index.
 	// In PMX animation system, bone transformations should be processed
 	// in this order.
 	_sortBoneDataArray( boneDataArray: MMDBone[] ) {
 
 		return boneDataArray.sort( function ( a, b ) {
 
-			if ( a.transformationClass !== b.transformationClass ) {
+			if ( Boolean( ( a.flag ?? 0 ) & 0x1000 ) !== Boolean( ( b.flag ?? 0 ) & 0x1000 ) ) {
+
+				return ( ( a.flag ?? 0 ) & 0x1000 ) - ( ( b.flag ?? 0 ) & 0x1000 );
+
+			} else if ( a.transformationClass !== b.transformationClass ) {
 
 				return ( a.transformationClass ?? 0 ) - ( b.transformationClass ?? 0 );
 
@@ -724,21 +744,28 @@ class MMDAnimationHelper {
 
 	}
 
-	// PMX Animation system is a bit too complex and doesn't great match to
-	// Three.js Animation system. This method attempts to simulate it as much as
-	// possible but doesn't perfectly simulate.
-	// This method is more costly than the regular one so
-	// you are recommended to set constructor parameter "pmxAnimation: true"
-	// only if your PMX model animation doesn't work well.
-	// If you need better method you would be required to write your own.
-	_animatePMXMesh( mesh: MMDMesh, sortedBonesData: MMDBone[], ikSolver: CCDIKSolver | null, grantSolver: GrantSolver | null ) {
+	_animatePMXMesh( mesh: MMDMesh, sortedBonesData: MMDBone[], ikSolver: CCDIKSolver | null, grantSolver: GrantSolver | null, afterPhysics?: boolean ) {
 
-		_quaternionIndex = 0;
-		_grantResultMap.clear();
+		// PMX order is phase, transformation class, then file index. Do not
+		// recursively solve grant sources: that would move IK across classes.
+		const physicsActive = this.enabled.physics && Boolean( this.objects.get( mesh )?.physics );
+		for ( const data of sortedBonesData ) {
 
-		for ( let i = 0, il = sortedBonesData.length; i < il; i ++ ) {
+			if ( afterPhysics !== undefined && Boolean( ( data.flag ?? 0 ) & 0x1000 ) !== afterPhysics ) continue;
+			// Dynamic target layering after physics needs a broader PMX layer
+			// implementation. Preserve the authoritative body pose (docs/grants.md).
+			const dynamicPostTarget = afterPhysics === true && physicsActive && data.rigidBodyType > 0;
+			if ( grantSolver && data.grant && ! dynamicPostTarget ) {
 
-			updateOne( mesh, sortedBonesData[ i ].index, ikSolver, grantSolver );
+				grantSolver.updateOne( data.grant, afterPhysics === true && physicsActive );
+
+			}
+			if ( ikSolver && data.ik ) {
+
+				mesh.updateMatrixWorld( true );
+				ikSolver.updateOne( data.ik );
+
+			}
 
 		}
 
@@ -1087,96 +1114,6 @@ function isMMDCamera( object: ThreeObject ): object is MMDCamera {
 
 }
 
-// Keep working quaternions for less GC
-const _quaternions: Quaternion[] = [];
-let _quaternionIndex = 0;
-
-function getQuaternion() {
-
-	if ( _quaternionIndex >= _quaternions.length ) {
-
-		_quaternions.push( new Quaternion() );
-
-	}
-
-	return _quaternions[ _quaternionIndex ++ ];
-
-}
-
-// Save rotation whose grant and IK are already applied
-// used by grant children
-const _grantResultMap = new Map<number, Quaternion>();
-
-function updateOne( mesh: MMDMesh, boneIndex: number, ikSolver: CCDIKSolver | null, grantSolver: GrantSolver | null ) {
-
-	const bones = mesh.skeleton.bones;
-	const bonesData = mesh.geometry.userData.MMD.bones;
-	const boneData = bonesData[ boneIndex ];
-	const bone = bones[ boneIndex ];
-
-	// Return if already updated by being referred as a grant parent.
-	if ( _grantResultMap.has( boneIndex ) ) return;
-
-	const quaternion = getQuaternion();
-
-	// Initialize grant result here to prevent infinite loop.
-	// If it's referred before updating with actual result later
-	// result without applyting IK or grant is gotten
-	// but better than composing of infinite loop.
-	_grantResultMap.set( boneIndex, quaternion.copy( bone.quaternion ) );
-
-	// @TODO: Support global grant and grant position
-	if ( grantSolver && boneData.grant &&
-		! boneData.grant.isLocal && boneData.grant.affectRotation ) {
-
-		const parentIndex = boneData.grant.parentIndex;
-		const ratio = boneData.grant.ratio;
-
-		if ( ! _grantResultMap.has( parentIndex ) ) {
-
-			updateOne( mesh, parentIndex, ikSolver, grantSolver );
-
-		}
-
-		grantSolver.addGrantRotation( bone, _grantResultMap.get( parentIndex )!, ratio );
-
-	}
-
-	if ( ikSolver && boneData.ik ) {
-
-		// @TODO: Updating world matrices every time solving an IK bone is
-		// costly. Optimize if possible.
-		mesh.updateMatrixWorld( true );
-		ikSolver.updateOne( boneData.ik );
-
-		// No confident, but it seems the grant results with ik links should be updated?
-		const links = boneData.ik.links;
-
-		for ( let i = 0, il = links.length; i < il; i ++ ) {
-
-			const link = links[ i ];
-
-			if ( link.enabled === false ) continue;
-
-			const linkIndex = link.index;
-
-			if ( _grantResultMap.has( linkIndex ) ) {
-
-				_grantResultMap.set( linkIndex, _grantResultMap.get( linkIndex )!.copy( bones[ linkIndex ].quaternion ) );
-
-			}
-
-		}
-
-	}
-
-	// Update with the actual result here
-	quaternion.copy( bone.quaternion );
-
-}
-
-//
-
 class AudioManager {
 
 	audio: Audio;
@@ -1246,100 +1183,6 @@ class AudioManager {
 
 		return this.audio.isPlaying &&
 			this.currentTime >= this.duration;
-
-	}
-
-}
-
-const _q = new Quaternion();
-
-/**
- * Solver for Grant (Fuyo in Japanese. I just google translated because
- * Fuyo may be MMD specific term and may not be common word in 3D CG terms.)
- * Grant propagates a bone's transform to other bones transforms even if
- * they are not children.
- * @param {THREE.SkinnedMesh} mesh
- * @param {Array<Object>} grants
- */
-class GrantSolver {
-
-	mesh: MMDMesh;
-	grants: Grant[];
-
-	constructor( mesh: MMDMesh, grants: Grant[] = [] ) {
-
-		this.mesh = mesh;
-		this.grants = grants;
-
-	}
-
-	/**
-	 * Solve all the grant bones
-	 * @return {GrantSolver}
-	 */
-	update() {
-
-		const grants = this.grants;
-
-		for ( let i = 0, il = grants.length; i < il; i ++ ) {
-
-			this.updateOne( grants[ i ] );
-
-		}
-
-		return this;
-
-	}
-
-	/**
-	 * Solve a grant bone
-	 * @param {Object} grant - grant parameter
-	 * @return {GrantSolver}
-	 */
-	updateOne( grant: Grant ) {
-
-		const bones = this.mesh.skeleton.bones;
-		const bone = bones[ grant.index ];
-		const parentBone = bones[ grant.parentIndex ];
-
-		if ( grant.isLocal ) {
-
-			// TODO: implement
-			if ( grant.affectPosition ) {
-
-			}
-
-			// TODO: implement
-			if ( grant.affectRotation ) {
-
-			}
-
-		} else {
-
-			// TODO: implement
-			if ( grant.affectPosition ) {
-
-			}
-
-			if ( grant.affectRotation ) {
-
-				this.addGrantRotation( bone, parentBone.quaternion, grant.ratio );
-
-			}
-
-		}
-
-		return this;
-
-	}
-
-	addGrantRotation( bone: Bone, q: Quaternion, ratio: number ) {
-
-		_q.set( 0, 0, 0, 1 );
-		_q.slerp( q, ratio );
-		bone.quaternion.multiply( _q );
-
-		return this;
 
 	}
 

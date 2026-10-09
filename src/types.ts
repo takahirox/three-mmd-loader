@@ -48,6 +48,8 @@ export type ConstraintParameters = Omit<Constraint, 'name'> & {
 };
 
 export interface MMDBone {
+	/** Original PMX flags, including 0x1000 (after physics). */
+	flag?: number;
 	index: number;
 	name: string;
 	parent: number;

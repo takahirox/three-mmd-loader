@@ -50,9 +50,10 @@ morph weights through Three.js's normal mixer behavior.
 Each frame restores the pose before the preceding procedural pass, evaluates
 VMD bone and morph tracks, applies direct bone morphs **once**, solves IK and
 grants, then updates physics. Both default and `pmxAnimation: true` paths use
-this ordering. The PMX path keeps the existing transformation-class/index
-order and recursive grant-parent updates. IK sees morph-adjusted targets and
-links; grants inherit morph-adjusted rotations. Kinematic rigid bodies follow
+this ordering, with PMX grants/IK processed by before/after-physics phase,
+transformation class and index. See [grants.md](grants.md) for the four grant
+cases, source reference timing and scoped physics limitations. IK sees
+morph-adjusted targets and links; grants inherit morph-adjusted motion. Kinematic rigid bodies follow
 those transforms; dynamic bodies continue to override their target bones.
 Experimental shared physics captures the final pose after the shared step.
 
@@ -97,12 +98,12 @@ palette for surfaces, normals, outlines and shadows.
 [material morph playback](material-morphs.md) are supported separately.
 Real-model verification of the wire rope candidate remains optional.
 
-This change preserves the helper's existing solver limitations: local grants
-and position grants remain unimplemented, and the PMX helper is an approximation
-rather than a complete implementation of PMX before/after-physics deformation
-layers. Bone morphs use the existing single pass before physics. Regression
-tests cover global rotation grants, IK, the unchanged local/position grant
-behavior, physics overrides, warmup, loop reset and experimental shared physics.
+All four rotation/position and ordinary/local grant cases are supported; see
+[PMX grants](grants.md) for their exact spaces and ordered source references.
+Full after-physics layering on kinematic/dynamic body targets remains limited
+and has dedicated reproducer tests. Bone morphs use a single pass before
+physics. Regression tests cover morph-driven grants, IK, physics overrides,
+warmup, loop reset and experimental shared physics.
 
 ## Optional local model inspection
 
@@ -128,8 +129,8 @@ The existing loopback viewer now includes bone morph controls:
    vertices; existing BDEF vertices retain their skinning types.
 6. Optionally load a compatible local VMD using a path relative to the model's
    selected private directory. Its morph weights appear in the diagnostics.
-   Moving a weight slider stops motion; static inspection disables IK/grants
-   to show the direct offsets. Motion playback enables IK/grants and keeps
+   Moving a weight slider stops motion; static inspection disables IK and leaves grants off by default
+   to show the direct offsets. **Apply PMX grants** enables grant inspection. Motion playback enables IK/grants and keeps
    physics disabled. Existing YYB Miku bend controls remain available.
 
 The server binds only to `127.0.0.1`. Model and texture routes enforce realpath

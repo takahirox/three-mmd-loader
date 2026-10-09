@@ -59,7 +59,6 @@ type OnProgress = ( event: ProgressEvent ) => void;
 type OnError = ( error: unknown ) => void;
 type MMDTexture = Texture & { readyCallbacks?: ( ( texture: MMDTexture ) => void )[]; transparent?: boolean; isCompressedTexture?: boolean };
 type TextureOptions = { isToonTexture?: boolean; isDefaultToonTexture?: boolean };
-type GrantEntry = { parent: GrantEntry | null; children: GrantEntry[]; param: Grant | null; visited: boolean };
 type MMDMaterialParameters = MMDToonMaterialParameters & {
 	map?: MMDTexture;
 	userData: { MMD: { mapFileName?: string; matcapFileName?: string }; outlineParameters?: MMDOutlineParameters };
@@ -714,6 +713,7 @@ class GeometryBuilder {
 			const bone: MMDBone = {
 				index: i,
 				transformationClass: 'transformationClass' in boneData ? boneData.transformationClass : undefined,
+				flag: 'flag' in boneData ? boneData.flag : undefined,
 				parent: boneData.parentIndex,
 				name: boneData.name,
 				pos: boneData.position.slice( 0, 3 ),
@@ -832,74 +832,17 @@ class GeometryBuilder {
 
 		if ( ! isPmd( data ) ) {
 
-			// bone index -> grant entry map
-			const grantEntryMap: Record<string, GrantEntry> = {};
-
+			// Keep file metadata, including malformed references, for inspection.
+			// Deformation order and validation belong to the solver, not a grant tree.
 			for ( let i = 0; i < data.metadata.boneCount; i ++ ) {
 
 				const boneData = data.bones[ i ];
-				const grant = boneData.grant;
-
-				if ( grant === undefined ) continue;
-
-				const param = {
-					index: i,
-					parentIndex: grant.parentIndex,
-					ratio: grant.ratio,
-					isLocal: grant.isLocal,
-					affectRotation: grant.affectRotation,
-					affectPosition: grant.affectPosition,
-					transformationClass: boneData.transformationClass
-				};
-
-				grantEntryMap[ i ] = { parent: null, children: [], param: param, visited: false };
+				if ( ! boneData.grant ) continue;
+				const param: Grant = { index: i, ...boneData.grant, transformationClass: boneData.transformationClass };
+				grants.push( param );
+				bones[ i ].grant = param;
 
 			}
-
-			const rootEntry: GrantEntry = { parent: null, children: [], param: null, visited: false };
-
-			// Build a tree representing grant hierarchy
-
-			for ( const boneIndex in grantEntryMap ) {
-
-				const grantEntry = grantEntryMap[ boneIndex ];
-				const parentGrantEntry = grantEntryMap[ grantEntry.param!.parentIndex ] || rootEntry;
-
-				grantEntry.parent = parentGrantEntry;
-				parentGrantEntry.children.push( grantEntry );
-
-			}
-
-			// Sort grant parameters from parents to children because
-			// grant uses parent's transform that parent's grant is already applied
-			// so grant should be applied in order from parents to children
-
-			function traverse( entry: GrantEntry ) {
-
-				if ( entry.param ) {
-
-					grants.push( entry.param );
-
-					// Save the reference even from bone data for efficiently
-					// simulating PMX animation system
-					bones[ entry.param.index ].grant = entry.param;
-
-				}
-
-				entry.visited = true;
-
-				for ( let i = 0, il = entry.children.length; i < il; i ++ ) {
-
-					const child = entry.children[ i ];
-
-					// Cut off a loop if exists. (Is a grant loop invalid?)
-					if ( ! child.visited ) traverse( child );
-
-				}
-
-			}
-
-			traverse( rootEntry );
 
 		}
 
