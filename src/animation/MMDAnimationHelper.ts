@@ -225,13 +225,7 @@ class MMDAnimationHelper {
 
 		if ( this.sharedPhysics ) {
 
-			this._updateSharedPhysics( delta );
-			for ( const mesh of this.meshes ) {
-
-				this._animateAfterPhysics( mesh );
-				this.boneMorphControllers.get( mesh )?.capture();
-
-			}
+			this._finishSharedPhysics( delta );
 
 		}
 
@@ -606,16 +600,19 @@ class MMDAnimationHelper {
 
 		}
 
-		if ( objects.poseLayers ) objects.physics.warmupStep = delta => {
+		if ( objects.poseLayers || this.sharedPhysics ) objects.physics.warmupStep = delta => {
 
 			// Settle physics at a fixed authored time, through both pose phases.
-			this._animateMesh( mesh, delta, 0 );
-			if ( this.sharedPhysics && this.enabled.physics ) {
+			// One shared-world step affects every mesh, including meshes already
+			// present when a new adapter is added or warmup is called directly.
+			if ( this.sharedPhysics ) {
 
-				this.onBeforePhysics( mesh );
-				objects.physics!.update( delta );
-				this._animateAfterPhysics( mesh );
-				this.boneMorphControllers.get( mesh )?.capture();
+				for ( const participant of this.meshes ) this._animateMesh( participant, delta, 0 );
+				this._finishSharedPhysics( delta );
+
+			} else {
+
+				this._animateMesh( mesh, delta, 0 );
 
 			}
 
@@ -736,12 +733,13 @@ class MMDAnimationHelper {
 		this._animatePMXMesh( mesh, objects.sortedBonesData,
 			this.enabled.ik ? objects.ikSolver ?? null : null,
 			this.enabled.grant ? objects.grantSolver ?? null : null, true );
-		// A pre-phase dynamic child of a post-phase parent still has a world
-		// body authority. Rebase it while preserving any executed post IK offset.
-		if ( physicsActive && objects.poseLayers ) for ( const data of objects.sortedBonesData ) {
+		// Later post IK/grants can move ancestors of already processed dynamic
+		// bones in either phase. Rebase parent first, preserving each bone's own
+		// post contributions, so correcting a parent cannot move a corrected child.
+		if ( physicsActive && objects.poseLayers ) for ( const index of objects.poseLayers.parentFirstIndices ) {
 
-			if ( data.rigidBodyType <= 0 || ( ( data.flag ?? 0 ) & 0x1000 ) ) continue;
-			objects.poseLayers.reprojectDynamic( data.index, () => objects.physics!.projectBone( data.index ) );
+			if ( mesh.geometry.userData.MMD.bones[ index ].rigidBodyType <= 0 ) continue;
+			objects.poseLayers.reprojectDynamic( index, () => objects.physics!.projectBone( index ) );
 
 		}
 		objects.poseLayers?.capture( objects.poseLayers.final );
@@ -1167,6 +1165,18 @@ class MMDAnimationHelper {
 				p._updateBones( delta > 0 || ! p.poseLayers );
 
 			}
+
+		}
+
+	}
+
+	_finishSharedPhysics( delta: number ) {
+
+		this._updateSharedPhysics( delta );
+		for ( const mesh of this.meshes ) {
+
+			this._animateAfterPhysics( mesh );
+			this.boneMorphControllers.get( mesh )?.capture();
 
 		}
 

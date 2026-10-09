@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
+import type { Object3D } from 'three';
 import type { MMDMesh } from '../types.js';
 
 /** Frame snapshots in bone-parent space, xyz + quaternion xyzw per bone.
@@ -15,6 +16,8 @@ export class PMXPoseLayers {
 	readonly physics: Float64Array;
 	readonly postPhysicsBase: Float64Array;
 	readonly final: Float64Array;
+	/** Hierarchy order is independent of PMX procedural class/file order. */
+	readonly parentFirstIndices: number[] = [];
 	private position = new Vector3();
 	private rotation = new Quaternion();
 	private restPosition = new Vector3();
@@ -23,6 +26,13 @@ export class PMXPoseLayers {
 
 	constructor( private mesh: MMDMesh ) {
 
+		const indices = new Map<Object3D, number>( mesh.skeleton.bones.map( ( bone, i ) => [ bone, i ] ) );
+		mesh.traverse( object => {
+
+			const index = indices.get( object );
+			if ( index !== undefined ) this.parentFirstIndices.push( index );
+
+		} );
 		this.rest = new Float64Array( mesh.skeleton.bones.length * 7 );
 		for ( const [ i, b ] of mesh.geometry.userData.MMD.bones.entries() ) {
 
@@ -101,11 +111,20 @@ export class PMXPoseLayers {
 	reprojectDynamic( index: number, project: () => void ) {
 
 		const bone = this.mesh.skeleton.bones[ index ];
-		this.deltaPosition.copy( bone.position ).sub( this.position.fromArray( this.postPhysicsBase, index * 7 ) );
+		const bodyOwnsPosition = this.mesh.geometry.userData.MMD.bones[ index ].rigidBodyType === 1;
+		if ( bodyOwnsPosition ) this.deltaPosition.copy( bone.position ).sub( this.position.fromArray( this.postPhysicsBase, index * 7 ) );
 		this.deltaRotation.fromArray( this.postPhysicsBase, index * 7 + 3 ).invert().multiply( bone.quaternion );
 		project();
-		bone.position.toArray( this.postPhysicsBase, index * 7 ); bone.quaternion.toArray( this.postPhysicsBase, index * 7 + 3 );
-		bone.position.add( this.deltaPosition ); bone.quaternion.multiply( this.deltaRotation );
+		if ( bodyOwnsPosition ) {
+
+			bone.position.toArray( this.postPhysicsBase, index * 7 );
+			bone.position.add( this.deltaPosition );
+
+		}
+		// Mode 2 keeps its skeletal position; projecting only its Bullet rotation
+		// must neither replace the position baseline nor add post offsets again.
+		bone.quaternion.toArray( this.postPhysicsBase, index * 7 + 3 );
+		bone.quaternion.multiply( this.deltaRotation );
 		bone.updateMatrixWorld( true );
 
 	}

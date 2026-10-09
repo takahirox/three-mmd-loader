@@ -168,6 +168,121 @@ for ( const pmxAnimation of [ false, true ] ) test( `post IK can rotate a dynami
 
 } );
 
+for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ false, true ] ) for ( const contributions of [ 'none', 'layers', 'ik' ] ) test( `late ancestor IK rebases dynamic descendants, retaining their post layers pmx=${pmxAnimation} shared=${sharedPhysics} contributions=${contributions}`, async () => {
+
+	await initializeAmmo();
+	try {
+
+		const { data, loader } = setup( true );
+		delete data.bones[ 0 ].grant; delete data.bones[ 6 ].ik;
+		if ( contributions !== 'layers' ) delete data.bones[ 1 ].grant;
+		data.bones[ 1 ].parentIndex = 0;
+		data.bones[ 10 ].parentIndex = 0; data.bones[ 10 ].position = [ 0, 1, 0 ];
+		data.bones[ 9 ].position = [ 1, 0, 0 ];
+		data.bones[ 9 ].ik = { target: null, effector: 10, iteration: 1, maxAngle: Math.PI, linkCount: 1, links: [ { index: 0, angleLimitation: 0 } ] };
+		// The grandchild runs before its dynamic parent in class order. Final
+		// rebasing must instead run parent first, through the actual hierarchy.
+		delete data.bones[ 2 ].grant;
+		data.bones[ 2 ].parentIndex = 1; data.bones[ 2 ].position = [ 2, 0, 1 ]; data.bones[ 2 ].transformationClass = 3;
+		data.rigidBodies[ 2 ].type = 1; data.rigidBodies[ 2 ].position = [ 2, 0, 1 ];
+		if ( contributions === 'ik' ) {
+
+			data.bones[ 5 ].parentIndex = 1; data.bones[ 5 ].position = [ 2, 1, 0 ]; data.bones[ 5 ].flag = 0x1000;
+			data.bones[ 4 ].position = [ 3, 0, 0 ]; data.bones[ 4 ].flag = 0x1020; data.bones[ 4 ].transformationClass = 5;
+			data.bones[ 4 ].ik = { target: null, effector: 5, iteration: 1, maxAngle: Math.PI, linkCount: 1, links: [ { index: 1, angleLimitation: 0 } ] };
+
+		}
+		const mesh = loader.meshBuilder.build( data, '' ), helper = new MMDAnimationHelper( { pmxAnimation } ); helper.sharedPhysics = sharedPhysics;
+		helper.add( mesh, { warmup: 0, animationWarmup: false, gravity: new Vector3(), unitStep: 1 / 60 } );
+		if ( sharedPhysics ) { const second = setup().mesh; second.position.z = 20; helper.add( second, { warmup: 0, animationWarmup: false, gravity: new Vector3(), unitStep: 1 / 60 } ); }
+		const authoredRotation = [ Math.sin( 0.1 ), 0, 0, Math.cos( 0.1 ) ];
+		const morph = mesh.geometry.userData.MMD.boneMorphs![ 0 ].elements[ 1 ];
+		if ( contributions === 'layers' ) {
+
+			mesh.skeleton.bones[ 1 ].position.x += 0.3; mesh.skeleton.bones[ 1 ].quaternion.fromArray( authoredRotation );
+			// Keep the ancestor's analytic IK oracle independent of bone0 morphs.
+			mesh.geometry.userData.MMD.boneMorphs![ 0 ].elements = [ morph ]; mesh.morphTargetInfluences![ 1 ] = 0.5;
+			mesh.skeleton.bones[ 6 ].position.x = 0.8; mesh.skeleton.bones[ 6 ].quaternion.set( 0, 0, Math.sin( 0.2 ), Math.cos( 0.2 ) );
+
+		}
+		const offset = contributions === 'layers' ? morph.position.map( ( v, i ) => v * 0.5 + ( i === 0 ? 0.5 : 0 ) ) : [ 0, 0, 0 ];
+		const rotation = contributions === 'layers' ? product( product( power( morph.rotation, 0.5 ), authoredRotation ), [ 0, 0, Math.sin( 0.05 ), Math.cos( 0.05 ) ] ) : contributions === 'ik' ? [ 0, 0, -Math.SQRT1_2, Math.SQRT1_2 ] : [ 0, 0, 0, 1 ];
+		for ( let frame = 0; frame < 30; frame ++ ) {
+
+			helper.update( 1 / 60 );
+			near( mesh.skeleton.bones[ 0 ].quaternion.toArray(), [ 0, 0, -Math.SQRT1_2, Math.SQRT1_2 ] );
+			near( bodyPosition( helper, mesh, 1 ), [ 2, 0, 0 ] ); near( bodyPosition( helper, mesh, 2 ), [ 2, 0, 1 ] );
+			const raw = helper.objects.get( mesh )!.physics!.bodyResults;
+			near( raw[ 1 ].quaternion, [ 0, 0, 0, 1 ] ); near( raw[ 2 ].quaternion, [ 0, 0, 0, 1 ] );
+			// Local post translation rotates with the parent; the raw Bullet
+			// position and the child's own post rotation retain world authority.
+			near( mesh.skeleton.bones[ 1 ].getWorldPosition( new Vector3() ).toArray(), [ 2 + offset[ 1 ], -offset[ 0 ], offset[ 2 ] ] );
+			near( mesh.skeleton.bones[ 1 ].getWorldQuaternion( mesh.skeleton.bones[ 1 ].quaternion.clone() ).toArray(), rotation );
+			near( mesh.skeleton.bones[ 2 ].getWorldPosition( new Vector3() ).toArray(), [ 2, 0, 1 ] );
+			near( mesh.skeleton.bones[ 2 ].getWorldQuaternion( mesh.skeleton.bones[ 2 ].quaternion.clone() ).toArray(), [ 0, 0, 0, 1 ] );
+
+		}
+
+	} finally { delete ammoGlobal.Ammo; }
+
+} );
+
+for ( const pmxAnimation of [ false, true ] ) test( `shared warmup stages and finishes every mesh at fixed authored time pmx=${pmxAnimation}`, async () => {
+
+	await initializeAmmo();
+	try {
+
+		const { mesh, loader } = setup(), helper = new MMDAnimationHelper( { pmxAnimation, sync: false } ); helper.sharedPhysics = true;
+		const clip = loader.animationBuilder.build( new Parser().parseVmd( vmdBuffer( { boneName: 'bone7' } ), true ), mesh );
+		helper.add( mesh, { animation: clip, warmup: 0, animationWarmup: false, gravity: new Vector3(), unitStep: 1 / 60 } );
+		const state = helper.objects.get( mesh )!, physics = state.physics!, layers = state.poseLayers!;
+		state.mixer!.setTime( 0.2 ); mesh.skeleton.bones[ 6 ].position.x = 0.8; helper.update( 0 );
+		near( bodyPosition( helper, mesh, 0 ), [ 0, 0, 0 ] ); near( layers.final.slice( 0, 3 ), [ 0.4, 0, 0 ] );
+		physics.bodies[ 1 ].body.setLinearVelocity!( new ammoGlobal.Ammo!.btVector3( 1, 0, 0 ) );
+		const second = setup().mesh; second.position.z = 20;
+		let callbacks = 0;
+		helper.onBeforePhysics = participant => {
+
+			if ( participant === mesh ) {
+
+				const completed = callbacks / 2, x = 2 + completed / 60;
+				near( physics.bodyResults[ 1 ].position, [ x, 0, 0 ] ); near( layers.final.slice( 7, 10 ), [ x + 0.2, 0, 0 ] );
+				near( physics.bodyResults[ 0 ].position, [ completed === 0 ? 0 : 0.4, 0, 0 ] );
+				assert.equal( state.mixer!.time, 0.2 );
+
+			}
+			callbacks ++;
+
+		};
+		helper.add( second, { warmup: 10, animationWarmup: false, gravity: new Vector3(), unitStep: 1 / 60 } );
+		const secondState = helper.objects.get( second )!;
+		assert.equal( physics.world, secondState.physics!.world );
+		assert.equal( callbacks, 20 ); assert.equal( state.mixer!.time, 0.2 );
+		const verify = ( steps: number, input: number ) => {
+
+			const x = 2 + steps / 60;
+			near( bodyPosition( helper, mesh, 1 ), [ x, 0, 0 ] ); near( physics.bodyResults[ 1 ].position, [ x, 0, 0 ] );
+			near( layers.final.slice( 7, 10 ), [ x + input / 2, 0, 0 ] );
+			near( bodyPosition( helper, mesh, 0 ), [ input, 0, 0 ] ); near( physics.bodyResults[ 0 ].position, [ input, 0, 0 ] );
+			assert.equal( physics.bodyResultPhase, 'step' ); assert.equal( secondState.physics!.bodyResultPhase, 'step' );
+			near( secondState.physics!.bodyResults[ 1 ].position, bodyPosition( helper, second, 1 ) );
+			near( secondState.poseLayers!.final.slice( 7, 10 ), [ 2, 0, 0 ] );
+			assert.equal( state.mixer!.time, 0.2 );
+
+		};
+		verify( 10, 0.4 );
+		// Calling either adapter directly must still use the shared barrier.
+		helper.onBeforePhysics = () => { callbacks ++; };
+		mesh.skeleton.bones[ 6 ].position.x = 0.6; helper.update( 0 );
+		near( bodyPosition( helper, mesh, 0 ), [ 0.4, 0, 0 ] ); callbacks = 0;
+		secondState.physics!.warmup( 5 ); assert.equal( callbacks, 10 ); verify( 15, 0.3 );
+		callbacks = 0; physics.warmup( 5 ); assert.equal( callbacks, 10 ); verify( 20, 0.3 );
+		helper.update( 0 ); verify( 20, 0.3 );
+
+	} finally { delete ammoGlobal.Ammo; }
+
+} );
+
 for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ false, true ] ) test( `layer lifecycle: warmup/reset/pause/seek/loop/toggles/transfer pmx=${pmxAnimation} shared=${sharedPhysics}`, async () => {
 
 	await initializeAmmo();
