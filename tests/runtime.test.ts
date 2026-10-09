@@ -123,11 +123,11 @@ test( 'PMX vertex morphs retain their positions and mesh influences', () => {
 
 } );
 
-test( 'PMX grants are ordered from parents to children', () => {
+test( 'PMX grant metadata stays in file order and the solver follows transformation classes', () => {
 
 	const data = new Parser().parsePmx( pmxBuffer(), true );
 	data.bones = [ 'child', 'parent', 'root' ].map( ( name, index ) => ( {
-		name, englishName: '', flag: 0, position: [ 0, 0, 0 ], parentIndex: - 1, transformationClass: 0,
+		name, englishName: '', flag: 0, position: [ 0, 0, 0 ], parentIndex: - 1, transformationClass: 2 - index,
 		...index < 2 ? { grant: {
 			parentIndex: index + 1, ratio: 0.5, isLocal: false,
 			affectRotation: true, affectPosition: false
@@ -135,7 +135,10 @@ test( 'PMX grants are ordered from parents to children', () => {
 	} ) );
 	data.metadata.boneCount = data.bones.length;
 	const mesh = modelLoader().meshBuilder.build( data, '' );
-	assert.deepEqual( mesh.geometry.userData.MMD.grants.map( grant => grant.index ), [ 1, 0 ] );
+	assert.deepEqual( mesh.geometry.userData.MMD.grants.map( grant => grant.index ), [ 0, 1 ] );
+	mesh.skeleton.bones[ 2 ].quaternion.setFromAxisAngle( new Vector3( 1, 0, 0 ), Math.PI / 2 );
+	new MMDAnimationHelper().createGrantSolver( mesh ).update();
+	assert.ok( Math.abs( mesh.skeleton.bones[ 0 ].quaternion.x - Math.sin( Math.PI / 16 ) ) < 1e-6 );
 
 } );
 

@@ -100,3 +100,9 @@ material.colorNode = extraUV;
 updateMMDUVs( mesh ); helper.enable( 'uvMorph', false );
 // @ts-expect-error PMX has only four extra UV channels
 mmdAdditionalUV( 5 );
+
+// Retained PMX metadata and the existing solver factory need no extra exports.
+const flags: number | undefined = mesh.geometry.userData.MMD.bones[ 0 ].flag;
+const grantSolver = helper.createGrantSolver( mesh );
+grantSolver.update();
+if ( mesh.geometry.userData.MMD.grants[ 0 ] ) grantSolver.updateOne( mesh.geometry.userData.MMD.grants[ 0 ] );

@@ -12,9 +12,11 @@
 "three-mmd-loader":"/src/index.js"}}</script></head>
 <body><div id="panel">
 <strong>Private PMX UV/material/group/bone morph and SDEF inspection</strong>
-<label>Local directory <select id="asset-directory"><option value="yyb-miku-10th">yyb-miku-10th/</option><option value="bone-morph">bone-morph/</option><option value="group-morph">group-morph/</option><option value="material-morph">material-morph/</option><option value="uv-morph">uv-morph/</option></select></label>
+<label>Local directory <select id="asset-directory"><option value="yyb-miku-10th">yyb-miku-10th/</option><option value="bone-morph">bone-morph/</option><option value="group-morph">group-morph/</option><option value="material-morph">material-morph/</option><option value="grant">grant/</option><option value="uv-morph">uv-morph/</option></select></label>
 <label>PMX path relative to the selected directory<input id="model" type="text" value="model.pmx"></label>
-<button id="load">Load PMX</button> <button id="generated-uv">Generated UV fixture</button>
+<button id="load">Load PMX</button> <button id="generated-uv">Generated UV fixture</button> <button id="generated-grant">Generated Grant fixture</button>
+<label><input id="grants" type="checkbox"> Apply PMX grants</label>
+<pre id="grant-info" style="max-height:260px;overflow:auto;white-space:pre-wrap">Load PMX to inspect actual grant flags and affected bones.</pre>
 <label>Direct type 3–7 UV morph <select id="uv-morph" disabled></select></label>
 <label>UV weight <input id="uv-weight" type="range" min="0" max="1" step="0.01" value="0" disabled> <span id="uv-weight-value">0.00</span></label>
 <label><input id="checker" type="checkbox"> Generated asymmetric checker texture (UV0)</label>
@@ -33,6 +35,7 @@
 <label>Bone <select id="bone"></select></label>
 <label>Bend axis <select id="axis"><option>x</option><option>y</option><option>z</option></select></label>
 <label>Bend <input id="bend" type="range" min="-150" max="150" value="0"> <span id="degrees">0°</span></label>
+<label>Source translation X <input id="translation" type="range" min="-3" max="3" step="0.01" value="0"></label>
 <button id="reset">Reset pose</button>
 <label><input id="bdef" type="checkbox"> Compare using BDEF2</label>
 <label>Optional VMD path relative to the selected directory<input id="motion" type="text" placeholder="motion.vmd"></label>
