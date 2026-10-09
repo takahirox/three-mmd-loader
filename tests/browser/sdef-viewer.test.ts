@@ -77,7 +77,7 @@ test( 'private group/bone viewer enumerates parsed links, loads textures/VMD, co
 	const local = createSdefServer( { boneMorphDirectory: directory, groupMorphDirectory: directory, materialMorphDirectory: directory } );
 	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
 <pre id="result">pending</pre><script type="module">
-import {MMDAnimationHelper} from 'three-mmd-loader';
+import {MMDAnimationHelper} from '@takahirox/three-mmd';
 const result=document.getElementById('result'),errors=[];console.error=(...args)=>errors.push(args.map(String).join(' '));
 let mesh;const original=MMDAnimationHelper.prototype.update;
 MMDAnimationHelper.prototype.update=function(delta){const value=original.call(this,delta);mesh=this.meshes[0];return value;};
@@ -169,7 +169,7 @@ test( 'generated private UV viewer reports real payloads and independent direct/
 	const local = createSdefServer();
 	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
 <pre id="result">pending</pre><script type="module">
-import { MMDAnimationHelper } from 'three-mmd-loader';
+import { MMDAnimationHelper } from '@takahirox/three-mmd';
 let mesh;const original=MMDAnimationHelper.prototype.update;
 MMDAnimationHelper.prototype.update=function(delta){const r=original.call(this,delta);mesh=this.meshes[0];return r;};
 const result=document.getElementById('result'),errors=[];console.error=(...args)=>errors.push(args.map(String).join(' '));
@@ -225,7 +225,7 @@ test( 'private generated grant inspector exposes real flags, source controls and
 	const local = createSdefServer();
 	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
 <pre id="result">pending</pre><script type="module">
-import {MMDAnimationHelper} from 'three-mmd-loader';
+import {MMDAnimationHelper} from '@takahirox/three-mmd';
 let mesh;const original=MMDAnimationHelper.prototype.update;
 MMDAnimationHelper.prototype.update=function(delta){const r=original.call(this,delta);mesh=this.meshes[0];return r;};
 const result=document.getElementById('result'),errors=[];console.error=(...args)=>errors.push(args.map(String).join(' '));
@@ -275,7 +275,7 @@ test( 'private generated physics viewer runs Ammo, reports actual layers/body mo
 	const local = createSdefServer();
 	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
 <pre id="result">pending</pre><script type="module">
-import { MMDAnimationHelper } from 'three-mmd-loader';
+import { MMDAnimationHelper } from '@takahirox/three-mmd';
 const result=document.getElementById('result'),errors=[]; console.error=(...args)=>errors.push(args.map(String).join(' '));
 let helper;const update=MMDAnimationHelper.prototype.update;MMDAnimationHelper.prototype.update=function(delta){helper=this;return update.call(this,delta);};
 function check(value,message){if(!value)throw new Error(message);}
@@ -324,7 +324,7 @@ test( 'private generated SubTexture viewer loads its RGBA checker and supports U
 	const local = createSdefServer();
 	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
 <pre id="result">pending</pre><script type="module">
-import { MMDAnimationHelper } from 'three-mmd-loader';
+import { MMDAnimationHelper } from '@takahirox/three-mmd';
 let mesh;const update=MMDAnimationHelper.prototype.update;MMDAnimationHelper.prototype.update=function(d){const r=update.call(this,d);mesh=this.meshes[0];return r;};
 const result=document.getElementById('result'),errors=[];console.error=(...a)=>errors.push(a.map(String).join(' '));
 const check=(v,m)=>{if(!v)throw new Error(m);};

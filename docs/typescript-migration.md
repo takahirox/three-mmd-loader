@@ -4,7 +4,7 @@ The maintained modules in `src/` use strict TypeScript. `npm run typecheck`
 builds the package and examples first, then checks the package source, browser
 examples, scripts, and tests using separate strict configurations. `npm run build` emits native ES
 modules and declarations into `dist/`; Three.js remains an external peer.
-Package exports expose the root and documented `.js` subpaths, with
+`@takahirox/three-mmd` exports expose the root and documented `.js` subpaths, with
 `types` conditions pointing to the corresponding declarations.
 
 Issue #20 replaces the former local parser with the external runtime dependency

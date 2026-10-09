@@ -2,17 +2,17 @@ import { AnimationClip, PerspectiveCamera, Vector3 } from 'three';
 import {
 	MMDLoader, MMDAnimationHelper, CCDIKSolver, MMDPhysics, MMDExporter,
 	MMDToonMaterial, MMDOutlineEffect
-} from 'three-mmd-loader';
-import type { AmmoAPI, IK, MMDMesh, MMDBoneMorph, MMDGroupMorph, MMDMaterialMorph, MMDMaterialValues } from 'three-mmd-loader';
-import { MMDLoader as SubpathLoader } from 'three-mmd-loader/loaders/MMDLoader.js';
-import { MMDAnimationHelper as SubpathHelper } from 'three-mmd-loader/animation/MMDAnimationHelper.js';
-import { CCDIKHelper } from 'three-mmd-loader/animation/CCDIKSolver.js';
-import { MMDPhysics as SubpathPhysics } from 'three-mmd-loader/animation/MMDPhysics.js';
-import { MMDExporter as SubpathExporter } from 'three-mmd-loader/exporters/MMDExporter.js';
+} from '@takahirox/three-mmd';
+import type { AmmoAPI, IK, MMDMesh, MMDBoneMorph, MMDGroupMorph, MMDMaterialMorph, MMDMaterialValues } from '@takahirox/three-mmd';
+import { MMDLoader as SubpathLoader } from '@takahirox/three-mmd/loaders/MMDLoader.js';
+import { MMDAnimationHelper as SubpathHelper } from '@takahirox/three-mmd/animation/MMDAnimationHelper.js';
+import { CCDIKHelper } from '@takahirox/three-mmd/animation/CCDIKSolver.js';
+import { MMDPhysics as SubpathPhysics } from '@takahirox/three-mmd/animation/MMDPhysics.js';
+import { MMDExporter as SubpathExporter } from '@takahirox/three-mmd/exporters/MMDExporter.js';
 import { Parser, CharsetEncoder } from 'mmd-parser';
 import type { Pmd, Pmx, Vmd, Vpd } from 'mmd-parser';
-import { MMDToonMaterial as SubpathMaterial } from 'three-mmd-loader/materials/MMDToonMaterial.js';
-import { MMDOutlineEffect as SubpathOutline } from 'three-mmd-loader/effects/MMDOutlineEffect.js';
+import { MMDToonMaterial as SubpathMaterial } from '@takahirox/three-mmd/materials/MMDToonMaterial.js';
+import { MMDOutlineEffect as SubpathOutline } from '@takahirox/three-mmd/effects/MMDOutlineEffect.js';
 import { WebGPURenderer } from 'three/webgpu';
 
 const loader: MMDLoader = new SubpathLoader();
@@ -89,16 +89,17 @@ new Parser().parsePmx( 'model.pmx' );
 new CCDIKSolver( mesh, [ { target: 'target', effector: 1, links: [] } ] );
 
 // @ts-expect-error parser constructors belong to mmd-parser
-import { MMDParser, Parser as RemovedParser, CharsetEncoder as RemovedEncoder } from 'three-mmd-loader';
+import { MMDParser, Parser as RemovedParser, CharsetEncoder as RemovedEncoder } from '@takahirox/three-mmd';
 // @ts-expect-error the old parser subpath is no longer exported
-import 'three-mmd-loader/libs/mmdparser.module.js';
+import '@takahirox/three-mmd/libs/mmdparser.module.js';
 
 // @ts-expect-error the GLSL shader subpath was removed by the TSL migration
-import 'three-mmd-loader/shaders/MMDToonShader.js';
+import '@takahirox/three-mmd/shaders/MMDToonShader.js';
 
-import { mmdAdditionalUV, updateMMDUVs } from 'three-mmd-loader';
+import { mmdAdditionalUV, updateMMDUVs } from '@takahirox/three-mmd';
+import { mmdAdditionalUV as SubpathAdditionalUV } from '@takahirox/three-mmd/materials/MMDUV.js';
 import type { Node } from 'three/webgpu';
-const extraUV: Node<'vec4'> = mmdAdditionalUV( 4 );
+const extraUV: Node<'vec4'> = SubpathAdditionalUV( 4 );
 material.colorNode = extraUV;
 updateMMDUVs( mesh ); helper.enable( 'uvMorph', false );
 // @ts-expect-error PMX has only four extra UV channels

@@ -1,6 +1,6 @@
 # Development Flow
 
-This document defines the default development flow for three-mmd-loader, with particular emphasis on AI-assisted development.
+This document defines the default development flow for @takahirox/three-mmd, with particular emphasis on AI-assisted development.
 
 ## 1. Start with an Issue
 

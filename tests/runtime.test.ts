@@ -11,7 +11,7 @@ import {
 import {
 	CCDIKSolver, MMDAnimationHelper, MMDExporter, MMDLoader, MMDPhysics,
 	MMDToonMaterial
-} from 'three-mmd-loader';
+} from '@takahirox/three-mmd';
 import { pmdBuffer, pmxBuffer, vmdBuffer } from './fixtures.ts';
 
 const AmmoFactory = createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI>;

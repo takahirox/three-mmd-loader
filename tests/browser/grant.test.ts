@@ -11,11 +11,11 @@ import { referenceBdef, referenceSdef } from '../sdef-reference.ts';
 
 import { createRequire } from 'node:module';
 import { Texture } from 'three';
-import type { AmmoAPI } from 'three-mmd-loader';
-import { MMDAnimationHelper } from 'three-mmd-loader';
+import type { AmmoAPI } from '@takahirox/three-mmd';
+import { MMDAnimationHelper } from '@takahirox/three-mmd';
 import { product } from '../bone-morph-reference.ts';
 import { Parser } from 'mmd-parser';
-import { MMDLoader } from 'three-mmd-loader';
+import { MMDLoader } from '@takahirox/three-mmd';
 import { grantPmxBuffer, physicsLayersPmxBuffer, vmdBuffer } from '../fixtures.ts';
 import { accumulated, authoredGrantPose, identity, power, referenceGrants } from '../grant-reference.ts';
 

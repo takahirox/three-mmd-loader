@@ -1,7 +1,7 @@
 {
-  "name": "three-mmd-loader",
+  "name": "@takahirox/three-mmd",
   "version": "0.1.0",
-  "description": "MMD loader, animation, physics, and export addons for Three.js",
+  "description": "MMD loading, animation, physics, TSL materials, outlines, and VPD export for Three.js",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -86,7 +86,8 @@
     "check:typescript": "node --import tsx scripts/check-typescript.ts",
     "dev:sdef": "npm run build && node --import tsx scripts/serve-sdef.ts",
     "models:setup": "node --import tsx scripts/setup-models.ts",
-    "models:import": "node --import tsx scripts/import-models.ts"
+    "models:import": "node --import tsx scripts/import-models.ts",
+    "prepublishOnly": "npm run typecheck && npm test"
   },
   "peerDependencies": {
     "three": "~0.186.0"
@@ -108,5 +109,25 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "mmd-parser": "^1.1.4"
-  }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "homepage": "https://github.com/takahirox/three-mmd-loader#readme",
+  "bugs": {
+    "url": "https://github.com/takahirox/three-mmd-loader/issues"
+  },
+  "keywords": [
+    "three",
+    "three.js",
+    "mmd",
+    "mikumikudance",
+    "pmd",
+    "pmx",
+    "vmd",
+    "vpd",
+    "tsl",
+    "webgpu"
+  ]
 }
