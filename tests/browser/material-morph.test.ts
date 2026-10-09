@@ -50,6 +50,32 @@ try {
   async function pixels(){await new Promise(requestAnimationFrame);effect.render(scene,camera);return new Uint8Array(await renderer.readRenderTargetPixelsAsync(target,0,0,128,128));}
   const center=p=>Array.from(p.slice((64*128+64)*4,(64*128+64)*4+4));
   function near(actual,expected,label,tolerance=3){actual.forEach((v,i)=>check(Math.abs(v-expected[i])<=tolerance,label+' '+actual+' expected '+expected));}
+  // Public material/group weights also enter Three's vertex morph uniforms.
+  // Invalid entries must behave like zero without replacing the public array.
+  mesh.material.forEach((m,i)=>m.visible=i===0);
+  const probe=mesh.material[0];probe.map=probe.matcap=probe.gradientMap=null;probe.needsUpdate=true;
+  effect.enabled=true;
+  const publicWeights=mesh.morphTargetInfluences;
+  const dictionary=JSON.stringify(mesh.morphTargetDictionary);
+  async function weightPixels(){helper.update(0);probe.specular.setRGB(0,0,0);return pixels();}
+  mesh.morphTargetInfluences.fill(0);const baseline=await weightPixels();
+  check(center(baseline)[3]>0,'nonfinite regression baseline is invisible');
+  let invalidWeightCases=0;
+  for(const index of [1,2,4,5]) for(const invalid of [NaN,Infinity,-Infinity]) {
+   publicWeights.fill(0);const validIndex=index<4?4:1;publicWeights[validIndex]=0.5;
+   const expected=await weightPixels();publicWeights[index]=invalid;
+   const saved=publicWeights.slice();
+   for(let repeat=0;repeat<2;repeat++) {
+    const actual=await weightPixels();
+    check(actual.every((v,i)=>v===expected[i]),backend+' nonfinite weight '+index+' '+invalid+' changed surface/outline pixels');
+    check(mesh.morphTargetInfluences===publicWeights&&saved.every((v,i)=>Object.is(v,publicWeights[i])),'render mutated public weights');
+    check(JSON.stringify(mesh.morphTargetDictionary)===dictionary,'render changed morph indices');
+   }
+   publicWeights.fill(0);const recovered=await weightPixels();
+   check(recovered.every((v,i)=>v===baseline[i]),backend+' nonfinite weight did not recover to zero');
+   invalidWeightCases++;
+  }
+  effect.enabled=false;
   let samples=0;
   const modes=['emissive','diffuse','map','toon','sphere-multiply','sphere-add','all','specular'];
   for(const mode of modes) {
@@ -89,6 +115,7 @@ try {
   geometry.setAttribute('skinWeight',new Float32BufferAttribute(skin,4));geometry.setAttribute('mmdEdgeRatio',new Float32BufferAttribute(new Float32Array(count).fill(1),1));
   // Keep controller metadata/indices while replacing only the drawable probe.
   geometry.userData=oldGeometry.userData;geometry.morphTargets=oldGeometry.morphTargets;geometry.clearGroups();geometry.addGroup(0,geometry.index.count,0);mesh.geometry=geometry;
+  geometry.morphAttributes.position=oldGeometry.morphTargets.map(({name})=>{const a=geometry.attributes.position.clone();a.name=name;return a;});
   effect.enabled=true;light.visible=false;
   const rings=[];
   for(const c of [cases[0],cases[1],cases[5],cases[2],cases[3],cases[0]]) {
@@ -111,7 +138,15 @@ try {
   for(const weight of [0,0.5,1,0]) {mesh.morphTargetInfluences.fill(0);mesh.morphTargetInfluences[1]=weight;helper.update(0);const p=await pixels();shadowSamples.push(Array.from(p.slice((64*128+64)*4,(64*128+64)*4+3)));}
   check(shadowSamples[2][0]>shadowSamples[0][0]+100,'zero-alpha caster shadow persists '+JSON.stringify(shadowSamples));
   near(shadowSamples[3],shadowSamples[0],'shadow reset');
-  result.backends.push({backend,samples,rings,shadowSamples});
+  const shadowBaseline=await pixels();let invalidShadowCases=0;
+  for(const index of [1,2,4,5]) for(const invalid of [NaN,Infinity,-Infinity]) {
+   publicWeights[index]=invalid;helper.update(0);const p=await pixels();
+   check(p.every((v,i)=>v===shadowBaseline[i]),backend+' nonfinite weight changed caster/shadow pixels');
+   check(mesh.morphTargetInfluences===publicWeights&&Object.is(publicWeights[index],invalid),'shadow render mutated public weights');
+   publicWeights.fill(0);helper.update(0);const recovered=await pixels();
+   check(recovered.every((v,i)=>v===shadowBaseline[i]),backend+' nonfinite shadow weight did not recover to zero');invalidShadowCases++;
+  }
+  result.backends.push({backend,samples,rings,shadowSamples,invalidWeightCases,invalidShadowCases});
   scene.remove(receiver);receiver.geometry.dispose();receiver.material.dispose();effect.dispose();helper.remove(mesh);geometry.dispose();oldGeometry.dispose();mesh.material.forEach(m=>m.dispose());shared.dispose();target.dispose();renderer.dispose();
  }
 }catch(error){result.errors.push(error.stack||String(error));}
@@ -135,11 +170,11 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 	try {
 
 		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
-		const result = await runBrowser<{ errors: string[]; webgpu: boolean; backends: { backend: string; samples: number; rings: number[]; shadowSamples: number[][] }[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/`, profile, 'light', 100000 );
+		const result = await runBrowser<{ errors: string[]; webgpu: boolean; backends: { backend: string; samples: number; rings: number[]; shadowSamples: number[][]; invalidWeightCases: number; invalidShadowCases: number }[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/`, profile, 'light', 100000 );
 		assert.deepEqual( result.errors, [] ); assert.equal( result.backends[ 0 ]?.backend, 'webgl' );
 		if ( result.webgpu ) assert.equal( result.backends[ 1 ]?.backend, 'webgpu' );
 		else t.diagnostic( 'Native WebGPU adapter unavailable; mandatory WebGL2 passed.' );
-		for ( const b of result.backends ) { assert.equal( b.samples, 264 ); t.diagnostic( `${b.backend}: ${b.samples} independent surface RGBA assertions; outline pixel counts ${b.rings}; shadows ${JSON.stringify( b.shadowSamples )}` ); }
+		for ( const b of result.backends ) { assert.equal( b.samples, 264 ); assert.equal( b.invalidWeightCases, 12 ); assert.equal( b.invalidShadowCases, 12 ); t.diagnostic( `${b.backend}: ${b.samples} independent surface RGBA assertions; ${b.invalidWeightCases} nonfinite weight/reset cases; ${b.invalidShadowCases} nonfinite shadow/reset cases; outline pixel counts ${b.rings}; shadows ${JSON.stringify( b.shadowSamples )}` ); }
 
 	} finally {
 

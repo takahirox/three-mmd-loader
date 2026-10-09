@@ -1,4 +1,5 @@
 import { copyMaterialValues, freezeMaterialValues } from '../animation/MMDMaterialMorphController.js';
+import { protectMMDMorphWeights } from '../animation/MMDMorphWeights.js';
 import { enableSdefShadows } from '../skinning/MMDSdef.js';
 import { Camera, InterleavedBuffer, InterleavedBufferAttribute, LoadingManager } from 'three';
 import type { Texture, TypedArray, KeyframeTrack } from 'three';
@@ -505,6 +506,7 @@ class MeshBuilder {
 			.build( data, geometry, onProgress, onError );
 
 		const mesh = new SkinnedMesh( geometry, material );
+		if ( geometry.userData.MMD.materialMorphs?.length ) protectMMDMorphWeights( mesh );
 
 		const skeleton = new Skeleton( initBones( mesh ) );
 		mesh.bind( skeleton );

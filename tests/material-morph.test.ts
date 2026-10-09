@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Parser } from 'mmd-parser';
-import { Texture } from 'three';
+import { Texture, Vector3 } from 'three';
 import { MMDAnimationHelper, MMDLoader } from 'three-mmd-loader';
 import type { MMDMesh } from 'three-mmd-loader';
 import { materialPmxBuffer, pmdBuffer, vmdBuffer } from './fixtures.ts';
@@ -126,6 +126,39 @@ for ( const pmxAnimation of [ false, true ] ) {
 	} );
 
 }
+
+test( 'draw-scoped nonfinite weights preserve finite vertex deformation, public arrays and nested draws', () => {
+
+	const { mesh } = setup();
+	const weights = mesh.morphTargetInfluences!;
+	const rest = mesh.getVertexPosition( 0, new Vector3() );
+	const target = mesh.geometry.morphAttributes.position![ 0 ];
+	target.setX( 0, target.getX( 0 ) + 1 );
+	const before = () => mesh.onBeforeRender( null!, null!, null!, mesh.geometry, mesh.material[ 0 ], null! );
+	const after = () => mesh.onAfterRender( null!, null!, null!, mesh.geometry, mesh.material[ 0 ], null! );
+	for ( const vertexWeight of [ - 0.25, 1.5 ] ) for ( const invalid of [ NaN, Infinity, - Infinity ] ) {
+
+		weights.fill( 0 ); weights[ 0 ] = vertexWeight; weights[ 1 ] = invalid; weights[ 4 ] = invalid;
+		const saved = weights.slice();
+		before();
+		assert.notEqual( mesh.morphTargetInfluences, weights );
+		assert.equal( mesh.morphTargetInfluences![ 0 ], vertexWeight );
+		near( mesh.getVertexPosition( 0, new Vector3() ).toArray(), [ rest.x + vertexWeight, rest.y, rest.z ] );
+		const renderingWeights = mesh.morphTargetInfluences;
+		before(); after();
+		assert.equal( mesh.morphTargetInfluences, renderingWeights );
+		after();
+		assert.equal( mesh.morphTargetInfluences, weights );
+		assert.deepEqual( weights, saved );
+
+	}
+	weights.fill( 0 ); before();
+	assert.equal( mesh.morphTargetInfluences, weights );
+	near( mesh.getVertexPosition( 0, new Vector3() ).toArray(), rest.toArray() );
+	after();
+	assert.equal( mesh.morphTargetInfluences, weights );
+
+} );
 
 test( 'invalid material indices/modes, nonfinite components and public weights are harmless; PMD remains unchanged', () => {
 

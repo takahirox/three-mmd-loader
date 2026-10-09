@@ -33,6 +33,12 @@ groups add; effective weights are never written back to the public array.
 Negative weights/ratios and weights above one are valid extrapolation and are
 not clamped. Zero weights do nothing. Nonfinite direct/group weights and
 nonfinite contributions are ignored; an overflowing sum is ignored as well.
+For meshes with material morphs, surface, outline and shadow draws also replace
+nonfinite public weights with zero in a temporary array for vertex rendering. This
+keeps Three's base-influence sum and placeholder targets finite. The original
+public array, indices and values are restored after each draw; helper updates
+and VMD tracks retain their original weights. Finite vertex/group weights still
+reach Three unchanged.
 Group-to-group links (including cycles) remain ignored. Vertex and bone links
 continue through their existing implementations exactly once.
 
