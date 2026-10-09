@@ -183,6 +183,32 @@ export async function inspectDirectory( root: string, onError?: ( message: strin
 	return models;
 
 }
+// Installed bundles each passed the import/setup limits independently. Keep
+// their discovery budgets and errors independent too, including nested paths.
+export async function inspectInstalledBundles( root: string, onError: ( message: string ) => void ) {
+
+	if ( ( await lstat( root ) ).isSymbolicLink() ) throw new Error( 'Symlink boundary rejected' );
+	const models = [];
+	for ( const entry of await readdir( root, { withFileTypes: true } ) ) {
+
+		if ( entry.name.startsWith( '.' ) || ( ! entry.isDirectory() && ! entry.isSymbolicLink() ) ) continue;
+		const reportError = ( message: string ) => onError( `${entry.name}: ${message}` );
+		try {
+
+			const bundle = await checkedPath( root, entry.name );
+			for ( const model of await inspectDirectory( bundle, reportError ) ) {
+
+				const prefix = ( path: string ) => entry.name + '/' + path;
+				models.push( { ...model, path: prefix( model.path ), motions: model.motions.map( prefix ), notices: model.notices.map( prefix ) } );
+
+			}
+
+		} catch ( error ) { reportError( String( error ) ); }
+
+	}
+	return models;
+
+}
 export async function withModelLock<T>( root: string, action: () => Promise<T> ) {
 
 	await prepareRoot( root );

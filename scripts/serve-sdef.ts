@@ -1,4 +1,4 @@
-import { checkedPath, decodeNotice, inspectDirectory, privateRoot as managedRoot } from './private-models.ts';
+import { checkedPath, decodeNotice, inspectDirectory, inspectInstalledBundles, privateRoot as managedRoot } from './private-models.ts';
 import { grantPmxBuffer, physicsLayersPmxBuffer, sdefPmxBuffer, subtexturePmxBuffer, subtexturePngBuffer } from '../tests/fixtures.ts';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -49,7 +49,8 @@ export function createSdefServer( { privateDirectory = assetRoot, boneMorphDirec
 
 					try {
 
-						for ( const model of await inspectDirectory( base, message => errors.push( { directory, message: message.replaceAll( base, '[local directory]' ) } ) ) ) {
+						const inspect = directory === 'models' ? inspectInstalledBundles : inspectDirectory;
+						for ( const model of await inspect( base, message => errors.push( { directory, message: message.replaceAll( base, '[local directory]' ) } ) ) ) {
 
 							const notices = [];
 							for ( const notice of model.notices.slice( 0, 16 ) ) {

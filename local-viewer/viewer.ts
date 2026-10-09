@@ -299,12 +299,30 @@ async function loadModel( generated: boolean | 'grant' | 'physics-layers' | 'sub
 		status.textContent = 'Loading local PMX and textures…';
 		const directory = assetDirectory.value;
 		const next = await loader.loadAsync( generated ? ( generated === 'subtexture' ? '/local-sdef/generated-subtexture.pmx' : generated === 'physics-layers' ? '/local-sdef/generated-physics-layers.pmx' : generated === 'grant' ? '/local-sdef/generated-grant.pmx' : '/local-sdef/generated-uv.pmx' ) : privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
-		reset();
-		if ( mesh ) { helper.remove( mesh ); scene.remove( mesh ); mesh.geometry.dispose(); mesh.skeleton.dispose(); mesh.material.forEach( m => m.dispose() ); }
+		const nextPhysicsView = generated === 'physics-layers' || directory === 'physics-layers' || ( ! generated && physicsToggle.checked );
+		if ( nextPhysicsView ) await initializeAmmo();
+		if ( mesh ) {
+
+			helper.objects.get( mesh )?.mixer?.stopAllAction();
+			helper.remove( mesh ); scene.remove( mesh );
+			// Release the renderer's outline objects before their source materials,
+			// then free geometry, skeleton and model-owned textures.
+			effect.dispose();
+			const textures = new Set<Texture>( originalMaps.filter( ( map ): map is Texture => map !== null ) );
+			for ( const material of mesh.material ) {
+
+				for ( const value of Object.values( material ) ) if ( value?.isTexture ) textures.add( value as Texture );
+				material.dispose();
+
+			}
+			mesh.geometry.dispose(); mesh.skeleton.dispose();
+			for ( const texture of textures ) if ( texture !== checkerMap ) texture.dispose();
+
+		}
+		animation = false; bend.value = translation.value = '0'; element( 'degrees' ).textContent = '0°';
 		mesh = next; mesh.frustumCulled = false; scene.add( mesh ); loadedDirectory = directory;
-		physicsView = generated === 'physics-layers' || directory === 'physics-layers' || ( ! generated && physicsToggle.checked );
+		physicsView = nextPhysicsView;
 		physicsPaused = true; physicsToggle.checked = physicsView;
-		if ( physicsView ) await initializeAmmo();
 		helper.enable( 'physics', physicsView ).enable( 'ik', physicsView );
 		helper.add( mesh, { physics: physicsView, warmup: 0, unitStep: 1 / 60, gravity: new Vector3( 0, -9.8, 0 ) } );
 		originalMaps = mesh.material.map( m => m.map ); checker.checked = generated === true; checker.onchange!( new Event( 'change' ) );

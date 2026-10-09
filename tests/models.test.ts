@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, open, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -166,6 +166,48 @@ test( 'ZIP rejects traversal, executable content, links, bombs, collisions and b
 	const size = modelZip( [ { path: 'file.txt', bytes } ] ); const central = size.indexOf( Buffer.from( [ 0x50, 0x4b, 1, 2 ] ) ); size.writeUInt32LE( limits.file + 1, central + 24 ); assert.throws( () => readModelZip( size ), /resource/ );
 	assert.throws( () => readModelZip( modelZip( Array.from( { length: limits.files + 1 }, ( _, i ) => ( { path: i + '.txt', bytes: Buffer.alloc( 0 ) } ) ) ) ), /entry limit/ );
 	assert.throws( () => readModelZip( Buffer.alloc( limits.archive + 1 ) ), /size limit/ );
+
+} );
+
+test( 'private catalog budgets each installed bundle independently and isolates oversized or invalid bundles', async () => {
+
+	const temporary = await mkdtemp( join( tmpdir(), 'mmd-bundle-catalog-' ) ), root = join( temporary, 'models' );
+	const server = createSdefServer( { modelsDirectory: root, installedExamplesDirectory: join( temporary, 'missing' ) } );
+	async function makeBundle( name: string, textures = 1 ) {
+
+		const bundle = join( root, name );
+		for ( const [ path, bytes ] of fixtureFiles() ) { await mkdir( dirname( join( bundle, path ) ), { recursive: true } ); await writeFile( join( bundle, path ), bytes ); }
+		for ( let i = 0; i < textures; i ++ ) {
+
+			// Sparse textures exercise real byte limits without allocating hundreds of MiB.
+			const file = await open( join( bundle, '包/tex', i === 0 ? '色.png' : `${i}.png` ), 'a' );
+			try { await file.truncate( 60 * 1024 * 1024 ); } finally { await file.close(); }
+
+		}
+
+	}
+	try {
+
+		await makeBundle( 'first' );
+		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+		const url = `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/local-sdef/models.json`;
+		const initial = await ( await fetch( url ) ).json();
+		assert.equal( initial.models.length, 1 );
+		for ( let i = 1; i < 5; i ++ ) await makeBundle( `valid-${i}` );
+		const combined = await ( await fetch( url ) ).json();
+		assert.equal( combined.models.length, 5 ); assert.deepEqual( combined.errors, [] );
+		assert.deepEqual( combined.models.find( ( m: { path: string } ) => m.path === initial.models[ 0 ].path ), initial.models[ 0 ] );
+		await makeBundle( 'oversized', 5 ); await makeBundle( 'broken' );
+		await writeFile( join( root, 'broken/包/モデル.pmx' ), 'invalid PMX' );
+		await symlink( join( root, 'first' ), join( root, 'linked' ) );
+		await makeBundle( '.staging-hidden' );
+		const isolated = await ( await fetch( url ) ).json();
+		assert.deepEqual( isolated.models, combined.models );
+		assert.equal( isolated.errors.length, 3 );
+		for ( const message of [ /oversized:.*Model resource limit exceeded/, /broken:.*invalid\/unsupported PMX/, /linked:.*Symlink/ ] ) assert.ok( isolated.errors.some( ( e: { message: string } ) => message.test( e.message ) ) );
+		assert.ok( isolated.models.every( ( m: { path: string; motions: string[]; notices: { path: string; text: string }[] } ) => m.motions[ 0 ] === m.path.replace( 'モデル.pmx', 'motion.vmd' ) && m.notices[ 0 ].path === m.path.replace( 'モデル.pmx', 'README.txt' ) && m.notices[ 0 ].text.includes( 'Generated fixture' ) ) );
+
+	} finally { await new Promise( resolve => server.close( resolve ) ); await rm( temporary, { recursive: true, force: true } ); }
 
 } );
 
