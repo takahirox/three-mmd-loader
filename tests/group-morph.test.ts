@@ -73,14 +73,14 @@ test( 'released parser group payloads preserve names, indices, ratios and explic
 
 } );
 
-test( 'unsupported group links preserve UVs and materialMorph toggle restores material parameters', () => {
+test( 'disabled UV morphs and unsupported group links preserve UVs and materialMorph toggle restores material parameters', () => {
 
 	const { mesh } = setup();
 	const state = () => ( {
 		attributes: Object.fromEntries( Object.entries( mesh.geometry.attributes ).map( ( [ name, a ] ) => [ name, Array.from( a.array ) ] ) ),
 		materials: mesh.material.map( m => ( { color: m.color.toArray(), opacity: m.opacity, transparent: m.transparent, uniforms: m.userData } ) )
 	} );
-	const helper = new MMDAnimationHelper(); helper.enable( 'materialMorph', false ).add( mesh, { physics: false } ).update( 0 );
+	const helper = new MMDAnimationHelper(); helper.enable( 'materialMorph', false ).enable( 'uvMorph', false ).add( mesh, { physics: false } ).update( 0 );
 	const before = structuredClone( state() );
 	for ( const index of [ 5, 9, 10, 11, 12, 13, 14, 15 ] ) mesh.morphTargetInfluences![ index ] = 1;
 	for ( let i = 0; i < 5; i ++ ) { helper.update( 0 ); check( mesh ); assert.deepEqual( state(), before ); }

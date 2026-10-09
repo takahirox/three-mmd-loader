@@ -11,3 +11,6 @@ export type * from './ammo.js';
 export type { MMDAnimationHelperParameters, MMDAnimationParameters, MMDPoseParameters, MMDAnimationFeature, MMDAnimationState, MMDCamera } from './animation/MMDAnimationHelper.js';
 export type { MMDPhysicsParameters } from './animation/MMDPhysics.js';
 export type { MMDToonMaterialParameters, MMDOutlineParameters } from './materials/MMDToonMaterial.js';
+
+export { mmdAdditionalUV } from './materials/MMDUV.js';
+export { updateMMDUVs } from './animation/MMDUVMorphController.js';

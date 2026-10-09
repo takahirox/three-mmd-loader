@@ -231,20 +231,23 @@ export const sdefR1 = [ - 0.3, 0.5, - 0.1 ];
 export const sdefNormal = [ 0.36, 0.48, 0.8 ];
 export const sdefMorph = [ 0.15, - 0.2, 0.25 ];
 
-export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, texturePath }: { boneMorphs?: boolean; groupMorphs?: boolean; texturePath?: string } = {} ) {
+export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, texturePath, uvMorphs = false, additionalUVCount = 4 }: { boneMorphs?: boolean; groupMorphs?: boolean; texturePath?: string; uvMorphs?: boolean; additionalUVCount?: number } = {} ) {
 
 	boneMorphs ||= groupMorphs;
 
 	const w = new Writer();
 	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
-	for ( const value of [ 0, 0, 1, 1, 1, 1, 1, 1 ] ) w.u8( value );
+	for ( const value of [ 0, uvMorphs ? additionalUVCount : 0, 1, 1, 1, 1, 1, 1 ] ) w.u8( value );
 	w.text( 'SDEF probes' ).text( '' ).text( '' ).text( '' );
 	w.u32( sdefProbeVertices.length * 3 );
 	for ( const v of sdefProbeVertices ) {
 
 		for ( let i = 0; i < 3; i ++ ) {
 
-			w.f32( ...v.position, ...sdefNormal, 0, 0 ).u8( v.type );
+			const position = uvMorphs ? [ ( sdefProbeVertices.indexOf( v ) % 3 - 1 ) * 1.2 + [ - 0.45, 0.45, 0 ][ i ], Math.floor( sdefProbeVertices.indexOf( v ) / 3 ) * 1.2 + [ - 0.45, - 0.45, 0.45 ][ i ], 0 ] : v.position;
+			w.f32( ...position, ...sdefNormal, ...( uvMorphs ? [ 0.125, 0.2 ] : [ 0, 0 ] ) );
+			if ( uvMorphs ) for ( let c = 1; c <= additionalUVCount; c ++ ) w.f32( ...uvProbeBase( c ) );
+			w.u8( v.type );
 			if ( v.type === 0 ) w.u8( 0 );
 			else if ( v.type === 2 ) w.u8( 0 ).u8( 1 ).u8( 2 ).u8( 3 ).f32( 0.2, 0.3, 0.1, 0.4 );
 			else w.u8( 0 ).u8( 1 ).f32( v.weight );
@@ -268,7 +271,7 @@ export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, textur
 		w.text( `bone${i}` ).text( '' ).f32( i * 0.2, i * 0.1, i * - 0.15 ).u8( 255 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
 
 	}
-	w.u32( groupMorphs ? 16 : boneMorphs ? 6 : 1 ).text( 'vertex-morph' ).text( '' ).u8( 1 ).u8( 1 ).u32( sdefProbeVertices.length * 3 );
+	w.u32( ( groupMorphs ? 16 : boneMorphs ? 6 : 1 ) + ( uvMorphs ? 8 : 0 ) ).text( 'vertex-morph' ).text( '' ).u8( 1 ).u8( 1 ).u32( sdefProbeVertices.length * 3 );
 	for ( let i = 0; i < sdefProbeVertices.length * 3; i ++ ) w.u8( i ).f32( ...sdefMorph );
 	if ( boneMorphs ) {
 
@@ -278,7 +281,7 @@ export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, textur
 			for ( const e of morph.elements ) w.u8( e.index ).f32( ...e.position, ...e.rotation );
 
 		}
-		// A direct group-to-bone link; UV dispatch remains unsupported.
+		// A direct group-to-bone link followed by a UV target.
 		w.text( 'bone-group' ).text( '' ).u8( 4 ).u8( 0 ).u32( 1 ).u8( 1 ).f32( 0.75 );
 		w.text( 'uv-morph' ).text( '' ).u8( 4 ).u8( 3 ).u32( 1 ).u8( 0 ).f32( 0.1, 0.2, 0.3, 0.4 );
 
@@ -306,10 +309,36 @@ export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, textur
 		group( 'invalid-group', [ [ - 1, 1 ], [ 120, 1 ], [ 5, 1 ], [ 10, 1 ], [ 11, 1 ], [ 12, 1 ], [ 13, 1 ], [ 14, 1 ], [ 9, 1 ], [ 1, NaN ], [ 0, Infinity ] ] ); // 15
 
 	}
+	if ( uvMorphs ) {
+
+		const first = groupMorphs ? 16 : boneMorphs ? 6 : 1;
+		for ( let c = 0; c <= 4; c ++ ) {
+
+			w.text( `uv${c}` ).text( '' ).u8( 4 ).u8( c + 3 ).u32( sdefProbeVertices.length * 3 + 3 );
+			for ( let i = 0; i < sdefProbeVertices.length * 3; i ++ ) w.u8( i ).f32( ...uvProbeDelta( c ) );
+			w.u8( 0 ).f32( 0.01, - 0.02, 0.03, - 0.04 ); // duplicate
+			w.u8( 120 ).f32( 20, 30, 40, 50 ); // invalid vertex
+			w.u8( 1 ).f32( NaN, Infinity, - Infinity, NaN );
+
+		}
+		const group = ( name: string, links: number[][] ) => {
+
+			w.text( name ).text( '' ).u8( 4 ).u8( 0 ).u32( links.length );
+			for ( const [ index, ratio ] of links ) w.u8( index ).f32( ratio );
+
+		};
+		group( 'uv-group', [ ...Array.from( { length: 5 }, ( _, c ) => [ first + c, 0.5 ] ), [ first, 0.25 ], [ 0, 0.2 ] ] );
+		group( 'uv-shared', [ [ first, - 0.25 ], [ first + 4, 0.75 ] ] );
+		group( 'uv-nested', [ [ first + 5, 100 ], [ first + 7, 100 ], [ first + 2, - 0.5 ], [ 120, 1 ], [ first, NaN ], [ first, Infinity ] ] );
+
+	}
 	w.u32( 0 ).u32( 0 ).u32( 0 );
 	return w.buffer();
 
 }
+
+export const uvProbeBase = ( c: number ) => c === 0 ? [ 0.125, 0.2, 0, 0 ] : [ c * 0.1, 0.2 + c * 0.01, 0.3 + c * 0.02, 0.4 + c * 0.03 ];
+export const uvProbeDelta = ( c: number ) => c === 0 ? [ 0.6, 0.35, 0.2, - 0.4 ] : [ c * 0.03, - c * 0.02, c * 0.04, - c * 0.05 ];
 
 // Left-handed source payloads: asymmetric rotations and translations, a
 // negative quaternion sign and a near-identity rotation. Never external assets.

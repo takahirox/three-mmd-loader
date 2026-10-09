@@ -2,10 +2,10 @@ import { hasSdef, setupMMDPosition } from '../skinning/MMDSdef.js';
 import { AddOperation, MultiplyOperation, Vector4 } from 'three';
 import type { Color, Combine, Texture } from 'three';
 import { MeshPhongNodeMaterial, PhongLightingModel } from 'three/webgpu';
-import type { MeshPhongNodeMaterialParameters, Node, NodeBuilder } from 'three/webgpu';
+import type { MeshPhongNodeMaterialParameters, Node, NodeBuilder, NodeMaterial } from 'three/webgpu';
 import type { LightingModelDirectInput } from 'three/src/nodes/core/LightingModel.js';
 import {
-	BRDF_Lambert, F_Schlick, Fn, diffuseColor, float, materialColor, materialOpacity, materialReference, reference,
+	BRDF_Lambert, F_Schlick, Fn, diffuseColor, float, materialColor, materialReference, reference,
 	materialSpecularStrength, matcapUV, mix, normalView, positionViewDirection,
 	shininess, smoothstep, specularColor, vec2, vec3, vec4
 } from 'three/tsl';
@@ -80,6 +80,20 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 
 	}
 
+	set needsUpdate( value: boolean ) {
+
+		// Shadow Fn graphs capture sampler presence. Rebuild our mask when Three
+		// invalidates the material, so map/alphaMap replacement cannot retain a
+		// reference to a removed texture. Preserve application-supplied masks.
+		if ( value && this.mmdShadowMask && this.maskShadowNode === this.mmdShadowMask ) {
+
+			this.maskShadowNode = this.mmdShadowMask = this.createShadowMask();
+
+		}
+		super.needsUpdate = value;
+
+	}
+
 	// Retain the loader's historical diffuse alias while exposing standard color.
 	get diffuse(): Color { return this.color; }
 	set diffuse( value: Color ) { this.color = value; }
@@ -110,6 +124,27 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 
 	}
 
+	/** Keep r186's override from filtering alpha again after the source mask. */
+	setupShadowDiffuseColor( material: NodeMaterial, builder: NodeBuilder, setup: ( builder: NodeBuilder ) => void ) {
+
+		const opacityNode = material.opacityNode, alphaTest = material.alphaTest;
+		if ( this.maskShadowNode === this.mmdShadowMask ) {
+
+			// Our source mask already evaluates opacity, sampler factors and alpha
+			// test together. The override's default alphaMap path uses red and can
+			// also reject valid samples boosted by source material morph factors.
+			material.opacityNode = float( 1 ); material.alphaTest = 0;
+
+		} else if ( this.alphaMap && ! opacityNode ) {
+
+			material.opacityNode = ( materialReference( 'alphaMap', 'texture' ) as unknown as Node<'vec4'> ).g;
+
+		}
+		try { setup.call( material, builder ); }
+		finally { material.opacityNode = opacityNode; material.alphaTest = alphaTest; }
+
+	}
+
 	setupDiffuseColor( builder: NodeBuilder ) {
 
 		// Supply factors before Three's opacity/alpha-test/shadow processing.
@@ -118,7 +153,9 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 		const opacityNode = this.opacityNode;
 		let color: Node<'vec4'> = vec4( ( colorNode ?? materialColor ) as Node<'vec4'> );
 		if ( this.map ) color = color.mul( samplerFactor( 'mmdTextureColor' ) );
-		let opacity: Node<'float'> = float( ( opacityNode ?? materialOpacity ) as Node<'float'> );
+		// Sample alphaMap.g explicitly so surface and shadow use the same channel.
+		let opacity: Node<'float'> = opacityNode ? float( opacityNode as Node<'float'> ) : materialReference( 'opacity', 'float' ) as unknown as Node<'float'>;
+		if ( this.alphaMap && ! opacityNode ) opacity = opacity.mul( ( materialReference( 'alphaMap', 'texture' ) as unknown as Node<'vec4'> ).g );
 		if ( this.matcap ) opacity = opacity.mul( samplerFactor( 'mmdSphereColor' ).a );
 		if ( this.gradientMap ) opacity = opacity.mul( samplerFactor( 'mmdToonColor' ).a );
 		this.colorNode = color; this.opacityNode = opacity;

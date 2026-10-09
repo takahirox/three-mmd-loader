@@ -125,8 +125,10 @@ alpha and outlines through TSL uniforms. The helper evaluates direct and group
 weights from immutable PMX bases; `helper.enable('materialMorph', false)` restores
 those bases. Static sliders use `helper.update(0)`.
 
-PMX [group morphs](docs/group-morphs.md) support direct vertex, bone and material targets,
+PMX [group morphs](docs/group-morphs.md) support direct vertex, bone, UV and material targets,
 including VMD playback and a private local inspection viewer.
+
+PMX [UV and additional UV morphs](docs/uv-morphs.md) support direct/group weights, VMD playback and TSL vec4 channel access.
 
 Development and validation:
 
