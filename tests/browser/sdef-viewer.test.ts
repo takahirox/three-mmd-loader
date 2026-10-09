@@ -317,3 +317,47 @@ try {
 	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
 
 } );
+
+test( 'private generated SubTexture viewer loads its RGBA checker and supports UV1/group/reset controls', { timeout: 60000 }, async () => {
+
+	const profile = await mkdtemp( join( tmpdir(), 'mmd-subtexture-viewer-profile-' ) );
+	const local = createSdefServer();
+	const html = await readFile( new URL( '../../local-viewer/index.html', import.meta.url ), 'utf8' ) + `
+<pre id="result">pending</pre><script type="module">
+import { MMDAnimationHelper } from 'three-mmd-loader';
+let mesh;const update=MMDAnimationHelper.prototype.update;MMDAnimationHelper.prototype.update=function(d){const r=update.call(this,d);mesh=this.meshes[0];return r;};
+const result=document.getElementById('result'),errors=[];console.error=(...a)=>errors.push(a.map(String).join(' '));
+const check=(v,m)=>{if(!v)throw new Error(m);};
+async function until(fn){const start=performance.now();while(!fn()){if(performance.now()-start>15000)throw new Error('viewer timeout '+document.getElementById('status').textContent);await new Promise(r=>setTimeout(r,30));}}
+try {
+ await until(()=>document.getElementById('generated-subtexture').onclick);document.getElementById('generated-subtexture').click();
+ await until(()=>mesh?.material[3].matcap?.image?.width===4);
+ check(mesh.material[3].matcapMode==='subtexture'&&mesh.material[3].userData.MMD.envFlag===3,'mode-3 material missing');
+ check(mesh.material[3].matcap===mesh.material[1].matcap,'shared checker missing');
+ const select=document.getElementById('uv-morph'),slider=document.getElementById('uv-weight'),group=document.getElementById('group'),groupWeight=document.getElementById('group-weight');
+ check(select.value==='0'&&group.value==='1'&&!slider.disabled&&!groupWeight.disabled,'SubTexture controls missing');
+ const uv=mesh.geometry.attributes.mmdAdditionalUV1;
+ for(const target of [slider,groupWeight]) for(const weight of [0,0.5,1,0]) {
+  target.value=String(weight);target.dispatchEvent(new Event('input'));
+  check(Math.abs(uv.getX(9)-(0.125+weight*0.8))<1e-6&&Math.abs(uv.getY(9)-(0.75-weight*0.6))<1e-6,'UV1 slider disconnected');
+ }
+ document.getElementById('reset').click();check(mesh.morphTargetInfluences.every(w=>w===0),'reset weights');
+ check(Math.abs(uv.getX(9)-0.125)<1e-6,'reset UV1 baseline');
+ await new Promise(resolve=>setTimeout(resolve,300));result.textContent=encodeURIComponent(JSON.stringify({errors}));
+}catch(e){result.textContent=encodeURIComponent(JSON.stringify({errors:[e.stack||String(e)]}));}
+</script>`;
+	const server = createServer( ( request, response ) => {
+
+		if ( request.url?.startsWith( '/local-sdef/?' ) ) { response.setHeader( 'Content-Type', 'text/html' ); response.end( html ); }
+		else local.emit( 'request', request, response );
+
+	} );
+	try {
+
+		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+		const result = await runBrowser<{ errors: string[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/local-sdef/?webgl`, profile );
+		assert.deepEqual( result.errors, [] );
+
+	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
+
+} );

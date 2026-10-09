@@ -292,13 +292,13 @@ weight.oninput = () => {
 	report( `Bone morph ${morph.selectedOptions[ 0 ].text}: weight ${value.toFixed( 2 )}.` );
 
 };
-async function loadModel( generated: boolean | 'grant' | 'physics-layers' = false ) {
+async function loadModel( generated: boolean | 'grant' | 'physics-layers' | 'subtexture' = false ) {
 
 	try {
 
 		status.textContent = 'Loading local PMX and textures…';
 		const directory = assetDirectory.value;
-		const next = await loader.loadAsync( generated ? ( generated === 'physics-layers' ? '/local-sdef/generated-physics-layers.pmx' : generated === 'grant' ? '/local-sdef/generated-grant.pmx' : '/local-sdef/generated-uv.pmx' ) : privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
+		const next = await loader.loadAsync( generated ? ( generated === 'subtexture' ? '/local-sdef/generated-subtexture.pmx' : generated === 'physics-layers' ? '/local-sdef/generated-physics-layers.pmx' : generated === 'grant' ? '/local-sdef/generated-grant.pmx' : '/local-sdef/generated-uv.pmx' ) : privateURL( element<HTMLInputElement>( 'model' ).value, directory ) );
 		reset();
 		if ( mesh ) { helper.remove( mesh ); scene.remove( mesh ); mesh.geometry.dispose(); mesh.skeleton.dispose(); mesh.material.forEach( m => m.dispose() ); }
 		mesh = next; mesh.frustumCulled = false; scene.add( mesh ); loadedDirectory = directory;
@@ -339,7 +339,12 @@ async function loadModel( generated: boolean | 'grant' | 'physics-layers' = fals
 		const center = box.getCenter( new Vector3() );
 		controls.target.copy( center );
 		camera.position.copy( center ).add( new Vector3( 0, 0, Math.max( box.getSize( new Vector3() ).y * 1.7, 10 ) ) ); controls.update();
-		report( 'Select an elbow or knee and move Bend to about 60–100°. Toggle BDEF2 to compare the same pose.' );
+		if ( generated === 'subtexture' ) {
+
+			uvMorph.value = '0'; group.value = '1'; selectGroup();
+			report( 'Generated sphere modes 0, 1, 2, 3 (left to right). Mode 3 samples UV1 and multiplies RGBA. Use UV1/group weights 0 → 0.5 → 1 → 0 or reset.' );
+
+		} else report( 'Select an elbow or knee and move Bend to about 60–100°. Toggle BDEF2 to compare the same pose.' );
 
 	} catch ( error ) { status.textContent = String( error ); }
 
@@ -349,6 +354,7 @@ element( 'generated-physics-layers' ).onclick = () => loadModel( 'physics-layers
 element( 'generated-grant' ).onclick = () => loadModel( 'grant' );
 translation.oninput = applyBend;
 grants.onchange = () => { helper.enable( 'grant', grants.checked ).update( 0 ); reportGrants(); };
+element( 'generated-subtexture' ).onclick = () => loadModel( 'subtexture' );
 element( 'generated-uv' ).onclick = () => loadModel( true );
 bend.oninput = applyBend; axis.onchange = applyBend;
 bone.onchange = () => { bend.value = '0'; applyBend(); };

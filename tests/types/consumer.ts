@@ -60,9 +60,12 @@ const bytes: Uint8Array | null = exporter.parseVpd( mesh, true );
 if ( text ) helper.pose( mesh, new Parser().parseVpd( text, true ) );
 if ( bytes ) new CharsetEncoder().s2u( bytes );
 new Parser().parsePmx( new ArrayBuffer( 0 ), true );
-const material: MMDToonMaterial = new SubpathMaterial( { shininess: 0, matcapCombine: 0 } );
+const material: MMDToonMaterial = new SubpathMaterial( { shininess: 0, matcapCombine: 0, matcapMode: 'subtexture' } );
 material.diffuse.setRGB( 1, 1, 1 );
 material.displacementScale = 0.5;
+material.matcapMode = 'sphere';
+// @ts-expect-error sphere sampling modes have defined names
+material.matcapMode = 'unknown';
 const outline: MMDOutlineEffect = new SubpathOutline( new WebGPURenderer( { forceWebGL: true } ) );
 outline.enabled = false;
 outline.dispose();

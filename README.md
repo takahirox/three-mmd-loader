@@ -97,7 +97,9 @@ composition, pose/seek behavior, supported scope and local viewer controls.
 MMD rendering uses **TSL / NodeMaterial**. `MMDToonMaterial` extends Three.js
 `MeshPhongNodeMaterial`, with toon direct irradiance, Phong specular and MMD
 sphere mapping (`matcap` plus `matcapCombine`: `MultiplyOperation` for `.sph`,
-`AddOperation` for `.spa`). Standard color/opacity, diffuse and alpha textures,
+`AddOperation` for `.spa`). PMX [SubTexture mode 3](docs/subtexture.md) uses
+`matcapMode: 'subtexture'` to multiply RGBA at morphed additional UV1 XY before
+specular lighting. Standard color/opacity, diffuse and alpha textures,
 emissive, normal/bump/displacement maps, sidedness and transparency use Three's
 node material facilities. `diffuse` remains an alias for `color`. Set
 `material.needsUpdate = true` after changing texture presence or sphere blend
