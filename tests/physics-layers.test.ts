@@ -83,11 +83,6 @@ for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ fal
 			const inputTransform = referenceInput; inputTransform.getOrigin().setValue( ...previousFinal as [ number, number, number ] );
 			const inputRotation = inputTransform.getRotation(); inputRotation.setX( previousRotation[ 0 ] ); inputRotation.setY( previousRotation[ 1 ] ); inputRotation.setZ( previousRotation[ 2 ] ); inputRotation.setW( previousRotation[ 3 ] ); inputTransform.setRotation( inputRotation );
 			referenceBody.setCenterOfMassTransform( inputTransform ); referenceBody.getMotionState().setWorldTransform( inputTransform );
-			if ( frame > 0 ) {
-
-				const mode2 = referencePhysics.bodies[ 2 ].body, transform = mode2.getCenterOfMassTransform(); transform.getOrigin().setValue( -1.95, 0, 0 ); mode2.setCenterOfMassTransform( transform ); mode2.getMotionState().setWorldTransform( transform );
-
-			}
 			referencePhysics.world!.stepSimulation( 1 / 60, 2, 1 / 60 );
 			helper.update( 1 / 60 );
 			for ( const index of [ 1, 2, 3, 4 ] ) {
@@ -111,9 +106,9 @@ for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ fal
 			const final1 = [ 2 + morph.elements[ 1 ].position[ 0 ] * 0.5 + 0.05, morph.elements[ 1 ].position[ 1 ] * 0.5, morph.elements[ 1 ].position[ 2 ] * 0.5 ];
 			near( mesh.skeleton.bones[ 1 ].position.toArray(), final1 );
 			near( mesh.skeleton.bones[ 1 ].quaternion.toArray(), product( weighted1, grant1 ) );
-			// Mode2 retains skeletal position; the raw body uses prior alignment.
+			// Saba/Babylon oracle: mode2 merges on the skeleton only; its isolated body stays at rest.
 			near( mesh.skeleton.bones[ 2 ].getWorldPosition( new Vector3() ).toArray(), [ -1.95, 0, 0 ] );
-			if ( frame > 0 ) near( bodyPosition( helper, mesh, 2 ), [ -1.95, 0, 0 ], 1e-4 );
+			near( bodyPosition( helper, mesh, 2 ), [ -2, 0, 0 ], 1e-4 );
 			// Analytic pre IK: vertical unit arm points to source from (-2,2).
 			near( mesh.skeleton.bones[ 5 ].getWorldPosition( new Vector3() ).toArray(), [ -1, 2, 0 ] );
 			const constrained = bodyPosition( helper, mesh, 3 );
@@ -271,6 +266,9 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) test( `standalone physic
 		const { data, loader } = setup();
 		data.bones[ 0 ].flag = phase === 'post' ? 0x1000 : 0;
 		data.bones[ 2 ].flag = phase === 'post' ? 0x1000 : 0;
+		// Isolate the reset position oracle; contacts/joints are measured in
+		// type2-physics.test.ts against the independent native-body policy.
+		data.rigidBodies[ 2 ].groupTarget = 0;
 		if ( phase === 'post-parent' ) {
 
 			data.bones[ 7 ].flag = 0x1000; data.bones[ 0 ].parentIndex = 7;
@@ -279,10 +277,11 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) test( `standalone physic
 		const mesh = loader.meshBuilder.build( data, '' ), meta = mesh.geometry.userData.MMD;
 		const physics = new MMDPhysics( mesh, meta.rigidBodies, meta.constraints, { gravity: new Vector3(), unitStep: 1 / 60 } );
 		const position = ( index: number ) => { const p = physics.bodies[ index ].body.getCenterOfMassTransform().getOrigin(); return [ p.x(), p.y(), p.z() ]; };
+		let nativeMode2 = [ -2, 0, 0 ];
 		const verify = ( x: number ) => {
 
 			near( position( 0 ), [ x, 0, 0 ] ); near( physics.bodyResults[ 0 ].position, [ x, 0, 0 ] );
-			near( position( 2 ), [ -2 + x, 0, 0 ] );
+			near( position( 2 ), nativeMode2 );
 			near( mesh.skeleton.bones[ 2 ].getWorldPosition( new Vector3() ).toArray(), [ -2 + x, 0, 0 ] );
 			assert.equal( physics.bodies[ 0 ].getDeferredPose(), null ); assert.equal( physics.bodies[ 2 ].getDeferredPose(), null );
 
@@ -293,7 +292,7 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) test( `standalone physic
 			mesh.skeleton.bones[ 2 ].position.x = -2.5 + x; mesh.updateMatrixWorld( true );
 			physics.update( 1 / 60 ); verify( x ); assert.equal( physics.bodyResultPhase, 'step' );
 			physics.warmup( 3 ); verify( x );
-			physics.reset(); verify( x ); assert.equal( physics.bodyResultPhase, 'reset' );
+			physics.reset(); nativeMode2 = [ -2 + x, 0, 0 ]; verify( x ); assert.equal( physics.bodyResultPhase, 'reset' );
 			physics.warmup( 3 ); verify( x );
 
 		}
@@ -368,8 +367,18 @@ for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ fal
 		const clip = loader.animationBuilder.build( new Parser().parseVmd( vmdBuffer( { boneName: 'bone0' } ), true ), mesh );
 		helper.add( mesh, { animation: clip, warmup: 4, gravity: new Vector3(), unitStep: 1 / 60 } );
 		const state = helper.objects.get( mesh )!, layers = state.poseLayers!, physics = state.physics!, mixer = state.mixer!, action = mixer.clipAction( clip );
+		const verifyMode2 = () => {
+
+			// Independently isolated native mode2 stays at its reset/bind position
+			// through authored seeks/loops; only the skeleton gets its post grant.
+			near( bodyPosition( helper, mesh, 2 ), [ -2, 0, 0 ] );
+			near( physics.bodyResults[ 2 ].position, [ -2, 0, 0 ] );
+			assert.equal( physics.bodies[ 2 ].getDeferredPose(), null );
+
+		};
 		const morph = mesh.geometry.userData.MMD.boneMorphs![ 0 ].elements[ 1 ];
 		const warmedTime = mixer.time; physics.warmup( 3 ); assert.equal( mixer.time, warmedTime );
+		verifyMode2();
 		mesh.morphTargetInfluences![ 1 ] = 0.5; mesh.skeleton.bones[ 6 ].position.x = 0.2;
 		for ( const time of [ 0.5, 0.1, 0.8, 0, 0.25 ] ) {
 
@@ -378,11 +387,13 @@ for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ fal
 
 				helper.update( 0 );
 				near( layers.authored.slice( 0, 3 ), [ 2 * time, 0, 0 ] );
+				verifyMode2();
 				near( bodyPosition( helper, mesh, 1 ), [ 2, 0, 0 ] );
 				near( layers.final.slice( 7, 10 ), [ 2 + 0.5 * morph.position[ 0 ] + 0.05, 0.5 * morph.position[ 1 ], 0.5 * morph.position[ 2 ] ] );
 
 			}
 			physics.reset(); helper.update( 0 ); near( bodyPosition( helper, mesh, 1 ), [ 2, 0, 0 ] );
+			verifyMode2();
 
 		}
 		const expected = layers.final.slice();
@@ -405,6 +416,7 @@ for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ fal
 		action.paused = false; mixer.setTime( 0.95 ); helper.update( 0.1 ); action.paused = true;
 		near( bodyPosition( helper, mesh, 1 ), [ 2, 0, 0 ] );
 		assert.equal( state.looped, false ); const loopPose = layers.final.slice(); helper.update( 0 ); near( layers.final, loopPose );
+		verifyMode2();
 		helper.pose( mesh, { metadata: { boneCount: 0, parentFile: '', coordinateSystem: 'right' }, bones: [] }, { ik: false, grant: false } );
 		mesh.morphTargetInfluences!.fill( 0 ); helper.update( 0 ); physics.reset(); helper.update( 0 ); near( bodyPosition( helper, mesh, 1 ), [ 2, 0, 0 ] );
 		helper.remove( mesh ); assert.equal( physics.bodies.length, 0 ); assert.equal( physics.constraints.length, 0 ); assert.equal( helper.masterPhysics, null );
@@ -549,8 +561,8 @@ test( 'pre-phase mode2 retains authored position and Bullet rotation across repe
 
 			helper.update( 1 / 60 );
 			near( mesh.skeleton.bones[ 2 ].getWorldPosition( new Vector3() ).toArray(), [ -1.6, 0.2, 0 ] );
-			near( bodyPosition( helper, mesh, 2 ), [ -1.6, 0.2, 0 ] );
-			near( helper.objects.get( mesh )!.physics!.bodyResults[ 2 ].position, repeat === 0 ? [ -2, 0, 0 ] : [ -1.6, 0.2, 0 ] );
+			near( bodyPosition( helper, mesh, 2 ), [ -2, 0, 0 ] );
+			near( helper.objects.get( mesh )!.physics!.bodyResults[ 2 ].position, [ -2, 0, 0 ] );
 			near( mesh.skeleton.bones[ 2 ].quaternion.toArray(), [ 0, 0, 0, 1 ] );
 
 		}
