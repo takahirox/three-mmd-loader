@@ -39,17 +39,19 @@ function frameLoaded( frame, transition = 'load' ) {
 		frame.onload = () => { clearTimeout( timeout ); resolve(); };
 	} );
 }
-async function resizeFrame( frame, width, height ) {
+async function resizeFrame( frame, width, height, expectedState ) {
 	progress( 'resize ' + width + 'x' + height + ': ' + frame.contentWindow.location.pathname );
 	frame.width = width;
 	frame.height = height;
-	// Let resize/layout finish. Chrome can suspend animation callbacks for
-	// offscreen iframes; use a bounded parent timer too. The following assertions
-	// still verify the actual canvas size, camera aspect, and responsive layout.
-	await new Promise( resolve => {
-		const timer = setTimeout( resolve, 250 );
-		frame.contentWindow.requestAnimationFrame( () => frame.contentWindow.requestAnimationFrame( () => { clearTimeout( timer ); resolve(); } ) );
-	} );
+	// Resize and media-query change handlers can run after layout is updated.
+	// Poll from the parent because Chrome can suspend offscreen iframe animation
+	// callbacks. Elapsed time alone must never count as successful synchronization.
+	const started = performance.now();
+	const page = frame.contentWindow;
+	while ( page.innerWidth !== width || page.innerHeight !== height || !expectedState() ) {
+		if ( performance.now() - started >= 5000 ) throw new Error( 'Frame resize timed out: expected ' + width + 'x' + height + ' with matching layout/accessibility state; got ' + page.innerWidth + 'x' + page.innerHeight + ' at ' + page.location.pathname );
+		await new Promise( resolve => setTimeout( resolve, 25 ) );
+	}
 	progress( 'resized ' + width + 'x' + height + ': ' + frame.contentWindow.location.pathname );
 }
 try {
@@ -87,6 +89,9 @@ try {
 			const rect = navigation.getBoundingClientRect();
 			return panel.classList.contains( 'open' ) && panel.getBoundingClientRect().height === page.innerHeight && toggle.getAttribute( 'aria-expanded' ) === 'true' && !navigation.inert && viewerArea.inert && rect.right === page.innerWidth && rect.width === Math.min( page.innerWidth - 60, 360 ) && rect.height === page.innerHeight;
 		}
+		function wideNavigation() {
+			return !navigation.inert && !viewerArea.inert && toggle.getAttribute( 'aria-expanded' ) === 'true' && css( toggle ).display === 'none';
+		}
 		async function settle() { await new Promise( resolve => page.setTimeout( resolve, 30 ) ); }
 		async function checkSelected( id ) {
 			const module = await viewer.contentWindow.eval( "import('/examples/" + id + ".js')" );
@@ -108,7 +113,7 @@ try {
 			panelStyling: css( panel ).borderRight === '1px solid rgb(232, 232, 232)' && css( doc.getElementById( 'header' ) ).height === '48px' && css( doc.getElementById( 'content' ) ).paddingLeft === '16px',
 			cardStyling: cards.every( card => css( card ).borderRadius === '3px' && css( card ).marginBottom === '16px' && css( card.querySelector( '.title' ) ).padding === '8px 12px 4px' ),
 			credits: [ 'README.md', 'assets/mmd/Readme.txt' ].every( href => doc.querySelector( 'a[href="./' + href + '"]' ) ),
-			wideNavigation: !navigation.inert && !viewerArea.inert && css( toggle ).display === 'none'
+			wideNavigation: wideNavigation()
 		};
 		for ( const id of ids ) {
 			progress( 'select ' + id );
@@ -132,7 +137,7 @@ try {
 		page.history.forward();
 		await loaded;
 		indexChecks.historyForward = await checkSelected( ids.at( - 1 ) );
-		await resizeFrame( index, 360, 640 );
+		await resizeFrame( index, 360, 640, mobileClosed );
 		indexChecks.mobileClosed = mobileClosed();
 		toggle.click();
 		await settle();
@@ -163,14 +168,14 @@ try {
 		await loaded;
 		indexChecks.mobileWorkerSelection = mobileClosed() && await checkSelected( 'webgl_loader_mmd_worker' );
 		indexChecks.mobileNoScroll = doc.documentElement.scrollWidth === page.innerWidth;
-		await resizeFrame( index, 640, 640 );
+		await resizeFrame( index, 640, 640, mobileClosed );
 		indexChecks.breakpointMobile = mobileClosed();
-		await resizeFrame( index, 641, 640 );
-		indexChecks.breakpointWide = wideLayout( 300 ) && !navigation.inert && !viewerArea.inert;
-		await resizeFrame( index, 1800, 900 );
-		indexChecks.extraWide = wideLayout( 360 ) && css( doc.body ).fontSize === '17px';
-		await resizeFrame( index, 1024, 768 );
-		indexChecks.resizedWide = wideLayout( 300 );
+		await resizeFrame( index, 641, 640, () => wideLayout( 300 ) && wideNavigation() );
+		indexChecks.breakpointWide = wideLayout( 300 ) && wideNavigation();
+		await resizeFrame( index, 1800, 900, () => wideLayout( 360 ) && wideNavigation() && css( doc.body ).fontSize === '17px' );
+		indexChecks.extraWide = wideLayout( 360 ) && wideNavigation() && css( doc.body ).fontSize === '17px';
+		await resizeFrame( index, 1024, 768, () => wideLayout( 300 ) && wideNavigation() );
+		indexChecks.resizedWide = wideLayout( 300 ) && wideNavigation();
 		page.location.hash = '#unknown_example';
 		// Clearing src navigates the iframe asynchronously; wait for its actual
 		// blank document instead of assuming it finishes in a 30 ms timer.
@@ -242,7 +247,7 @@ try {
 		checks.sceneColor = scene.background.getHex() === 0xffffff;
 		let guiRect = gui.getBoundingClientRect();
 		checks.desktopGUI = guiRect.right === page.innerWidth - 15 && guiRect.top === 0;
-		await resizeFrame( frame, 360, 640 );
+		await resizeFrame( frame, 360, 640, checkViewport );
 		checks.mobileViewport = checkViewport();
 		for ( const [ name, passed ] of Object.entries( checkInfo( page, doc ) ) ) checks['mobile_' + name] = passed;
 		guiRect = gui.getBoundingClientRect();
@@ -250,7 +255,7 @@ try {
 		const outline = control( 'outline' );
 		const outlineRect = outline.getBoundingClientRect();
 		checks.mobileControlReachable = doc.elementFromPoint( outlineRect.x + outlineRect.width / 2, outlineRect.y + outlineRect.height / 2 ) === outline;
-		await resizeFrame( frame, 1024, 768 );
+		await resizeFrame( frame, 1024, 768, checkViewport );
 		checks.resizedViewport = checkViewport();
 		checks.ready = doc.body.dataset.state === 'ready';
 		checks.model = mesh.isSkinnedMesh && mesh.skeleton.bones.length > 0;
