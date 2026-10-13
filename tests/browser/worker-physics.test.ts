@@ -96,26 +96,37 @@ for ( const isolated of [ false, true ] ) test( `real bundled classic Worker / A
 } );
 
 
-const demoHarness = `<!doctype html><pre id="result">pending</pre><script type="module">
-const frame=document.createElement('iframe');frame.width=800;frame.height=600;document.body.appendChild(frame);
-function loaded() {return new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('demo load timeout')),15000);frame.onload=()=>{clearTimeout(timer);resolve();};});}
-async function context() {const module=await frame.contentWindow.eval("import('/examples/webgl_loader_mmd.js')");return module.ready;}
+const demoHarness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
+const checks={};
+function check(name,value) {if(!value) throw new Error(name);checks[name]=true;}
 try {
- let load=loaded();frame.src='/examples/webgl_loader_mmd.html?physicsMode=worker';await load;
- let c=await context();await c.helper.objects.get(c.mesh).physics.ready;
- await new Promise(resolve=>setTimeout(resolve,800));
- const p=c.helper.objects.get(c.mesh).physics;
- const worker=p.physicsMode==='worker' && p.transport==='transferable';
- const measurement=frame.contentDocument.getElementById('status').textContent.includes('main-thread helper update:');
- const controller=c.gui.controllers.find(controller=>controller.property==='physicsMode');
- load=loaded();controller.setValue('sync');await load;c=await context();c.renderer.setAnimationLoop(null);
- const sync=c.helper.objects.get(c.mesh).physics.physicsMode==='sync';
- c.helper.remove(c.mesh);
- document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({worker,measurement,sync,url:frame.contentWindow.location.search}));
-} catch(error) {document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error)}));}
+ for(const [suffix,expected,stray] of [['','sync','worker'],['_worker','worker','sync']]) {
+  const frame=document.createElement('iframe');frame.width=800;frame.height=600;
+  const loaded=new Promise(resolve=>frame.onload=resolve);
+  const search='?backend=webgl&physicsMode='+stray;
+  frame.src='/examples/webgl_loader_mmd'+suffix+'.html'+search+'#fixed-mode';
+  document.body.appendChild(frame);await loaded;
+  const page=frame.contentWindow,doc=frame.contentDocument;
+  const module=await page.eval("import('/examples/webgl_loader_mmd"+suffix+".js')");
+  const c=await module.ready,p=c.helper.objects.get(c.mesh).physics;
+  check('fixedMode'+suffix,p.requestedPhysicsMode===expected && p.physicsMode===expected);
+  check('transport'+suffix,expected==='worker' ? p.transport==='transferable' : !p.transport);
+  check('noSelector'+suffix,!c.gui.controllers.some(controller=>controller.property==='physicsMode') && !doc.getElementById('controls').textContent.includes('Physics mode (reload)'));
+  const deadline=performance.now()+5000;
+  while(!/main-thread helper update: [0-9.]+ ms/.test(doc.getElementById('status').textContent)) {
+   if(performance.now()>deadline) throw new Error('measurement timeout');
+   await new Promise(resolve=>setTimeout(resolve,20));
+  }
+  check('actualStatus'+suffix,doc.getElementById('status').textContent.startsWith(expected==='worker' ? 'worker / transferable' : 'sync —'));
+  check('backend'+suffix,c.renderer.backend.isWebGLBackend);
+  check('url'+suffix,page.location.search===search && page.location.hash==='#fixed-mode');
+  page.dispatchEvent(new page.Event('pagehide'));frame.remove();
+ }
+ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks}));
+} catch(error) {document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error),checks}));}
 </script>`;
 
-test( 'animation demo mode selector reloads Worker/sync scenes and displays measured main-thread time', { timeout: 60000 }, async () => {
+test( 'animation entry points ignore conflicting physics queries and retain backend, hash and measured status', { timeout: 60000 }, async () => {
 
 	const directory = await mkdtemp( join( tmpdir(), 'mmd-worker-demo-' ) );
 	await writeGeneratedExampleAssets( join( directory, 'assets' ) );
@@ -130,9 +141,9 @@ test( 'animation demo mode selector reloads Worker/sync scenes and displays meas
 	try {
 
 		const address = server.address(); assert.ok( address && typeof address !== 'string' );
-		const result = await runBrowser<{ error?: string; worker: boolean; measurement: boolean; sync: boolean; url: string }>( `http://127.0.0.1:${address.port}/demo-test`, join( directory, 'profile' ) );
+		const result = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/demo-test`, join( directory, 'profile' ) );
 		assert.equal( result.error, undefined, JSON.stringify( result ) );
-		assert.equal( result.worker, true ); assert.equal( result.measurement, true ); assert.equal( result.sync, true ); assert.equal( result.url, '?physicsMode=sync' );
+		assert.ok( Object.values( result.checks ).every( Boolean ) );
 
 	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( join( directory, 'profile' ) ); await rm( directory, { recursive: true, force: true } ); }
 
@@ -173,9 +184,18 @@ try {
    c.helper.update(1/60);
    check('syncContinues'+failure,c.mesh.skeleton.bones.every(b=>b.position.toArray().concat(b.quaternion.toArray()).every(Number.isFinite)));
   }
-  const controller=c.gui.controllers.find(controller=>controller.property==='physicsMode');
-  check('selection'+failure,controller.getValue()==='worker');
-  check('controls'+failure,c.gui.controllers.some(controller=>controller.property==='show rigid bodies'));
+  check('noSelector'+failure,!c.gui.controllers.some(controller=>controller.property==='physicsMode') && !doc.getElementById('controls').textContent.includes('Physics mode (reload)'));
+  const debugHelpers=c.scene.children.filter(child=>!child.visible);
+  check('debugHelpers'+failure,debugHelpers.length===2);
+  for(const name of ['animation','ik','physics','outline','show IK bones','show rigid bodies']) {
+   const controller=c.gui.controllers.find(controller=>controller.property===name);
+   check('control'+name+failure,!!controller && !controller._disabled);
+   const initial=controller.getValue();controller.setValue(!initial);
+   if(['animation','ik','physics'].includes(name)) check('toggle'+name+failure,c.helper.enabled[name]===!initial);
+   if(name==='outline') check('toggleOutline'+failure,c.effect.enabled===!initial);
+   if(name.startsWith('show ')) check('toggleDebug'+name+failure,debugHelpers.filter(child=>child.visible).length===1);
+   controller.setValue(initial);
+  }
   if(!failure) {
    page.dispatchEvent(new page.PageTransitionEvent('pagehide',{persisted:true}));
    check('cachedSceneRetained',c.helper.objects.has(c.mesh) && !!p.workerAdapter && doc.querySelector('#controls')!==null);

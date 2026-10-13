@@ -98,6 +98,10 @@ try {
 			progress( 'ready ' + id );
 			const context = await module.ready;
 			context.renderer.setAnimationLoop( null );
+			if ( id === 'webgl_loader_mmd' || id === 'webgl_loader_mmd_worker' ) {
+				const expectedMode = id.endsWith( '_worker' ) ? 'worker' : 'sync';
+				if ( context.helper.objects.get( context.mesh ).physics.requestedPhysicsMode !== expectedMode || context.gui.controllers.some( c => c.property === 'physicsMode' ) ) return false;
+			}
 			return viewer.contentWindow.location.pathname === '/examples/' + id + '.html' && viewer.contentDocument.body.dataset.state === 'ready' && context.renderer.domElement.getBoundingClientRect().width === viewer.clientWidth && page.location.hash === '#' + id && cards.filter( card => card.classList.contains( 'selected' ) ).length === 1 && doc.querySelector( '.selected' ).dataset.example === id && doc.querySelectorAll( 'a[aria-current="page"]' ).length === 1 && doc.querySelector( '.selected a' ).getAttribute( 'aria-current' ) === 'page' && !viewer.hidden && placeholder.hidden && page.location.pathname === '/examples/';
 		}
 		const indexChecks = {
@@ -203,6 +207,9 @@ try {
 			const module = await viewer.contentWindow.eval( "import('/examples/" + id + ".js')" );
 			const context = await module.ready;
 			context.renderer.setAnimationLoop( null );
+			if ( id === 'webgl_loader_mmd' || id === 'webgl_loader_mmd_worker' ) {
+				indexChecks['directMode_' + id] = context.helper.objects.get( context.mesh ).physics.requestedPhysicsMode === ( id.endsWith( '_worker' ) ? 'worker' : 'sync' ) && !context.gui.controllers.some( c => c.property === 'physicsMode' );
+			}
 			indexChecks['direct_' + id] = viewer.contentWindow.location.pathname === '/examples/' + id + '.html' && viewer.contentDocument.body.dataset.state === 'ready' && doc.querySelector( '.selected' ).dataset.example === id && doc.querySelector( '.selected a' ).getAttribute( 'aria-current' ) === 'page' && doc.getElementById( 'placeholder' ).hidden && !doc.getElementById( 'panel' ).classList.contains( 'open' ) && doc.getElementById( 'expandButton' ).getAttribute( 'aria-expanded' ) === 'false';
 			direct.remove();
 		}
@@ -281,9 +288,10 @@ try {
 			if ( suffix === '_worker' ) {
 				checks.workerDefault = state.physics.requestedPhysicsMode === 'worker' && state.physics.physicsMode === 'worker' && state.physics.workerStatus.initialized && state.physics.transport === 'transferable';
 				checks.actualMode = doc.getElementById( 'status' ).textContent.startsWith( 'worker / transferable' );
-			} else checks.syncDefault = state.physics.physicsMode === 'sync';
+			} else checks.syncDefault = state.physics.requestedPhysicsMode === 'sync' && state.physics.physicsMode === 'sync';
 			checks.animation = state.mixer._actions[ 0 ].getClip().tracks.length > 0;
 			if ( suffix === '' || suffix === '_worker' ) {
+				checks.noPhysicsSelector = !context.gui.controllers.some( c => c.property === 'physicsMode' ) && !gui.textContent.includes( 'Physics mode (reload)' );
 				for ( const name of [ 'animation', 'ik', 'physics' ] ) {
 					const input = control( name );
 					input.click();

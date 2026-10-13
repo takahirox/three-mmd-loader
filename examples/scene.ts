@@ -30,8 +30,7 @@ const assets = './assets/mmd/';
 
 export async function initExample( mode: 'animation' | 'audio' | 'pose', options: { physicsMode?: 'sync' | 'worker' } = {} ) {
 
-	const queryMode = new URLSearchParams( location.search ).get( 'physicsMode' );
-	const selectedPhysicsMode = queryMode === 'worker' || queryMode === 'sync' ? queryMode : options.physicsMode ?? 'sync';
+	const requestedPhysicsMode = options.physicsMode ?? 'sync';
 	let fallbackReason = '';
 
 	const status = document.getElementById( 'status' )!;
@@ -137,7 +136,7 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose', options
 			mesh = mmd.mesh;
 			helper.add( mesh, {
 				animation: mmd.animation, physics: true,
-				physicsMode: mode === 'animation' ? selectedPhysicsMode : 'sync',
+				physicsMode: mode === 'animation' ? requestedPhysicsMode : 'sync',
 				workerPhysics: {
 					ammoURL: new URL( '../node_modules/ammojs-typed/ammo/ammo.js', location.href ).href,
 					onFallback: reason => { fallbackReason = reason; }
@@ -173,12 +172,6 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose', options
 		let running = mode === 'animation';
 		if ( mode === 'animation' ) {
 
-			const selection = { physicsMode: selectedPhysicsMode };
-			gui.add( selection, 'physicsMode', [ 'sync', 'worker' ] ).name( 'Physics mode (reload)' ).onChange( ( value: string ) => {
-
-				const url = new URL( location.href ); url.searchParams.set( 'physicsMode', value ); location.href = url.href;
-
-			} ).disable();
 			for ( const name of [ 'animation', 'ik', 'physics' ] as const ) {
 
 				checkbox( name, true, value => helper.enable( name, value ) );

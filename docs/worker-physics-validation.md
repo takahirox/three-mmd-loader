@@ -1,5 +1,9 @@
 # Worker physics validation — Issue #47
 
+The selector/reload coverage below records the original implementation.
+[Issue #51](example-physics-mode-validation.md) replaces that example UX with
+separate sync and Worker pages; the public library API remains unchanged.
+
 Implemented setup-time `physicsMode: 'sync' | 'worker'` (sync default),
 Worker-owned Ammo initialization/worlds, transferable and atomic SAB mailboxes,
 PMX pose projection, coordinated shared-world stepping, lifecycle invalidation,
@@ -44,10 +48,10 @@ example changes and this node does not merge or publish:
 
 1. Confirm `.github/workflows/examples-pages.yml` succeeds for the merged commit,
    including its project-prefix artifact validation and Pages deployment.
-2. Load the published animation demo at
-   `https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html`.
-   Confirm sync defaults, select **Physics mode (reload)** → worker, confirm the
-   actual backend/transport and timing display, then reload back to sync.
+2. Load the published [Model and animation page](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html)
+   and [Worker Physics page](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html).
+   Confirm sync and Worker requests respectively, absence of a physics mode
+   selector, and the actual backend/transport and timing display.
 3. Confirm the published worker and Ammo assets load correctly without requiring
    isolation headers. Exercise a failed Worker/Ammo request (for example by
    blocking the Ammo script request in browser developer tools after the

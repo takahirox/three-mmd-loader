@@ -1,5 +1,9 @@
 # Standalone Worker Physics example — Issue #49
 
+The selector UX from this implementation is superseded by
+[Issue #51 validation](example-physics-mode-validation.md): the two page entry
+points now fix their requested modes. The results below describe Issue #49.
+
 The fourth gallery card opens `examples/webgl_loader_mmd_worker.html` directly.
 Its small TypeScript entry requests Worker mode by default through the same
 `scene.ts` setup used by Model and animation, which continues to default to sync.
