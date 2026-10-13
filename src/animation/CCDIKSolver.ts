@@ -2,6 +2,7 @@ import {
 	BufferAttribute,
 	BufferGeometry,
 	Color,
+	Euler,
 	Line,
 	LineBasicMaterial,
 	Matrix4,
@@ -13,8 +14,8 @@ import {
 	Vector3
 } from 'three';
 
-import type { SkinnedMesh, TypedArray } from 'three';
-import type { IK } from '../types.js';
+import type { Bone, SkinnedMesh, TypedArray } from 'three';
+import type { IK, IKLink } from '../types.js';
 
 const _q = new Quaternion();
 const _targetPos = new Vector3();
@@ -101,9 +102,14 @@ class CCDIKSolver {
 
 		const effector = bones[ ik.effector ];
 		const target = bones[ ik.target ];
-		if ( ! effector || ! target || ! Number.isFinite( ik.iteration ?? 1 ) || ( ik.iteration ?? 1 ) < 0 ||
-			! Number.isFinite( ik.maxAngle ?? 1 ) || ! Number.isFinite( ik.minAngle ?? 0 ) ||
-			ik.links.some( link => ! bones[ link.index ] || [ link.limitation, link.rotationMin, link.rotationMax ].some( limit => limit && ! limit.toArray().every( Number.isFinite ) ) ) ) return this;
+		// Validate the entire chain before changing any bone. Bounds are ranges,
+		// not wrapped intervals; an invalid chain must not partially update.
+		if ( ! effector || ! target || ! Number.isInteger( ik.target ) || ! Number.isInteger( ik.effector ) || ! Number.isInteger( ik.iteration ?? 1 ) || ( ik.iteration ?? 1 ) < 0 ||
+			! Number.isFinite( ik.maxAngle ?? Math.PI ) || ! Number.isFinite( ik.minAngle ?? 0 ) ||
+			( ik.minAngle ?? 0 ) < 0 || ( ik.maxAngle ?? Math.PI ) < ( ik.minAngle ?? 0 ) ||
+			! validPose( target ) || ! validPose( effector ) ||
+			ik.links.some( data => ! Number.isInteger( data.index ) || ! bones[ data.index ] ||
+				! validPose( bones[ data.index ] ) || ! validLimits( data ) ) ) return this;
 
 		// don't use getWorldPosition() here for the performance
 		// because it calls updateMatrixWorld( true ) inside.
@@ -111,6 +117,8 @@ class CCDIKSolver {
 
 		const links = ik.links;
 		const iteration = Math.min( ik.iteration !== undefined ? ik.iteration : 1, 1024 );
+		const constrained = links.map( data => data.rotationMin || data.rotationMax ? constrainedAngles( bones[ data.index ], data ) : null );
+		if ( ik.maxAngle === 0 || constrained.some( state => state && ! state.angles.every( Number.isFinite ) ) ) return this;
 
 		for ( let i = 0; i < iteration; i ++ ) {
 
@@ -125,24 +133,33 @@ class CCDIKSolver {
 				if ( links[ j ].enabled === false ) break;
 
 				const limitation = links[ j ].limitation;
-				const rotationMin = links[ j ].rotationMin;
-				const rotationMax = links[ j ].rotationMax;
 
 				// don't use getWorldPosition/Quaternion() here for the performance
 				// because they call updateMatrixWorld( true ) inside.
 				if ( ! link.matrixWorld.elements.every( Number.isFinite ) || ! target.matrixWorld.elements.every( Number.isFinite ) || ! effector.matrixWorld.elements.every( Number.isFinite ) ) return this;
 				link.matrixWorld.decompose( _linkPos, _invLinkQ, _linkScale );
+				if ( ! _invLinkQ.toArray().every( Number.isFinite ) || ! _linkScale.toArray().every( v => Number.isFinite( v ) && Math.abs( v ) > 1e-10 ) ) return this;
 				_invLinkQ.invert();
 				_effectorPos.setFromMatrixPosition( effector.matrixWorld );
 
 				// work in link world
 				_effectorVec.subVectors( _effectorPos, _linkPos );
 				_effectorVec.applyQuaternion( _invLinkQ );
-				_effectorVec.normalize();
 
 				_targetVec.subVectors( _targetPos, _linkPos );
 				_targetVec.applyQuaternion( _invLinkQ );
+				if ( ! Number.isFinite( _effectorVec.lengthSq() ) || ! Number.isFinite( _targetVec.lengthSq() ) ) return this;
+				if ( _effectorVec.lengthSq() < 1e-20 || _targetVec.lengthSq() < 1e-20 ) continue;
+
+				_effectorVec.normalize();
 				_targetVec.normalize();
+				const state = constrained[ j ];
+				if ( state ) {
+
+					rotated = solveConstrained( link, links[ j ], state, ik.maxAngle ?? Math.PI ) || rotated;
+					continue;
+
+				}
 
 				let angle = _targetVec.dot( _effectorVec );
 
@@ -174,36 +191,40 @@ class CCDIKSolver {
 				}
 
 				_axis.crossVectors( _effectorVec, _targetVec );
+				if ( _axis.lengthSq() < 1e-20 ) {
+
+					// Antiparallel has infinitely many axes. Use a deterministic
+					// perpendicular axis (or the PMD knee's permitted axis).
+					if ( limitation ) _axis.copy( limitation ).normalize();
+					else {
+
+						const v = _effectorVec;
+						_axis.set( Math.abs( v.x ) <= Math.abs( v.y ) && Math.abs( v.x ) <= Math.abs( v.z ) ? 1 : 0,
+							Math.abs( v.y ) < Math.abs( v.x ) && Math.abs( v.y ) <= Math.abs( v.z ) ? 1 : 0,
+							Math.abs( v.z ) < Math.abs( v.x ) && Math.abs( v.z ) < Math.abs( v.y ) ? 1 : 0 );
+						_axis.cross( v );
+
+					}
+					if ( Math.abs( _axis.dot( _effectorVec ) ) > 1e-8 ) continue;
+
+				}
 				_axis.normalize();
-				if ( _axis.lengthSq() === 0 ) continue;
 
 				_q.setFromAxisAngle( _axis, angle );
-				link.quaternion.multiply( _q );
+				link.quaternion.multiply( _q ).normalize();
 
-				// TODO: re-consider the limitation specification
+				// Preserve the historical PMD knee heuristic.
 				if ( limitation !== undefined ) {
 
 					let c = link.quaternion.w;
 
-					if ( c > 1.0 ) c = 1.0;
+					c = math.max( - 1, math.min( 1, c ) );
 
 					const c2 = math.sqrt( 1 - c * c );
 					link.quaternion.set( limitation.x * c2,
 					                     limitation.y * c2,
 					                     limitation.z * c2,
 					                     c );
-
-				}
-
-				if ( rotationMin !== undefined ) {
-
-					link.rotation.setFromVector3( _vector.setFromEuler( link.rotation ).max( rotationMin ) );
-
-				}
-
-				if ( rotationMax !== undefined ) {
-
-					link.rotation.setFromVector3( _vector.setFromEuler( link.rotation ).min( rotationMax ) );
 
 				}
 
@@ -267,6 +288,208 @@ class CCDIKSolver {
 		}
 
 	}
+
+}
+
+const _constraintQ = new Quaternion();
+const _prefixQ = new Quaternion();
+const _beforeQ = new Quaternion();
+const _constraintEuler = new Euler();
+const _effectorParent = new Vector3();
+const _targetParent = new Vector3();
+const _cross = new Vector3();
+const _basis = [ new Vector3( 1, 0, 0 ), new Vector3( 0, 1, 0 ), new Vector3( 0, 0, 1 ) ];
+const _tau = 2 * Math.PI;
+
+type ConstrainedAngles = { angles: number[]; order: Euler['order'] };
+
+function validPose( bone: Bone ) {
+
+	const determinant = bone.matrixWorld.determinant();
+	return bone.matrixWorld.elements.every( Number.isFinite ) && Number.isFinite( determinant ) && Math.abs( determinant ) > 1e-30 &&
+		bone.position.toArray().every( Number.isFinite ) && Math.abs( bone.quaternion.lengthSq() - 1 ) < 1e-5 &&
+		bone.scale.toArray().every( v => Number.isFinite( v ) && Math.abs( v ) > 1e-10 );
+
+}
+
+function validLimits( link: IKLink ) {
+
+	if ( [ link.limitation, link.rotationMin, link.rotationMax ].some( v => v && ! v.toArray().every( Number.isFinite ) ) ) return false;
+	if ( link.limitation && Math.abs( link.limitation.lengthSq() - 1 ) > 1e-6 ) return false;
+	for ( let c = 0; c < 3; c ++ ) if ( ( link.rotationMin?.getComponent( c ) ?? -Math.PI ) > ( link.rotationMax?.getComponent( c ) ?? Math.PI ) ) return false;
+	return true;
+
+}
+
+function constrainedAngles( bone: Bone, link: IKLink ): ConstrainedAngles {
+
+	// As in babylon-mmd, put an axis whose allowed interval is within
+	// (-pi/2,pi/2) in the middle. PMX specifies bounds, not an Euler order.
+	const min = link.rotationMin, max = link.rotationMax;
+	const order = ( min?.x ?? -Math.PI ) > -Math.PI / 2 && ( max?.x ?? Math.PI ) < Math.PI / 2 ? 'YXZ' :
+		( min?.y ?? -Math.PI ) > -Math.PI / 2 && ( max?.y ?? Math.PI ) < Math.PI / 2 ? 'ZYX' : 'XZY';
+	_matrix.makeRotationFromQuaternion( _constraintQ.copy( bone.quaternion ).normalize() );
+	const m = _matrix.elements;
+	// atan2 retains the small cosine near a singularity. Three's general Euler
+	// conversion instead zeroes an outer angle within its singularity threshold,
+	// which can turn a legal authored pose into an out-of-range representation.
+	const principal = order === 'YXZ' ? [ Math.atan2( -m[ 9 ], Math.hypot( m[ 8 ], m[ 10 ] ) ), Math.atan2( m[ 8 ], m[ 10 ] ), Math.atan2( m[ 1 ], m[ 5 ] ) ] :
+		order === 'ZYX' ? [ Math.atan2( m[ 6 ], m[ 10 ] ), Math.atan2( -m[ 2 ], Math.hypot( m[ 0 ], m[ 1 ] ) ), Math.atan2( m[ 1 ], m[ 0 ] ) ] :
+		[ Math.atan2( m[ 6 ], m[ 5 ] ), Math.atan2( m[ 8 ], m[ 0 ] ), Math.atan2( -m[ 4 ], Math.hypot( m[ 0 ], m[ 8 ] ) ) ];
+	const first = 'XYZ'.indexOf( order[ 0 ] ), middle = 'XYZ'.indexOf( order[ 1 ] ), last = 'XYZ'.indexOf( order[ 2 ] );
+	// Near a singularity both independent outer-angle matrix ratios amplify
+	// roundoff. Recover the first factor from the original quaternion after
+	// removing the other two instead: its coupled angle remains well conditioned
+	// even when the last factor's individual angle is uncertain.
+	_constraintQ.copy( bone.quaternion ).normalize()
+		.multiply( _prefixQ.setFromAxisAngle( _basis[ last ], -principal[ last ] ) )
+		.multiply( _prefixQ.setFromAxisAngle( _basis[ middle ], -principal[ middle ] ) );
+	principal[ first ] = 2 * Math.atan2( _constraintQ.toArray()[ first ], _constraintQ.w );
+	const alternative = principal.slice();
+	for ( let c = 0; c < 3; c ++ ) alternative[ c ] = c === middle ? Math.PI - alternative[ c ] : alternative[ c ] + Math.PI;
+	const candidates = [ principal, alternative ];
+	for ( const preferred of [ principal, alternative ] ) {
+
+		// Clipping an uncertain outer factor independently can destroy the
+		// well-conditioned coupled angle at a box edge. After clipping either
+		// factor, recover its partner from the quaternion before clipping again.
+		const bounded = preferred.slice();
+		for ( const c of [ last, first ] ) {
+
+			const lower = min?.getComponent( c ) ?? -Math.PI, upper = max?.getComponent( c ) ?? Math.PI;
+			bounded[ c ] += _tau * Math.round( ( lower / 2 + upper / 2 - bounded[ c ] ) / _tau );
+			bounded[ c ] = Math.max( lower, Math.min( upper, bounded[ c ] ) );
+			_constraintQ.copy( bone.quaternion ).normalize();
+			if ( c === last ) {
+
+				_constraintQ.multiply( _prefixQ.setFromAxisAngle( _basis[ last ], -bounded[ last ] ) )
+					.multiply( _prefixQ.setFromAxisAngle( _basis[ middle ], -bounded[ middle ] ) );
+
+			} else {
+
+				_constraintQ.premultiply( _prefixQ.setFromAxisAngle( _basis[ first ], -bounded[ first ] ) )
+					.premultiply( _prefixQ.setFromAxisAngle( _basis[ middle ], -bounded[ middle ] ) );
+
+			}
+			const other = c === last ? first : last;
+			bounded[ other ] = 2 * Math.atan2( _constraintQ.toArray()[ other ], _constraintQ.w );
+
+		}
+		candidates.push( bounded );
+
+	}
+	if ( Math.abs( Math.cos( principal[ middle ] ) ) < 1e-12 ) {
+
+		// At a singularity the outer factors are coupled: for these three
+		// orders, first - sign(middle)*last = combined (modulo a full turn).
+		// Intersect that line with the bounds rather than clamping a single
+		// arbitrary decomposition. Choose its midpoint for a continuous feasible
+		// representation as the combined angle changes across repeated updates.
+		const sign = Math.sign( principal[ middle ] ), k = -sign;
+		_constraintQ.copy( bone.quaternion ).multiply( _prefixQ.setFromAxisAngle( _basis[ middle ], -sign * Math.PI / 2 ) );
+		const combined = 2 * Math.atan2( _constraintQ.toArray()[ first ], _constraintQ.w );
+		const firstMin = min?.getComponent( first ) ?? -Math.PI, firstMax = max?.getComponent( first ) ?? Math.PI;
+		const lastMin = min?.getComponent( last ) ?? -Math.PI, lastMax = max?.getComponent( last ) ?? Math.PI;
+		const lower = firstMin + ( k > 0 ? lastMin : -lastMax ), upper = firstMax + ( k > 0 ? lastMax : -lastMin );
+		// Roundoff at a box corner must not reject the only feasible full-turn
+		// lift. The candidate is still clipped to the exact component bounds below.
+		const turnMin = Math.ceil( ( lower - combined ) / _tau - 1e-12 ), turnMax = Math.floor( ( upper - combined ) / _tau + 1e-12 );
+		if ( turnMin <= turnMax ) {
+
+			const turn = Math.max( turnMin, Math.min( turnMax, Math.round( ( lower / 2 + upper / 2 - combined ) / _tau ) ) );
+			const total = combined + turn * _tau;
+			const a = Math.max( firstMin, total - ( k > 0 ? lastMax : -lastMin ) );
+			const b = Math.min( firstMax, total - ( k > 0 ? lastMin : -lastMax ) );
+			const coupled = principal.slice();
+			coupled[ first ] = a / 2 + b / 2;
+			coupled[ last ] = ( total - coupled[ first ] ) / k;
+			coupled[ middle ] = sign * Math.PI / 2;
+			candidates.push( coupled );
+
+		}
+
+	}
+	let best = principal, distance = Infinity;
+	for ( const candidate of candidates ) {
+
+		for ( let c = 0; c < 3; c ++ ) {
+
+			const lower = min?.getComponent( c ) ?? -Math.PI, upper = max?.getComponent( c ) ?? Math.PI;
+			// Lift to the equivalent angle nearest the interval before clamping.
+			candidate[ c ] += _tau * Math.round( ( lower / 2 + upper / 2 - candidate[ c ] ) / _tau );
+			candidate[ c ] = Math.max( lower, Math.min( upper, candidate[ c ] ) );
+
+		}
+		_constraintEuler.set( candidate[ 0 ], candidate[ 1 ], candidate[ 2 ], order );
+		_constraintQ.setFromEuler( _constraintEuler );
+		const sign = _constraintQ.dot( bone.quaternion ) < 0 ? -1 : 1;
+		// Quaternion component distance distinguishes roundoff-sized residuals;
+		// acos(dot) loses that precision and can select the wrong feasible branch.
+		const d = ( _constraintQ.x - sign * bone.quaternion.x ) ** 2 + ( _constraintQ.y - sign * bone.quaternion.y ) ** 2 +
+			( _constraintQ.z - sign * bone.quaternion.z ) ** 2 + ( _constraintQ.w - sign * bone.quaternion.w ) ** 2;
+		if ( d < distance ) { best = candidate; distance = d; }
+
+	}
+	return { angles: best, order };
+
+}
+
+function solveConstrained( bone: Bone, link: IKLink, state: ConstrainedAngles, maxAngle: number ) {
+
+	const { angles, order } = state;
+	_beforeQ.copy( bone.quaternion );
+	// The target is fixed in the parent rotation frame. The effector vector
+	// is fixed in the link frame until this joint rotates.
+	_targetParent.copy( _targetVec ).applyQuaternion( _beforeQ );
+	_constraintEuler.set( angles[ 0 ], angles[ 1 ], angles[ 2 ], order );
+	bone.quaternion.setFromEuler( _constraintEuler );
+	_effectorParent.copy( _effectorVec ).applyQuaternion( bone.quaternion );
+	_prefixQ.identity();
+	let budget = Math.min( maxAngle, Math.PI );
+	for ( const name of order ) {
+
+		const c = 'XYZ'.indexOf( name );
+		_axis.copy( _basis[ c ] ).applyQuaternion( _prefixQ );
+		const a = _effectorParent.dot( _targetParent ) - _effectorParent.dot( _axis ) * _targetParent.dot( _axis );
+		const b = _axis.dot( _cross.crossVectors( _effectorParent, _targetParent ) );
+		const min = link.rotationMin?.getComponent( c ) ?? -Math.PI, max = link.rotationMax?.getComponent( c ) ?? Math.PI;
+		// A full-turn interval admits every orientation of this Euler factor.
+		// Its endpoints are equivalent representations, not rotation barriers.
+		const fullTurn = max - min >= _tau;
+		const lower = fullTurn ? -budget : Math.max( min - angles[ c ], -budget );
+		const upper = fullTurn ? budget : Math.min( max - angles[ c ], budget );
+		let delta = 0, gain = a;
+		if ( Math.abs( a ) + Math.abs( b ) > 1e-15 && lower < upper ) {
+
+			// Dot after rotation is A*cos(d)+B*sin(d)+C. Test stationary
+			// maxima and interval ends, including BOTH antiparallel signs.
+			const optimum = Math.atan2( b, a );
+			for ( const candidate of [ lower, upper, optimum, optimum - _tau, optimum + _tau ] ) {
+
+				const d = Math.max( lower, Math.min( upper, candidate ) ), value = a * Math.cos( d ) + b * Math.sin( d );
+				if ( value > gain + 1e-15 ) { delta = d; gain = value; }
+
+			}
+
+		}
+		angles[ c ] += delta;
+		if ( fullTurn ) {
+
+			if ( angles[ c ] > max ) angles[ c ] -= _tau * Math.ceil( ( angles[ c ] - max ) / _tau );
+			if ( angles[ c ] < min ) angles[ c ] += _tau * Math.ceil( ( min - angles[ c ] ) / _tau );
+
+		}
+		budget = Math.max( 0, budget - Math.abs( delta ) );
+		_effectorParent.applyQuaternion( _constraintQ.setFromAxisAngle( _axis, delta ) );
+		_prefixQ.multiply( _constraintQ.setFromAxisAngle( _basis[ c ], angles[ c ] ) );
+
+	}
+	_constraintEuler.set( angles[ 0 ], angles[ 1 ], angles[ 2 ], order );
+	bone.quaternion.setFromEuler( _constraintEuler );
+	const changed = 1 - Math.abs( _beforeQ.dot( bone.quaternion ) ) > 1e-14;
+	if ( changed ) bone.updateMatrixWorld( true );
+	else bone.quaternion.copy( _beforeQ );
+	return changed;
 
 }
 

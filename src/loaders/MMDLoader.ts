@@ -815,24 +815,14 @@ class GeometryBuilder {
 
 					if ( ik.links[ j ].angleLimitation === 1 ) {
 
-						// Revert if rotationMin/Max doesn't work well
-						// link.limitation = new Vector3( 1.0, 0.0, 0.0 );
+						const lower = ik.links[ j ].lowerLimitationAngle ?? [ NaN, NaN, NaN ];
+						const upper = ik.links[ j ].upperLimitationAngle ?? [ NaN, NaN, NaN ];
 
-						const rotationMin = ik.links[ j ].lowerLimitationAngle!;
-						const rotationMax = ik.links[ j ].upperLimitationAngle!;
-
-						// Convert Left to Right coordinate by myself because
-						// mmd-parser doesn't convert these angle limits.
-
-						const tmp1 = - rotationMax[ 0 ];
-						const tmp2 = - rotationMax[ 1 ];
-						rotationMax[ 0 ] = - rotationMin[ 0 ];
-						rotationMax[ 1 ] = - rotationMin[ 1 ];
-						rotationMin[ 0 ] = tmp1;
-						rotationMin[ 1 ] = tmp2;
-
-						link.rotationMin = new Vector3().fromArray( rotationMin );
-						link.rotationMax = new Vector3().fromArray( rotationMax );
+						// mmd-parser reflects positions in Z but leaves IK limits in the
+						// file's left-handed coordinates. Axial angles X/Y change sign;
+						// negate AND exchange their bounds without mutating parser data.
+						link.rotationMin = new Vector3( - upper[ 0 ], - upper[ 1 ], lower[ 2 ] ?? NaN );
+						link.rotationMax = new Vector3( - lower[ 0 ], - lower[ 1 ], upper[ 2 ] ?? NaN );
 
 					}
 

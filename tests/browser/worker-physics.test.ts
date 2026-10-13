@@ -25,6 +25,10 @@ function near(a,b) {return a.length===b.length && a.every((v,i)=>Math.abs(v-b[i]
 function model() {
  const loader = new MMDLoader();loader.meshBuilder.materialBuilder.textureLoader.load=()=>new Texture();
  const data=new Parser().parsePmx(new Uint8Array(${JSON.stringify( fixture )}).buffer,true);
+ // Exercise constrained IK in both phases with the same sync/Worker fixture.
+ if(new URLSearchParams(location.search).get('limited')==='true') for(const bone of data.bones) if(bone.ik) for(const link of bone.ik.links) {
+  link.angleLimitation=1;link.lowerLimitationAngle=[0,0,-Math.PI];link.upperLimitationAngle=[0,0,Math.PI];
+ }
  data.rigidBodies[3].type=2; // constrained to mode 0, retaining effective mode 2
  return loader.meshBuilder.build(data,'');
 }
@@ -57,6 +61,7 @@ try {
   await complete(p,i); helper.update(0);
   globalThis.Ammo=savedAmmo;sync.update(1/60);globalThis.Ammo=undefined;
   check('coherent'+i,p.workerStatus.completedSequence===q.workerStatus.completedSequence);
+  check('planarPostIK'+i,Math.abs(first.skeleton.bones[1].quaternion.x)<1e-6 && Math.abs(first.skeleton.bones[1].quaternion.y)<1e-6);
   check('dynamicPostIK'+i,near(first.skeleton.bones[1].quaternion.toArray(),reference.skeleton.bones[1].quaternion.toArray()));
   const raw=sync.objects.get(reference).physics.bodyResults;
   check('type2RawBullet'+i,p.bodyResults.every((r,j)=>near(r.position,raw[j].position)&&near(r.quaternion,raw[j].quaternion)));
@@ -76,14 +81,14 @@ try {
 } catch(error) {document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error),checks}));}
 </script>`;
 
-for ( const isolated of [ false, true ] ) test( `real bundled classic Worker / Ammo integration, isolation=${isolated}`, { timeout: 60000 }, async t => {
+for ( const isolated of [ false, true ] ) for ( const limited of [ false, true ] ) test( `real bundled classic Worker / Ammo integration, isolation=${isolated}, limited=${limited}`, { timeout: 60000 }, async t => {
 
 	const profile = await mkdtemp( join( tmpdir(), 'mmd-worker-browser-' ) );
 	const files = createExamplesServer();
 	const server = createServer( ( request, response ) => {
 
 		if ( isolated ) { response.setHeader( 'Cross-Origin-Opener-Policy', 'same-origin' ); response.setHeader( 'Cross-Origin-Embedder-Policy', 'require-corp' ); }
-		if ( request.url === '/worker-test' ) { response.setHeader( 'Content-Type', 'text/html' ); response.end( harness ); }
+		if ( request.url?.startsWith( '/worker-test?' ) ) { response.setHeader( 'Content-Type', 'text/html' ); response.end( harness ); }
 		else files.emit( 'request', request, response );
 
 	} );
@@ -91,7 +96,7 @@ for ( const isolated of [ false, true ] ) test( `real bundled classic Worker / A
 	try {
 
 		const address = server.address(); assert.ok( address && typeof address !== 'string' );
-		const result = await runBrowser<{ error?: string; checks: Record<string, boolean>; isolated: boolean }>( `http://127.0.0.1:${address.port}/worker-test`, profile );
+		const result = await runBrowser<{ error?: string; checks: Record<string, boolean>; isolated: boolean }>( `http://127.0.0.1:${address.port}/worker-test?limited=${limited}`, profile );
 		assert.equal( result.error, undefined, JSON.stringify( result ) );
 		assert.ok( Object.values( result.checks ).every( Boolean ) );
 		if ( isolated && ! result.isolated ) t.diagnostic( 'Browser isolation unavailable: transferable integration passed; atomic publication covered in deterministic tests.' );
