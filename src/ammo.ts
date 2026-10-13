@@ -57,6 +57,7 @@ export interface AmmoWorld {
 	addConstraint( constraint: AmmoConstraint, disableCollisions: boolean ): void;
 }
 export interface AmmoAPI {
+	destroy?( object: object ): void;
 	btVector3: new ( x?: number, y?: number, z?: number ) => AmmoVector3;
 	btQuaternion: new ( x?: number, y?: number, z?: number, w?: number ) => AmmoQuaternion;
 	btTransform: new () => AmmoTransform;

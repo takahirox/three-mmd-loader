@@ -1,3 +1,4 @@
+import { build } from 'esbuild';
 import { mkdir, readdir, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -13,3 +14,7 @@ for ( const name of await readdir( new URL( '../dist/', import.meta.url ) ) ) {
 }
 execFileSync( process.execPath, [ 'node_modules/typescript/bin/tsc' ], { cwd: root, stdio: 'inherit' } );
 execFileSync( process.execPath, [ 'node_modules/typescript/bin/tsc', '-p', 'tsconfig.examples.json' ], { cwd: root, stdio: 'inherit' } );
+
+// Classic worker bundles Three/core adapters, so it needs no import map and can
+// initialize classic Ammo distributions with importScripts.
+await build( { entryPoints: [ fileURLToPath( new URL( '../src/animation/MMDPhysicsWorker.ts', import.meta.url ) ) ], outfile: fileURLToPath( new URL( '../dist/animation/MMDPhysicsWorker.js', import.meta.url ) ), bundle: true, format: 'iife', platform: 'browser', target: 'es2022' } );

@@ -271,3 +271,13 @@ camera, music, and poses. The normal fixture test checks audio playback state;
 listening to the music is an optional manual check. The existing Tests workflow
 validates local examples with fixtures; the deployment workflow additionally
 validates the built site with the pinned original assets before publication.
+
+
+The animation example includes **Physics mode (reload)**. Sync is the default;
+worker mode initializes its own Ammo and displays the latest completed pose.
+The status reports actual backend/transport and mean main-thread helper-update
+CPU time. Reloading reconstructs the scene because physics mode is selected at
+setup. Compare after warmup on the same device; the measurement is not a claim
+of universal FPS gains. Without cross-origin isolation, the demo uses reusable
+transferable buffers; COOP/COEP is optional. Worker failures fall back to sync
+with a console diagnostic. See the root README for lifecycle and latency details.

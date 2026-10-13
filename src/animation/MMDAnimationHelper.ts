@@ -6,6 +6,7 @@ import type { Audio, Camera, Object3D as ThreeObject } from 'three';
 import type { AnimationAction, AnimationClip } from 'three';
 import type { Vpd } from 'mmd-parser';
 import type { MMDMesh, MMDBone } from '../types.js';
+import type { WorkerPhysicsWorld } from './WorkerPhysicsAdapter.js';
 import type { MMDPhysicsParameters } from './MMDPhysics.js';
 import {
 	AnimationMixer,
@@ -340,9 +341,13 @@ class MMDAnimationHelper {
 
 		}
 
+		const previous = this.enabled[ key ];
 		this.enabled[ key ] = enabled;
 
 		if ( key === 'physics' ) {
+
+			const groups = new Set( this.meshes.map( mesh => this.objects.get( mesh )?.physics?.workerAdapter?.group ).filter( group => group !== undefined ) );
+			if ( previous !== enabled ) for ( const group of groups ) group.pause( ! enabled );
 
 			for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
@@ -379,6 +384,12 @@ class MMDAnimationHelper {
 
 		}
 
+		if ( this.sharedPhysics && params.physics !== false ) {
+
+			const master = this._getMasterPhysics();
+			if ( master && master.requestedPhysicsMode !== ( params.physicsMode ?? 'sync' ) ) throw new Error( 'THREE.MMDAnimationHelper: Shared physics models must use the same physicsMode' );
+
+		}
 		this._getBoneMorphController( mesh )?.restore();
 		this.meshes.push( mesh );
 		this.objects.set( mesh, { looped: false, poseLayers: mesh.geometry.userData.MMD.format === 'pmx' ? new PMXPoseLayers( mesh ) : undefined } );
@@ -578,17 +589,34 @@ class MMDAnimationHelper {
 		const objects = this.objects.get( mesh )!;
 
 		// shared physics is experimental
+		let workerWorld: WorkerPhysicsWorld | undefined;
+		const requestedMode = params.physicsMode ?? 'sync';
 
 		if ( params.world === undefined && this.sharedPhysics ) {
 
 			const masterPhysics = this._getMasterPhysics();
 
-			if ( masterPhysics !== null && masterPhysics.world !== null ) params = { ...params, world: masterPhysics.world };
+			if ( masterPhysics !== null ) {
+
+				const mode = params.physicsMode ?? 'sync';
+				if ( masterPhysics.workerAdapter && mode !== 'worker' ) throw new Error( 'THREE.MMDAnimationHelper: Shared physics models must use the same physicsMode' );
+				if ( ! masterPhysics.workerAdapter && mode === 'worker' ) {
+
+					console.warn( 'THREE.MMDAnimationHelper: Shared world already uses sync; joining it synchronously' );
+					params = { ...params, physicsMode: 'sync' };
+
+				}
+				workerWorld = masterPhysics.workerAdapter?.group;
+				if ( ! workerWorld && masterPhysics.world !== null ) params = { ...params, world: masterPhysics.world };
+
+			}
 
 		}
 
-		objects.physics = this._createMMDPhysics( mesh, params );
+		objects.physics = this._createMMDPhysics( mesh, params, workerWorld );
+		objects.physics._setRequestedPhysicsMode( requestedMode );
 		objects.physics.poseLayers = objects.poseLayers;
+		if ( ! this.enabled.physics ) objects.physics.workerAdapter?.group.pause( true );
 		if ( objects.poseLayers ) objects.physics.reset();
 		this._optimizeIK( mesh, this.enabled.physics );
 
@@ -723,7 +751,7 @@ class MMDAnimationHelper {
 		objects.poseLayers?.postPhysicsBase.set( objects.poseLayers.physics );
 		// Publish the authored post layer once at the phase boundary. An IK
 		// controller may legally affect a link whose own ordered turn is later.
-		const physicsActive = this.enabled.physics && Boolean( objects.physics );
+		const physicsActive = this.enabled.physics && Boolean( objects.physics ) && ! objects.physics?.initializationError;
 		for ( const data of objects.sortedBonesData ) if ( ( data.flag ?? 0 ) & 0x1000 ) {
 
 			if ( physicsActive && data.rigidBodyType > 0 ) objects.physics?.projectBone( data.index );
@@ -911,7 +939,7 @@ class MMDAnimationHelper {
 
 	}
 
-	_createMMDPhysics( mesh: MMDMesh, params: MMDAnimationParameters ) {
+	_createMMDPhysics( mesh: MMDMesh, params: MMDAnimationParameters, workerWorld?: WorkerPhysicsWorld ) {
 
 		if ( MMDPhysics === undefined ) {
 
@@ -923,7 +951,7 @@ class MMDAnimationHelper {
 			mesh,
 			mesh.geometry.userData.MMD.rigidBodies,
 			mesh.geometry.userData.MMD.constraints,
-			params );
+			params, workerWorld );
 
 	}
 
@@ -1145,7 +1173,15 @@ class MMDAnimationHelper {
 
 		const physics = this._getMasterPhysics();
 
-		if ( physics === null ) return;
+		if ( physics === null || physics.initializationError ) return;
+		if ( physics.workerAdapter ) {
+
+			for ( const mesh of this.meshes ) if ( this.objects.get( mesh )?.physics ) this.onBeforePhysics( mesh );
+			physics.workerAdapter.group.update( delta );
+			for ( const mesh of this.meshes ) this.objects.get( mesh )?.physics?.workerAdapter?.project();
+			return;
+
+		}
 
 		// A shared world has one clock. Any PMX participant requires zero-time
 		// pose evaluation to leave every body's simulation state unchanged,
