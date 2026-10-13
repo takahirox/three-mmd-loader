@@ -41,10 +41,17 @@ full browser suite rerun successfully. After the final cache-preservation
 change, the five affected gallery/Worker tests and the built-site test were
 rerun successfully. The real-asset build exceeded the old navigation/session limits. Built-site
 checks now allow 30 s per navigation and 300 s per light session, while fixture
-checks retain the 8 s / 45 s limits. Resize waits have a bounded parent-timer
-path for throttled iframe animation callbacks; actual viewport/layout assertions
-remain in place. The completed project-prefix run verified the Worker HTML,
+checks retain the 8 s / 45 s limits. Resize synchronization polls from the parent
+for the expected viewport, layout, accessibility, and canvas state, with a 5 s
+timeout for throttled iframe animation callbacks. Elapsed time alone does not
+count as successful synchronization. The completed project-prefix run verified the Worker HTML,
 entry module, bundled Worker, Ammo, imports, and asset URLs without isolation.
+
+After the resize synchronization fix in commit `5f9a986`, the upstream fix node
+reported successful reruns of typecheck, all 242 unit tests, all 21 browser tests,
+both builds, and the real-asset project-prefix validation used by Pages CI.
+PR publication carried forward that evidence and checked the final diff; it did
+not rerun these suites. GitHub CI for the updated PR head remains pending.
 
 Coverage includes four cards and named Worker navigation, all four direct hash
 selections, Back/Forward, iframe rendering/resizing, narrow-screen navigation,
