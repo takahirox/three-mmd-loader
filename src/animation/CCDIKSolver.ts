@@ -328,12 +328,51 @@ function constrainedAngles( bone: Bone, link: IKLink ): ConstrainedAngles {
 	const min = link.rotationMin, max = link.rotationMax;
 	const order = ( min?.x ?? -Math.PI ) > -Math.PI / 2 && ( max?.x ?? Math.PI ) < Math.PI / 2 ? 'YXZ' :
 		( min?.y ?? -Math.PI ) > -Math.PI / 2 && ( max?.y ?? Math.PI ) < Math.PI / 2 ? 'ZYX' : 'XZY';
-	_constraintEuler.setFromQuaternion( _constraintQ.copy( bone.quaternion ).normalize(), order );
-	const principal = [ _constraintEuler.x, _constraintEuler.y, _constraintEuler.z ];
+	_matrix.makeRotationFromQuaternion( _constraintQ.copy( bone.quaternion ).normalize() );
+	const m = _matrix.elements;
+	// atan2 retains the small cosine near a singularity. Three's general Euler
+	// conversion instead zeroes an outer angle within its singularity threshold,
+	// which can turn a legal authored pose into an out-of-range representation.
+	const principal = order === 'YXZ' ? [ Math.atan2( -m[ 9 ], Math.hypot( m[ 8 ], m[ 10 ] ) ), Math.atan2( m[ 8 ], m[ 10 ] ), Math.atan2( m[ 1 ], m[ 5 ] ) ] :
+		order === 'ZYX' ? [ Math.atan2( m[ 6 ], m[ 10 ] ), Math.atan2( -m[ 2 ], Math.hypot( m[ 0 ], m[ 1 ] ) ), Math.atan2( m[ 1 ], m[ 0 ] ) ] :
+		[ Math.atan2( m[ 6 ], m[ 5 ] ), Math.atan2( m[ 8 ], m[ 0 ] ), Math.atan2( -m[ 4 ], Math.hypot( m[ 0 ], m[ 8 ] ) ) ];
 	const alternative = principal.slice(), middle = 'XYZ'.indexOf( order[ 1 ] );
 	for ( let c = 0; c < 3; c ++ ) alternative[ c ] = c === middle ? Math.PI - alternative[ c ] : alternative[ c ] + Math.PI;
+	const candidates = [ principal, alternative ];
+	if ( Math.abs( Math.cos( principal[ middle ] ) ) < 1e-12 ) {
+
+		// At a singularity the outer factors are coupled: for these three
+		// orders, first - sign(middle)*last = combined (modulo a full turn).
+		// Intersect that line with the bounds rather than clamping a single
+		// arbitrary decomposition. Choose its midpoint for a continuous feasible
+		// representation as the combined angle changes across repeated updates.
+		const first = 'XYZ'.indexOf( order[ 0 ] ), last = 'XYZ'.indexOf( order[ 2 ] );
+		const sign = Math.sign( principal[ middle ] ), k = -sign;
+		_constraintQ.copy( bone.quaternion ).multiply( _prefixQ.setFromAxisAngle( _basis[ middle ], -sign * Math.PI / 2 ) );
+		const combined = 2 * Math.atan2( _constraintQ.toArray()[ first ], _constraintQ.w );
+		const firstMin = min?.getComponent( first ) ?? -Math.PI, firstMax = max?.getComponent( first ) ?? Math.PI;
+		const lastMin = min?.getComponent( last ) ?? -Math.PI, lastMax = max?.getComponent( last ) ?? Math.PI;
+		const lower = firstMin + ( k > 0 ? lastMin : -lastMax ), upper = firstMax + ( k > 0 ? lastMax : -lastMin );
+		// Roundoff at a box corner must not reject the only feasible full-turn
+		// lift. The candidate is still clipped to the exact component bounds below.
+		const turnMin = Math.ceil( ( lower - combined ) / _tau - 1e-12 ), turnMax = Math.floor( ( upper - combined ) / _tau + 1e-12 );
+		if ( turnMin <= turnMax ) {
+
+			const turn = Math.max( turnMin, Math.min( turnMax, Math.round( ( lower / 2 + upper / 2 - combined ) / _tau ) ) );
+			const total = combined + turn * _tau;
+			const a = Math.max( firstMin, total - ( k > 0 ? lastMax : -lastMin ) );
+			const b = Math.min( firstMax, total - ( k > 0 ? lastMin : -lastMax ) );
+			const coupled = principal.slice();
+			coupled[ first ] = a / 2 + b / 2;
+			coupled[ last ] = ( total - coupled[ first ] ) / k;
+			coupled[ middle ] = sign * Math.PI / 2;
+			candidates.push( coupled );
+
+		}
+
+	}
 	let best = principal, distance = Infinity;
-	for ( const candidate of [ principal, alternative ] ) {
+	for ( const candidate of candidates ) {
 
 		for ( let c = 0; c < 3; c ++ ) {
 
@@ -370,8 +409,12 @@ function solveConstrained( bone: Bone, link: IKLink, state: ConstrainedAngles, m
 		_axis.copy( _basis[ c ] ).applyQuaternion( _prefixQ );
 		const a = _effectorParent.dot( _targetParent ) - _effectorParent.dot( _axis ) * _targetParent.dot( _axis );
 		const b = _axis.dot( _cross.crossVectors( _effectorParent, _targetParent ) );
-		const lower = Math.max( ( link.rotationMin?.getComponent( c ) ?? -Math.PI ) - angles[ c ], -budget );
-		const upper = Math.min( ( link.rotationMax?.getComponent( c ) ?? Math.PI ) - angles[ c ], budget );
+		const min = link.rotationMin?.getComponent( c ) ?? -Math.PI, max = link.rotationMax?.getComponent( c ) ?? Math.PI;
+		// A full-turn interval admits every orientation of this Euler factor.
+		// Its endpoints are equivalent representations, not rotation barriers.
+		const fullTurn = max - min >= _tau;
+		const lower = fullTurn ? -budget : Math.max( min - angles[ c ], -budget );
+		const upper = fullTurn ? budget : Math.min( max - angles[ c ], budget );
 		let delta = 0, gain = a;
 		if ( Math.abs( a ) + Math.abs( b ) > 1e-15 && lower < upper ) {
 
@@ -387,6 +430,12 @@ function solveConstrained( bone: Bone, link: IKLink, state: ConstrainedAngles, m
 
 		}
 		angles[ c ] += delta;
+		if ( fullTurn ) {
+
+			if ( angles[ c ] > max ) angles[ c ] -= _tau * Math.ceil( ( angles[ c ] - max ) / _tau );
+			if ( angles[ c ] < min ) angles[ c ] += _tau * Math.ceil( ( min - angles[ c ] ) / _tau );
+
+		}
 		budget = Math.max( 0, budget - Math.abs( delta ) );
 		_effectorParent.applyQuaternion( _constraintQ.setFromAxisAngle( _axis, delta ) );
 		_prefixQ.multiply( _constraintQ.setFromAxisAngle( _basis[ c ], angles[ c ] ) );

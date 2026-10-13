@@ -85,6 +85,100 @@ test( 'multi-axis limits use a nonsingular order, preserve authored pose, and re
 	const q = f.link.quaternion.clone(); for ( let i = 0; i < 30; i ++ ) { solve( f ); bounds( f, 'YXZ' ); } near( q.angleTo( f.link.quaternion ), 0, 1e-5 );
 
 } );
+test( 'legal authored XZY rotations at and near both singularities retain a reached target', () => {
+
+	const p: Vec = [ 0.2, 0.5, 1 ];
+	for ( const sign of [ -1, 1 ] ) for ( const offset of [ -0.0001, -1e-7, 0, 1e-7, 0.0001 ] ) {
+
+		const z = sign * Math.PI / 2 + offset, authored: Vec = [ 2, sign * 2, z ];
+		const limits: [ Vec, Vec ] = [ [ 1.8, sign > 0 ? 1.9 : -2.3, sign > 0 ? 1.5 : -1.65 ], [ 2.2, sign > 0 ? 2.3 : -1.9, sign > 0 ? 1.65 : -1.5 ] ];
+		const f = fixture( p, rotateEuler( p, authored, 'XZY' ), limits, 1, 0.01 );
+		f.link.quaternion.setFromEuler( new Euler( ...authored, 'XZY' ) ); f.mesh.updateMatrixWorld( true );
+		const before = f.link.quaternion.clone(); near( f.error(), 0 );
+		for ( let i = 0; i < 20; i ++ ) {
+
+			solve( f ); near( f.error(), 0, 1e-8 ); near( before.angleTo( f.link.quaternion ), 0 );
+			// The unchanged orientation has the independently specified legal
+			// authored representation, even when principal Euler angles do not.
+			assert.ok( f.link.quaternion.toArray().every( Number.isFinite ) );
+
+		}
+
+	}
+
+} );
+test( 'coupled singular XZY coordinates reach a nearby target within bounds and the step cap', () => {
+
+	const p: Vec = [ 0.2, 0.5, 1 ];
+	for ( const sign of [ -1, 1 ] ) {
+
+		const z = sign * Math.PI / 2;
+		const limits: [ Vec, Vec ] = [ [ 1.8, sign > 0 ? 1.8 : -2.2, z ], [ 2.2, sign > 0 ? 2.2 : -1.8, z ] ];
+		const f = fixture( p, rotateEuler( p, [ 2.03, sign * 2, z ], 'XZY' ), limits, 1, 0.01 );
+		f.link.quaternion.setFromEuler( new Euler( 2, sign * 2, z, 'XZY' ) ); f.mesh.updateMatrixWorld( true );
+		for ( let i = 0; i < 20; i ++ ) {
+
+			const before = f.link.quaternion.clone(), error = f.error(); solve( f );
+			assert.ok( before.angleTo( f.link.quaternion ) <= 0.01 + 1e-6 ); assert.ok( f.error() <= error + 1e-8 );
+			// At z=+/-pi/2, Rx(x) Rz(z) Ry(y) = Rx(x-sign*y) Rz(z).
+			// Therefore this box permits exactly the coupled interval [-0.4,0.4].
+			const combined = f.link.quaternion.clone().multiply( new Quaternion().setFromAxisAngle( new Vector3( 0, 0, 1 ), -z ) );
+			near( combined.y, 0 ); near( combined.z, 0 );
+			assert.ok( Math.abs( 2 * Math.atan2( combined.x, combined.w ) ) <= 0.4 + 1e-6 );
+
+		}
+		near( f.error(), 0, 1e-8 );
+
+	}
+
+} );
+test( 'singular authored poses on constraint corners remain legal for either quaternion sign', () => {
+
+	const p: Vec = [ 0.2, 0.5, 1 ];
+	for ( const sign of [ -1, 1 ] ) for ( const quaternionSign of [ -1, 1 ] ) for ( const endpoint of [ -1, 1 ] ) {
+
+		const x = 2.09, y = sign * 2.13, z = sign * Math.PI / 2;
+		const limits: [ Vec, Vec ] = [
+			[ endpoint < 0 ? x : x - 0.2, endpoint * sign < 0 ? y - 0.2 : y, z - 0.01 ],
+			[ endpoint < 0 ? x + 0.2 : x, endpoint * sign < 0 ? y : y + 0.2, z + 0.01 ]
+		];
+		const f = fixture( p, rotateEuler( p, [ x, y, z ], 'XZY' ), limits, 1, 0.01 );
+		f.link.quaternion.setFromEuler( new Euler( x, y, z, 'XZY' ) );
+		if ( quaternionSign < 0 ) f.link.quaternion.fromArray( f.link.quaternion.toArray().map( v => -v ) );
+		f.mesh.updateMatrixWorld( true ); const before = f.link.quaternion.clone();
+		for ( let i = 0; i < 20; i ++ ) { solve( f ); near( f.error(), 0, 1e-8 ); near( before.angleTo( f.link.quaternion ), 0 ); }
+
+	}
+
+} );
+test( 'full-turn hinges cross both endpoint representations with a small legal step', () => {
+
+	for ( const axis of [ 0, 1, 2 ] ) for ( const sign of [ -1, 1 ] ) for ( const center of [ 0, Math.PI ] ) {
+
+		const p: Vec = [ 0, 0, 0 ]; p[ ( axis + 1 ) % 3 ] = 1;
+		const authored = center + sign * ( Math.PI - 0.01 ), desired = center + sign * ( Math.PI + 0.01 );
+		const f = fixture( p, rotateAxis( p, axis, desired ), hingeLimits( axis, center - Math.PI, center + Math.PI ), 1 );
+		f.link.quaternion.setFromAxisAngle( new Vector3().setComponent( axis, 1 ), authored ); f.mesh.updateMatrixWorld( true );
+		const before = f.link.quaternion.clone(); solve( f ); near( f.error(), 0, 1e-8 ); near( before.angleTo( f.link.quaternion ), 0.02 );
+		const q = f.link.quaternion.clone();
+		for ( let i = 0; i < 20; i ++ ) { solve( f ); bounds( f, axis === 1 ? 'YXZ' : 'XYZ' ); near( f.error(), 0, 1e-8 ); near( q.angleTo( f.link.quaternion ), 0 ); }
+
+	}
+
+} );
+test( 'hinge intervals shorter than a full turn retain their endpoint constraint', () => {
+
+	for ( const axis of [ 0, 1, 2 ] ) for ( const sign of [ -1, 1 ] ) {
+
+		const p: Vec = [ 0, 0, 0 ]; p[ ( axis + 1 ) % 3 ] = 1;
+		const f = fixture( p, rotateAxis( p, axis, sign * ( Math.PI + 0.01 ) ), hingeLimits( axis, -Math.PI + 0.005, Math.PI - 0.005 ), 1 );
+		f.link.quaternion.setFromAxisAngle( new Vector3().setComponent( axis, 1 ), sign * ( Math.PI - 0.01 ) ); f.mesh.updateMatrixWorld( true );
+		const before = f.link.quaternion.clone(); solve( f ); bounds( f, axis === 1 ? 'YXZ' : 'XYZ' );
+		near( before.angleTo( f.link.quaternion ), 0.005 ); near( f.error(), 2 * Math.sin( 0.015 / 2 ) );
+
+	}
+
+} );
 test( 'zero-length, locked and unreachable hinge targets stay finite and satisfy limits', () => {
 
 	for ( const [ p, target, limits ] of [

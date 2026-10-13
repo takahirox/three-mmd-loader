@@ -26,13 +26,20 @@ The first eleven synthetic fixtures in `tests/ik.test.ts` were executed against 
 - A multi-axis authored YXZ pose `(0.2,3.12,0.3)` targeting the nearby `(0.2,3.16,0.3)` violated its allowed Y range `[2.8,3.5]` under the old XYZ clamp.
 - Building twice from one parsed PMX object changed the input arrays and gave opposite X/Y constraints on the second mesh.
 
+Review regressions additionally reproduced two defects in the initial constrained implementation:
+
+- A legal XZY authored pose `(2,2,pi/2)` in bounds `(1.8,1.9,1.5)` to `(2.2,2.3,1.65)` moved an already reached effector by 0.091751 scene units with a 0.01-radian cap; nearby poses at `pi/2 +/- 0.0001` also failed. Principal/alternative decompositions alone miss the coupled feasible representations at a singularity.
+- Full-turn X/Y/Z hinges in `[-pi,pi]`, starting at `pi-0.01` and targeting `pi+0.01`, stopped at pi with 0.0099999583 residual error instead of taking the legal 0.02-radian step.
+
+Five additional tests cover these cases, both singularity/endpoint signs, singular constraint corners with either quaternion sign, a nearby singular target, shifted full-turn intervals, and shorter intervals that must retain their barriers. Three new regression tests failed before the fixes; the corner regression also caught roundoff when intersecting the singular solution with an interval endpoint.
+
 Additional tests cover all selected Euler orders, an analytical two-link knee, fixed/locked ranges, unreachable hinges, zero-length vectors, exact and near singular poses, repeated updates, invalid metadata/poses, disabled links, PMD behavior, and constrained helper seek/loop/toggle restoration in both phases. Reachability tests check effector error **and** rotation ranges. Unreachable tests check feasibility, stability and non-increasing error rather than asserting zero error.
 
 ## Selected constrained solve
 
 Ordinary unconstrained CCD stays on the existing quaternion path. A deterministic perpendicular axis resolves exact antiparallel directions. A PMD knee uses its permitted axis only when perpendicular; a direction along that locked axis remains unreachable.
 
-For links with component bounds, the solver represents **total local bone rotation**, including authored/morph/grant input, as Euler factors. Following Babylon's order selection, X strictly inside `(-pi/2,pi/2)` selects YXZ; otherwise Y inside that interval selects ZYX; otherwise XZY. Both equivalent decompositions and whole-turn lifts are considered before clipping to the box. This avoids mistaking a legal angle beyond pi for the opposite boundary. Angles persist through iterations of one solve, with no cross-frame cache to invalidate on seek/reset. The helper continues to supply the current composed input and restore authored layers.
+For links with component bounds, the solver represents **total local bone rotation**, including authored/morph/grant input, as Euler factors. Following Babylon's order selection, X strictly inside `(-pi/2,pi/2)` selects YXZ; otherwise Y inside that interval selects ZYX; otherwise XZY. Both equivalent decompositions and whole-turn lifts are considered before clipping to the box. This avoids mistaking a legal angle beyond pi for the opposite boundary. Decomposition uses `atan2` with the middle angle's cosine magnitude to preserve outer angles near singularities. At an exact singularity (cosine magnitude below `1e-12`), the outer angles satisfy `first - sign(middle)*last = combined`, modulo a full turn; intersecting that line with the component box supplies a feasible representation without changing a legal authored orientation. A numerical tolerance on the whole-turn intersection includes box corners, with final components still clipped to the exact bounds. Angles persist through iterations of one solve, with no cross-frame cache to invalidate on seek/reset. The helper continues to supply the current composed input and restore authored layers.
 
 Each Euler coordinate changes around the corresponding axis transformed by preceding factors in the parent rotation frame. For unit effector direction `e`, target direction `t` and unit axis `u`, the rotated dot product is
 
@@ -44,6 +51,8 @@ C = (e.u)(t.u)
 ```
 
 The solver checks `atan2(B,A)` and its whole-turn equivalents, the allowed interval ends, and zero. It chooses an improving rotation within both the component interval and the remaining step budget. The sum of absolute coordinate steps is at most the per-link cap, so the quaternion angular displacement is also at most that cap. An ordinary hinge has one active coordinate: this reduces to the exact projected-plane solution. Both signs are evaluated at antiparallel geometry; a locked axis cannot acquire an invalid rotation. Multi-axis coordinate descent maintains feasibility and decreases that link's effector error without arbitrary singularity clipping. As with CCD generally, it is a local solver, not a guarantee of globally solving every reachable constrained chain.
+
+A component interval covering at least a full turn admits every orientation of that Euler factor. Its solve uses the entire remaining step budget across equivalent endpoints, then lifts the resulting angle back into the allowed numeric interval. Only the actual small rotation consumes the budget; the equivalent full-turn representation change does not. Intervals shorter than a full turn keep their endpoint barriers.
 
 A finite authored pose outside its total-rotation box is first projected into the box when a nondegenerate constrained solve runs. That initial feasibility correction can exceed the step cap; subsequent feasible steps obey the cap. A range and a cap cannot both be met in one update from arbitrarily distant invalid authored input. Zero-length directions are skipped. Missing single-sided API bounds default to `[-pi,pi]`; PMX supplies both. The generic API's minimum-angle floor remains on unconstrained CCD; PMX has no such parameter.
 
@@ -73,17 +82,17 @@ Saba was source-audited; its full native runtime was not executed here (no nativ
 
 No animation-helper orchestration, Bullet stepping, Worker transport or Type-2 body semantics change. Existing grant, phase/class, Type 0/1/2 authority, physics disabling, warmup/reset, seek and loop suites remain executable. The delayed Worker comparison now additionally runs bounded planar links in both phases; the real browser Worker comparison also imports bounded pre/post links and checks synchronous parity. Both adapters continue calling the same main-thread solver.
 
-Final sequential verification in this worktree on 2026-10-14:
+Final sequential verification after the review corrections in this worktree on 2026-10-14:
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed, including examples/tools and TypeScript source verification. |
-| `npm test` | 309 passed, 0 failed, 0 skipped. |
+| `npm test` | 314 passed, 0 failed, 0 skipped, including five additional review regressions. |
 | `npm run test:browser` | 23 passed, 0 failed, 0 skipped; WebGL2/WebGPU rendering and real Ammo Workers using both transferable and shared-memory transports. |
 | `npm run build` | Passed. |
 | `git diff --check` | Passed. |
-| Pinned reference regeneration | Six Babylon solver cases regenerated and checked against analytical geometry. |
+| Pinned reference fixtures | Six previously regenerated Babylon solver cases checked against analytical geometry by the unit suite after the corrections. |
 
-An intermediate browser run failed to fetch an example module while a concurrent package rebuild temporarily removed `dist`. The final checks above ran sequentially, with no rebuild during browser execution; the example-page test and the full suite passed. No repository build/server change was needed.
+During the initial implementation, an intermediate browser run failed to fetch an example module while a concurrent package rebuild temporarily removed `dist`. The final checks above ran sequentially, with no rebuild during browser execution; the example-page test and the full suite passed. No repository build/server change was needed.
 
 No post-merge verification is required; visual inspection of legitimate models is optional and has not been claimed.
