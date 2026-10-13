@@ -10,7 +10,7 @@
     "mode": "sync",
     "transport": null,
     "isolated": false,
-    "status": "sync — main-thread helper update: 1.30 ms (mean)",
+    "status": "sync \u2014 main-thread helper update: 1.30 ms (mean)",
     "completedSequence": null,
     "injectedAmmoFailure": false,
     "mainAmmoReady": true,
@@ -22,7 +22,7 @@
     "mode": "worker",
     "transport": "transferable",
     "isolated": false,
-    "status": "worker / transferable — main-thread helper update: 1.80 ms (mean)",
+    "status": "worker / transferable \u2014 main-thread helper update: 1.80 ms (mean)",
     "completedSequence": 60,
     "injectedAmmoFailure": false,
     "mainAmmoReady": true,
@@ -34,7 +34,7 @@
     "mode": "sync",
     "transport": null,
     "isolated": false,
-    "status": "sync — main-thread helper update: 0.90 ms (mean)",
+    "status": "sync \u2014 main-thread helper update: 0.90 ms (mean)",
     "completedSequence": null,
     "injectedAmmoFailure": true,
     "mainAmmoReady": true,
@@ -46,7 +46,7 @@
     "mode": "sync",
     "transport": null,
     "isolated": false,
-    "status": "sync — main-thread helper update: 1.90 ms (mean)",
+    "status": "sync \u2014 main-thread helper update: 1.90 ms (mean)",
     "completedSequence": null,
     "injectedAmmoFailure": false,
     "mainAmmoReady": true,
@@ -71,8 +71,10 @@
   },
   "postMergeTestsWorkflow": {
     "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38356422637",
-    "lastObservedStatus": "in_progress",
-    "conclusion": null,
-    "note": "Additional post-merge CI was still running when checked; upstream pre-merge test success is recorded separately."
+    "lastObservedStatus": "completed",
+    "conclusion": "success",
+    "note": "GitHub Actions run was rechecked during issue finalization and completed successfully for the merge commit.",
+    "checkedAt": "2026-10-13T06:28:43.213063+00:00",
+    "headSHA": "751c0c66b429bc46ff1ce68d273a76db743f2dfd"
   }
 }

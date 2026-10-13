@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-13T06:28:43.213063+00:00",
+  "repository": "takahirox/three-mmd-loader",
+  "issue": {
+    "number": 47,
+    "url": "https://github.com/takahirox/three-mmd-loader/issues/47",
+    "observedState": "closed",
+    "stateReason": "completed",
+    "action": "Already closed; no state mutation performed."
+  },
+  "pr": {
+    "number": 48,
+    "url": "https://github.com/takahirox/three-mmd-loader/pull/48",
+    "head_sha": "98a84167e8efc8204fb31943412d6683b0720b9c"
+  },
+  "merged": true,
+  "merge_commit": "751c0c66b429bc46ff1ce68d273a76db743f2dfd",
+  "closed": true,
+  "comment": {
+    "id": 6139686285,
+    "url": "https://github.com/takahirox/three-mmd-loader/issues/47#issuecomment-6139686285"
+  },
+  "verificationEvidence": "docs/worker-physics-post-merge.json"
+}
