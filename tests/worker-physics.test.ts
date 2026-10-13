@@ -301,9 +301,14 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const contact of [
 
 } );
 
-for ( const postIK of [ false, true ] ) test( `delayed PMX output projects at post layer boundary, zero-time is stable, postIK=${postIK}`, () => {
+for ( const postIK of [ false, true ] ) for ( const limited of [ false, true ] ) test( `delayed PMX output projects at post layer boundary, zero-time is stable, postIK=${postIK}, limited=${limited}`, () => {
 
 	const syncModel = mesh( 'pmx', postIK ), workerModel = mesh( 'pmx', postIK );
+	if ( limited ) for ( const model of [ syncModel, workerModel ] ) for ( const ik of model.geometry.userData.MMD.iks ) for ( const link of ik.links ) {
+
+		link.rotationMin = new Vector3( 0, 0, -Math.PI ); link.rotationMax = new Vector3( 0, 0, Math.PI );
+
+	}
 	const sync = new MMDAnimationHelper(), async = new MMDAnimationHelper(), worker = new ManualWorker();
 	const params = { warmup: 0, animationWarmup: false, gravity: new Vector3(), unitStep: 1 / 60 };
 	sync.add( syncModel, params ); async.add( workerModel, { ...params, physicsMode: 'worker', workerPhysics: worker.options() } );
