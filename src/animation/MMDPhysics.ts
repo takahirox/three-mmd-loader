@@ -1,3 +1,5 @@
+import { WorkerPhysicsAdapter, WorkerPhysicsWorld } from './WorkerPhysicsAdapter.js';
+import type { PhysicsMode, WorkerPhysicsOptions } from './PhysicsWorkerProtocol.js';
 import type { SkinnedMesh } from 'three';
 import type { PMXPoseLayers } from './PMXPoseLayers.js';
 import type { MMDMesh } from '../types.js';
@@ -22,6 +24,9 @@ import {
 declare const Ammo: AmmoAPI;
 
 export interface MMDPhysicsParameters {
+	/** Setup-time selection. Omitted mode preserves synchronous behavior. */
+	physicsMode?: PhysicsMode;
+	workerPhysics?: WorkerPhysicsOptions;
 	unitStep?: number;
 	maxStepNum?: number;
 	gravity?: Vector3;
@@ -36,13 +41,36 @@ export interface MMDPhysicsParameters {
  * MMDPhysics calculates physics with Ammo(Bullet based JavaScript Physics engine)
  * for MMD model loaded by MMDLoader.
  *
- * TODO
- *  - Physics in Worker
  */
 
 /* global Ammo */
 
+const ownedWorlds = new WeakMap<AmmoWorld, { references: number; resources: object[] }>();
+
 class MMDPhysics {
+
+	private requestedMode: PhysicsMode;
+	get requestedPhysicsMode() { return this.requestedMode; }
+	/** @internal Preserve setup intent when joining a world that fell back. */
+	_setRequestedPhysicsMode( mode: PhysicsMode ) { this.requestedMode = mode; }
+	/** Actual backend; becomes sync if Worker initialization/operation fails. */
+	get physicsMode(): PhysicsMode { return this.workerAdapter ? 'worker' : 'sync'; }
+	get transport() { return this.workerAdapter?.group.transport; }
+	get workerStatus() {
+
+		const adapter = this.workerAdapter;
+		return adapter ? { initialized: adapter.initialized, warmupRemaining: adapter.warmupCycles, inFlight: adapter.group.inFlight, completedSequence: adapter.group.lastCompletedSequence } : undefined;
+
+	}
+	/** Resolves after model creation, or sync fallback. Frames never await it. */
+	readonly ready: Promise<void>;
+	/** Set if worker fallback has no initialized main-thread Ammo. Updates freeze. */
+	initializationError?: Error;
+	/** @internal Shared-world coordinator used by MMDAnimationHelper. */
+	workerAdapter?: WorkerPhysicsAdapter;
+	private rigidBodyParameters: RigidBodyParameters[];
+	private constraintParameters: ConstraintParameters[];
+
 
 	/** Helper-owned snapshots used to reset simulation without baking post offsets. */
 	poseLayers?: PMXPoseLayers;
@@ -70,14 +98,18 @@ class MMDPhysics {
 	 * @param {Integer} params.maxStepNum - Default is 3.
 	 * @param {Vector3} params.gravity - Default is ( 0, - 9.8 * 10, 0 )
 	 */
-	constructor( mesh: SkinnedMesh, rigidBodyParams: RigidBodyParameters[], constraintParams: ConstraintParameters[] = [], params: MMDPhysicsParameters = {} ) {
+	constructor( mesh: SkinnedMesh, rigidBodyParams: RigidBodyParameters[], constraintParams: ConstraintParameters[] = [], params: MMDPhysicsParameters = {}, workerWorld?: WorkerPhysicsWorld ) {
 
-		if ( typeof Ammo === 'undefined' ) {
+		this.requestedMode = params.physicsMode ?? 'sync';
+		if ( params.physicsMode !== undefined && params.physicsMode !== 'sync' && params.physicsMode !== 'worker' ) throw new Error( 'THREE.MMDPhysics: Unknown physicsMode' );
+
+		if ( params.physicsMode !== 'worker' && typeof Ammo === 'undefined' ) {
 
 			throw new Error( 'THREE.MMDPhysics: Import ammo.js https://github.com/kripken/ammo.js' );
 
 		}
 
+		this.rigidBodyParameters = rigidBodyParams; this.constraintParameters = constraintParams;
 		this.manager = new ResourceManager();
 
 		this.mesh = mesh;
@@ -99,7 +131,20 @@ class MMDPhysics {
 		this.bodies = [];
 		this.constraints = [];
 
-		this._init( mesh, rigidBodyParams, constraintParams );
+		if ( params.physicsMode === 'worker' ) {
+
+			if ( params.world ) throw new Error( 'THREE.MMDPhysics: An Ammo world cannot cross threads; use helper.sharedPhysics for worker worlds' );
+			const group = workerWorld ?? new WorkerPhysicsWorld( params.workerPhysics );
+			this.workerAdapter = new WorkerPhysicsAdapter( this, group, rigidBodyParams, constraintParams );
+			this.ready = this.workerAdapter.ready;
+			group.add( this.workerAdapter );
+
+		} else {
+
+			this._init( mesh, rigidBodyParams, constraintParams );
+			this.ready = Promise.resolve();
+
+		}
 
 	}
 
@@ -111,7 +156,8 @@ class MMDPhysics {
 	 */
 	update( delta: number ) {
 
-		if ( this.disposed ) return this;
+		if ( this.disposed || this.initializationError ) return this;
+		if ( this.workerAdapter ) { this.workerAdapter.update( delta ); return this; }
 
 		const manager = this.manager;
 		const mesh = this.mesh;
@@ -181,7 +227,8 @@ class MMDPhysics {
 	 */
 	reset() {
 
-		if ( this.disposed ) return this;
+		if ( this.disposed || this.initializationError ) return this;
+		if ( this.workerAdapter ) { this.workerAdapter.reset(); return this; }
 
 		const layers = this.poseLayers;
 		const rendered = layers ? new Float64Array( layers.final.length ) : undefined;
@@ -231,7 +278,15 @@ class MMDPhysics {
 	 */
 	warmup( cycles: number ) {
 
-		if ( this.disposed ) return this;
+		if ( this.disposed || this.initializationError ) return this;
+		if ( this.workerAdapter ) {
+
+			this.workerAdapter.warmupCycles += Math.max( 0, Math.floor( cycles ) );
+			// Schedule settling after setup has installed both pose phases.
+			queueMicrotask( () => this.workerAdapter?.group.update( 0 ) );
+			return this;
+
+		}
 
 		for ( let i = 0; i < cycles; i ++ ) {
 
@@ -252,7 +307,10 @@ class MMDPhysics {
 	 */
 	setGravity( gravity: Vector3 ) {
 
-		this.world!.setGravity( new Ammo.btVector3( gravity.x, gravity.y, gravity.z ) );
+		if ( this.disposed || this.initializationError ) return this;
+		if ( this.workerAdapter ) { this.workerAdapter.group.setGravity( gravity ); return this; }
+		const value = this.manager.allocVector3(); value.setValue( gravity.x, gravity.y, gravity.z );
+		this.world!.setGravity( value ); this.manager.freeVector3( value );
 		this.gravity.copy( gravity );
 
 		return this;
@@ -267,6 +325,34 @@ class MMDPhysics {
 	createHelper() {
 
 		return new MMDPhysicsHelper( this.mesh, this );
+
+	}
+
+	/** @internal Restart a failed Worker world on the current pre-physics pose. */
+	_fallbackWorker( world: AmmoWorld | null ) {
+
+		this.workerAdapter = undefined;
+		if ( typeof Ammo === 'undefined' ) {
+
+			this.initializationError = new Error( 'THREE.MMDPhysics: Worker fallback requires initialized Ammo on the main thread' );
+			console.warn( this.initializationError.message ); return world;
+
+		}
+		const layers = this.poseLayers, rendered = this.mesh.skeleton.bones.flatMap( b => [ ...b.position.toArray(), ...b.quaternion.toArray() ] );
+		if ( layers ) for ( const [ i, bone ] of this.mesh.skeleton.bones.entries() ) {
+
+			bone.position.fromArray( layers.beforePhysics, i * 7 ); bone.quaternion.fromArray( layers.beforePhysics, i * 7 + 3 );
+
+		}
+		this.world = world;
+		this._init( this.mesh, this.rigidBodyParameters, this.constraintParameters );
+		if ( layers ) for ( const [ i, bone ] of this.mesh.skeleton.bones.entries() ) {
+
+			bone.position.fromArray( rendered, i * 7 ); bone.quaternion.fromArray( rendered, i * 7 + 3 );
+
+		}
+		this.deferAfterPhysics();
+		return this.world;
 
 	}
 
@@ -305,6 +391,8 @@ class MMDPhysics {
 
 		}
 
+		const owned = ownedWorlds.get( this.world ); if ( owned ) owned.references ++;
+
 		this._initRigidBodies( rigidBodyParams );
 		this._initConstraints( constraintParams );
 
@@ -331,6 +419,7 @@ class MMDPhysics {
 		const cache = new Ammo.btDbvtBroadphase();
 		const solver = new Ammo.btSequentialImpulseConstraintSolver();
 		const world = new Ammo.btDiscreteDynamicsWorld( dispatcher, cache, solver, config );
+		ownedWorlds.set( world, { references: 0, resources: [ config, dispatcher, cache, solver, world ] } );
 		return world;
 
 	}
@@ -364,6 +453,7 @@ class MMDPhysics {
 
 		if ( this.disposed ) return;
 		this.disposed = true;
+		this.workerAdapter?.dispose(); this.workerAdapter = undefined;
 		this.warmupStep = undefined; this.poseLayers = undefined;
 
 		for ( const joint of this.constraints ) this.world?.removeConstraint?.( joint.constraint );
@@ -374,11 +464,26 @@ class MMDPhysics {
 
 		}
 		this.constraints.length = 0; this.bodies.length = 0; this.bodyResults.length = 0;
+		this.manager.dispose();
+		if ( this.world ) {
+
+			const owned = ownedWorlds.get( this.world );
+			if ( owned && -- owned.references === 0 ) {
+
+				for ( const resource of owned.resources.reverse() ) Ammo.destroy?.( resource );
+				ownedWorlds.delete( this.world );
+
+			}
+
+		}
 
 	}
 
 	/** Save post-phase follow inputs, without changing the completed step. */
 	deferAfterPhysics() {
+
+		if ( this.disposed || this.initializationError ) return;
+		if ( this.workerAdapter ) { this.workerAdapter.deferAfterPhysics(); return; }
 
 		this.mesh.updateMatrixWorld( true );
 		for ( const body of this.bodies ) body.deferFromBone();
@@ -387,6 +492,9 @@ class MMDPhysics {
 
 	/** Reproject a raw Bullet pose after a post-phase skeletal parent moved. */
 	projectBone( index: number ) {
+
+		if ( this.disposed || this.initializationError ) return;
+		if ( this.workerAdapter ) { this.workerAdapter.project( index ); return; }
 
 		this.mesh.updateMatrixWorld( true );
 		for ( const body of this.bodies ) if ( body.params.boneIndex === index && body.params.type > 0 ) body.updateBone( false );
@@ -466,6 +574,18 @@ class MMDPhysics {
  * 2. provide simple Ammo object operations.
  */
 class ResourceManager {
+
+	private resources: object[] = [];
+	own<T extends object>( value: T ): T { this.resources.push( value ); return value; }
+	dispose() {
+
+		for ( const value of this.resources.reverse() ) Ammo.destroy?.( value );
+		this.resources.length = 0;
+		this.transforms.length = this.quaternions.length = this.vector3s.length = 0;
+		this.threeVector3s.length = this.threeMatrix4s.length = this.threeQuaternions.length = this.threeEulers.length = 0;
+
+	}
+
 
 	threeVector3s: Vector3[];
 	threeMatrix4s: Matrix4[];
@@ -550,7 +670,7 @@ class ResourceManager {
 
 		return ( this.transforms.length > 0 )
 			? this.transforms.pop()!
-			: new Ammo.btTransform();
+			: this.own( new Ammo.btTransform() );
 
 	}
 
@@ -564,7 +684,7 @@ class ResourceManager {
 
 		return ( this.quaternions.length > 0 )
 			? this.quaternions.pop()!
-			: new Ammo.btQuaternion();
+			: this.own( new Ammo.btQuaternion() );
 
 	}
 
@@ -578,7 +698,7 @@ class ResourceManager {
 
 		return ( this.vector3s.length > 0 )
 			? this.vector3s.pop()!
-			: new Ammo.btVector3();
+			: this.own( new Ammo.btVector3() );
 
 	}
 
@@ -965,6 +1085,19 @@ class RigidBody {
 
 	}
 
+	/** Worker input staging shares the exact deferred-body update rules. */
+	setDeferredPose( data: Float64Array, offset: number ) {
+
+		this.clearDeferred();
+		if ( ! Number.isFinite( data[ offset ] ) ) return;
+		const transform = this.manager.allocTransform();
+		this.manager.setOriginFromArray3( transform, Array.from( data.subarray( offset, offset + 3 ) ) );
+		const q = this.manager.allocQuaternion();
+		q.setX( data[ offset + 3 ] ); q.setY( data[ offset + 4 ] ); q.setZ( data[ offset + 5 ] ); q.setW( data[ offset + 6 ] );
+		transform.setRotation( q ); this.manager.freeQuaternion( q ); this.pending = transform;
+
+	}
+
 	/** Read-only next-step diagnostic; no Bullet state changes. */
 	getDeferredPose() {
 
@@ -1089,13 +1222,13 @@ class RigidBody {
 			switch ( p.shapeType ) {
 
 				case 0:
-					return new Ammo.btSphereShape( p.width );
+					return manager.own( new Ammo.btSphereShape( p.width ) );
 
 				case 1:
-					return new Ammo.btBoxShape( new Ammo.btVector3( p.width, p.height, p.depth ) );
+					return manager.own( new Ammo.btBoxShape( manager.own( new Ammo.btVector3( p.width, p.height, p.depth ) ) ) );
 
 				case 2:
-					return new Ammo.btCapsuleShape( p.width, p.height );
+					return manager.own( new Ammo.btCapsuleShape( p.width, p.height ) );
 
 				default:
 					throw new Error( 'unknown shape type ' + ( p as { shapeType: number } ).shapeType );
@@ -1133,13 +1266,13 @@ class RigidBody {
 		manager.setOriginFromThreeVector3( boneForm, bone.getWorldPosition( vector ) );
 
 		const form = manager.multiplyTransforms( boneForm, boneOffsetForm );
-		const state = new Ammo.btDefaultMotionState( form );
+		const state = manager.own( new Ammo.btDefaultMotionState( form ) );
 
-		const info = new Ammo.btRigidBodyConstructionInfo( weight, state, shape, localInertia );
+		const info = manager.own( new Ammo.btRigidBodyConstructionInfo( weight, state, shape, localInertia ) );
 		info.set_m_friction( params.friction );
 		info.set_m_restitution( params.restitution );
 
-		const body = new Ammo.btRigidBody( info );
+		const body = manager.own( new Ammo.btRigidBody( info ) );
 
 		if ( params.type === 0 ) {
 
@@ -1353,7 +1486,7 @@ class Constraint {
 		const formA2 = manager.multiplyTransforms( formInverseA, form );
 		const formB2 = manager.multiplyTransforms( formInverseB, form );
 
-		const constraint = new Ammo.btGeneric6DofSpringConstraint( bodyA.body, bodyB.body, formA2, formB2, true );
+		const constraint = manager.own( new Ammo.btGeneric6DofSpringConstraint( bodyA.body, bodyB.body, formA2, formB2, true ) );
 
 		const lll = manager.allocVector3();
 		const lul = manager.allocVector3();
@@ -1537,6 +1670,7 @@ class MMDPhysicsHelper extends Object3D {
 		if ( this.visible ) {
 
 			var bodies = this.physics.bodies;
+			const remote = this.physics.workerAdapter;
 
 			_matrixWorldInv
 				.copy( mesh.matrixWorld )
@@ -1544,8 +1678,16 @@ class MMDPhysicsHelper extends Object3D {
 				.compose( _position, _quaternion, _scale.set( 1, 1, 1 ) )
 				.invert();
 
-			for ( var i = 0, il = bodies.length; i < il; i ++ ) {
+			for ( var i = 0, il = remote ? remote.model.bodies.length : bodies.length; i < il; i ++ ) {
 
+				if ( remote ) {
+
+					const result = this.physics.bodyResults[ i ], child = this.children[ i ];
+					child.position.fromArray( result.position ).applyMatrix4( _matrixWorldInv );
+					child.quaternion.setFromRotationMatrix( _matrixWorldInv ).multiply( _quaternion.fromArray( result.quaternion ) );
+					continue;
+
+				}
 				var body = bodies[ i ].body;
 				var child = this.children[ i ];
 
@@ -1581,6 +1723,7 @@ class MMDPhysicsHelper extends Object3D {
 	_init() {
 
 		var bodies = this.physics.bodies;
+		const remote = this.physics.workerAdapter;
 
 		function createGeometry( param: RigidBodyParameters ) {
 
@@ -1602,9 +1745,9 @@ class MMDPhysicsHelper extends Object3D {
 
 		}
 
-		for ( var i = 0, il = bodies.length; i < il; i ++ ) {
+		for ( var i = 0, il = remote ? remote.model.bodies.length : bodies.length; i < il; i ++ ) {
 
-			var param = bodies[ i ].params;
+			var param = remote ? remote.model.bodies[ i ] : bodies[ i ].params;
 			this.add( new Mesh( createGeometry( param )!, this.materials[ param.type ] ) );
 
 		}

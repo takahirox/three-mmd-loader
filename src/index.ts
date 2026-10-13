@@ -14,3 +14,5 @@ export type { MMDToonMaterialParameters, MMDOutlineParameters } from './material
 
 export { mmdAdditionalUV } from './materials/MMDUV.js';
 export { updateMMDUVs } from './animation/MMDUVMorphController.js';
+
+export type { PhysicsMode, PhysicsTransport, WorkerPhysicsOptions } from './animation/PhysicsWorkerProtocol.js';

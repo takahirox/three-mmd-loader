@@ -66,7 +66,7 @@ The internal `libs/mmdparser.module.js` subpath and package-root
 `MMDParser`, `Parser`, and `CharsetEncoder` exports have been removed.
 `MMDExporter` exports VPD poses, not PMD/PMX models or VMD animations.
 
-Physics requires an initialized [Ammo.js](https://github.com/kripken/ammo.js)
+Synchronous physics requires an initialized [Ammo.js](https://github.com/kripken/ammo.js)
 runtime exposed as `globalThis.Ammo` before creating `MMDPhysics` or adding a
 mesh with physics enabled (the helper's default). Ammo is supplied by the
 application and is not bundled with this package. For example, using the
@@ -223,3 +223,87 @@ Opt-in real-model setup: `npm run models:setup -- gene`, then `npm run dev:sdef`
 and choose Gene in **Installed models**. Safe manual acquisition import:
 `npm run models:import -- /path/to/model.zip --category sdef`. See
 [local model setup, source terms and diagnostics](docs/local-models.md).
+
+
+### Optional worker physics
+
+Omitting `physicsMode`, or selecting `'sync'`, preserves current-frame physics
+and standalone `MMDPhysics` behavior. Select `'worker'` at setup to run Ammo in
+a classic Worker and display the latest completed result:
+
+```ts
+// Keep main-thread Ammo initialized (as above) to allow automatic sync fallback.
+helper.add( mesh, {
+  animation,
+  physics: true,
+  physicsMode: 'worker',
+  workerPhysics: {
+    ammoURL: new URL( './ammo.js', document.baseURI ).href,
+    onFallback: reason => console.warn( reason )
+  }
+} );
+const physics = helper.objects.get( mesh )!.physics!;
+await physics.ready; // optional setup-time readiness; never await per frame
+helper.update( delta );
+```
+
+`ammoURL` must serve a compatible **classic** Ammo script exposing an `Ammo`
+factory or initialized API. Each Worker initializes its own Ammo. The packaged
+`animation/MMDPhysicsWorker.js` bundles its dependencies and needs no import
+map. Bundlers/deployments must preserve this asset beside `MMDPhysics.js`; use
+`workerPhysics.createWorker: () => new Worker( yourWorkerURL )` to override its
+location or satisfy CSP. Allow the worker and Ammo script under your CSP.
+Standalone construction accepts these same options as its fourth argument.
+Mode selection is fixed at setup; dispose/recreate to change it.
+
+Transport is automatic: SharedArrayBuffer with atomic publication when runtime
+capability and cross-origin isolation are available, otherwise reusable
+transferable ArrayBuffers. COOP/COEP headers are optional. There is one request
+in flight per world. Main-thread frames never wait, spin or call `Atomics.wait`.
+While busy, the rendered pose reuses the last complete result; unsent skeletal
+poses are skipped and elapsed time is coalesced up to 0.25 seconds. Bullet's
+existing `maxStepNum` still limits catch-up. About one frame of visual latency
+is typical, but a busy Worker can take longer.
+
+Raw results are projected between the existing before/after-physics phases.
+PMX post IK/grants and dynamic-parent reprojection remain on the main thread.
+The Worker aligns mode-2 body positions immediately after its own step, before
+accepting the next input. Post-phase kinematic inputs use the preceding
+**displayed** final pose. Under delay, this pose differs from the current-frame
+sync pose; animation-driven contacts can therefore differ. For identical
+sequenced inputs, both backends use the same Bullet/body rules. This is an
+intentional responsiveness/visual-latency tradeoff, not a strict sync replay.
+
+`ready` resolves after model initialization or fallback; async `warmup(cycles)`
+settles one frame per completion at fixed animation time through both pose
+phases. `workerStatus` reports initialization, remaining warmup cycles,
+in-flight work and the last completed sequence. `physicsMode` and `transport`
+report the actual backend and transport. Zero-time PMX updates only reproject;
+PMD retains its existing minimum-step behavior. Gravity changes are ordered in
+the Worker. Helper enable/disable suspends submissions/warmup and invalidates
+pending results. Reset captures the pre-physics pose and invalidates previous
+results; loop resets use the same path. Removal releases that model's Ammo
+resources and preserves other shared participants. Disposing the last model
+terminates the Worker and releases communication resources.
+
+Set `helper.sharedPhysics = true` **before** adding models and select `'worker'`
+for every participating model. They share one Worker, world, step and coherent
+result packet. An existing Ammo `world` cannot be passed into worker mode.
+`world`, `bodies` and `constraints` expose native objects only in sync mode;
+worker mode exposes snapshots in `bodyResults` and supports `createHelper()`.
+
+Unsupported environments, missing configuration, initialization/runtime errors
+and watchdog timeouts (default 10 seconds; `workerPhysics.timeout` overrides it)
+warn, call `onFallback`, terminate the Worker and rebuild the whole shared world
+synchronously with cleared velocities. Keep main-thread Ammo initialized for
+this fallback. If it is absent, `initializationError` explains why physics is
+frozen; `ready` still settles so an application can report the error. The
+Worker needs no main-thread Ammo when it operates successfully.
+
+Run `npm run examples:assets` then `npm run dev` and open the animation example.
+Its **Physics mode (reload)** selector reconstructs the scene in sync/worker
+mode, and its status shows actual transport and mean main-thread helper-update
+time. Compare the same scene and device after warmup; this measures helper CPU
+time, not universal FPS improvement or end-to-end latency. No isolation headers
+are needed for this demonstration. Browser tests additionally serve an isolated
+origin to exercise SAB when supported.

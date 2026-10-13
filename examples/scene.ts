@@ -27,6 +27,7 @@ interface ExampleContext {
 }
 
 const assets = './assets/mmd/';
+const selectedPhysicsMode = new URLSearchParams( location.search ).get( 'physicsMode' ) === 'worker' ? 'worker' : 'sync';
 
 export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 
@@ -131,7 +132,11 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 
 			} );
 			mesh = mmd.mesh;
-			helper.add( mesh, { animation: mmd.animation, physics: true } );
+			helper.add( mesh, {
+				animation: mmd.animation, physics: true,
+				physicsMode: mode === 'animation' ? selectedPhysicsMode : 'sync',
+				workerPhysics: { ammoURL: new URL( '../node_modules/ammojs-typed/ammo/ammo.js', location.href ).href }
+			} );
 
 		}
 		await resourcesReady;
@@ -148,6 +153,12 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 		let running = mode === 'animation';
 		if ( mode === 'animation' ) {
 
+			const selection = { physicsMode: selectedPhysicsMode };
+			gui.add( selection, 'physicsMode', [ 'sync', 'worker' ] ).name( 'Physics mode (reload)' ).onChange( ( value: string ) => {
+
+				const url = new URL( location.href ); url.searchParams.set( 'physicsMode', value ); location.href = url.href;
+
+			} ).disable();
 			for ( const name of [ 'animation', 'ik', 'physics' ] as const ) {
 
 				checkbox( name, true, value => helper.enable( name, value ) );
@@ -227,13 +238,26 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 		gui.domElement.setAttribute( 'aria-busy', 'false' );
 		status.textContent = mode === 'audio' ? 'Ready — press Play to start.' : 'Ready';
 		let previousTime: number | null = null;
+		let measuredTime = 0, measuredFrames = 0, lastReport = 0;
 		await renderer.setAnimationLoop( time => {
 
 			try {
 
 				const delta = previousTime === null ? 0 : Math.min( ( time - previousTime ) / 1000, 0.1 );
 				previousTime = time;
-				if ( running ) helper.update( delta );
+				if ( running ) {
+
+					const started = performance.now(); helper.update( delta );
+					measuredTime += performance.now() - started; measuredFrames ++;
+					if ( mode === 'animation' && time - lastReport >= 500 ) {
+
+						const physics = helper.objects.get( mesh )!.physics!;
+						status.textContent = `${physics.physicsMode}${physics.transport ? ` / ${physics.transport}` : ''} — main-thread helper update: ${( measuredTime / measuredFrames ).toFixed( 2 )} ms (mean)`;
+						measuredTime = measuredFrames = 0; lastReport = time;
+
+					}
+
+				}
 				effect.render( scene, camera );
 
 			} catch ( error ) {
