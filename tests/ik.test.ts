@@ -107,6 +107,93 @@ test( 'legal authored XZY rotations at and near both singularities retain a reac
 	}
 
 } );
+test( 'near-singular authored rotations preserve reached targets across the decomposition threshold', () => {
+
+	const p: Vec = [ 0.2, 0.5, 1 ];
+	for ( const sign of [ -1, 1 ] ) for ( const offset of [ -1e-8, -1e-10, -2e-12, -1e-12, -0.5e-12, 0.5e-12, 1e-12, 2e-12, 1e-10, 1e-8 ] ) {
+
+		const authored: Vec = [ 1.952, sign * 2.014, sign * Math.PI / 2 + offset ];
+		const limits: [ Vec, Vec ] = [ [ 1.7, sign < 0 ? -2.4 : 1.8, sign < 0 ? -1.65 : 1.5 ], [ 2.3, sign < 0 ? -1.8 : 2.4, sign < 0 ? -1.5 : 1.65 ] ];
+		const f = fixture( p, rotateEuler( p, authored, 'XZY' ), limits, 1, 1e-5 );
+		f.link.quaternion.setFromEuler( new Euler( ...authored, 'XZY' ) ); f.mesh.updateMatrixWorld( true );
+		const before = f.link.quaternion.toArray();
+		for ( let i = 0; i < 40; i ++ ) {
+
+			solve( f ); near( f.error(), 0, 1e-11 );
+			// This exact unchanged quaternion retains the known legal authored
+			// representation; a principal Euler range check is singular here.
+			assert.deepEqual( f.link.quaternion.toArray(), before );
+
+		}
+
+	}
+
+} );
+test( 'near-singular authored rotations obey the step cap without a numerical feasibility correction', () => {
+
+	const p: Vec = [ 0.2, 0.5, 1 ];
+	for ( const sign of [ -1, 1 ] ) for ( const offset of [ -1e-8, -1e-10, -2e-12, -1e-12, -0.5e-12, 0.5e-12, 1e-12, 2e-12, 1e-10, 1e-8 ] ) {
+
+		const authored: Vec = [ 1.952, sign * 2.014, sign * Math.PI / 2 + offset ];
+		const desired: Vec = [ authored[ 0 ] + 0.03, authored[ 1 ], authored[ 2 ] ];
+		const limits: [ Vec, Vec ] = [ [ 1.7, sign < 0 ? -2.4 : 1.8, sign < 0 ? -1.65 : 1.5 ], [ 2.3, sign < 0 ? -1.8 : 2.4, sign < 0 ? -1.5 : 1.65 ] ];
+		const f = fixture( p, rotateEuler( p, desired, 'XZY' ), limits, 1, 0.01 );
+		f.link.quaternion.setFromEuler( new Euler( ...authored, 'XZY' ) ); f.mesh.updateMatrixWorld( true );
+		const before = f.link.quaternion.clone(), error = f.error(); solve( f );
+		assert.ok( before.angleTo( f.link.quaternion ) <= f.ik.maxAngle! + 1e-10 );
+		assert.ok( f.error() < error );
+		// The first coordinate can take the whole budget toward this analytical
+		// target. This legal expected pose also checks range satisfaction without
+		// decomposing a quaternion at the singularity in the test oracle.
+		const expected: Vec = [ authored[ 0 ] + 0.01, authored[ 1 ], authored[ 2 ] ];
+		const position = f.effector.getWorldPosition( new Vector3() );
+		near( position.distanceTo( new Vector3().fromArray( rotateEuler( p, expected, 'XZY' ) ) ), 0, 1e-10 );
+
+	}
+
+} );
+test( 'near-singular constraint corners retain legal poses and capped steps for either quaternion sign', () => {
+
+	const p: Vec = [ 0.2, 0.5, 1 ];
+	for ( const sign of [ -1, 1 ] ) for ( const x of [ 1.7, 2.3 ] ) for ( const y of sign < 0 ? [ -2.4, -1.8 ] : [ 1.8, 2.4 ] ) {
+		for ( const offset of [ -2e-6, -1e-6, -2e-7, -1e-8, -2e-12, -1e-12, -0.5e-12, 0.5e-12, 1e-12, 2e-12, 1e-8, 2e-7, 1e-6, 2e-6 ] ) for ( const quaternionSign of [ -1, 1 ] ) {
+
+			const authored: Vec = [ x, y, sign * Math.PI / 2 + offset ];
+			const limits: [ Vec, Vec ] = [ [ 1.7, sign < 0 ? -2.4 : 1.8, sign < 0 ? -1.65 : 1.5 ], [ 2.3, sign < 0 ? -1.8 : 2.4, sign < 0 ? -1.5 : 1.65 ] ];
+			for ( const delta of [ 0, x === 1.7 ? 0.03 : -0.03 ] ) {
+
+				const desired: Vec = [ x + delta, y, authored[ 2 ] ];
+				const f = fixture( p, rotateEuler( p, desired, 'XZY' ), limits, 1, delta === 0 ? 1e-5 : 0.01 );
+				f.link.quaternion.setFromEuler( new Euler( ...authored, 'XZY' ) );
+				if ( quaternionSign < 0 ) f.link.quaternion.fromArray( f.link.quaternion.toArray().map( v => -v ) );
+				f.mesh.updateMatrixWorld( true ); const original = f.link.quaternion.toArray();
+				for ( let i = 0; i < 10; i ++ ) {
+
+					const before = f.link.quaternion.clone(), error = f.error(); solve( f );
+					if ( delta === 0 ) assert.deepEqual( f.link.quaternion.toArray(), original );
+					else {
+
+						assert.ok( before.angleTo( f.link.quaternion ) <= f.ik.maxAngle! + 1e-10, `${authored}, sign=${quaternionSign}, iteration=${i}, step=${before.angleTo( f.link.quaternion )}` );
+						assert.ok( f.error() <= error + 1e-11 );
+						if ( i === 0 ) {
+
+							const expected: Vec = [ x + Math.sign( delta ) * 0.01, y, authored[ 2 ] ];
+							near( f.effector.getWorldPosition( new Vector3() ).distanceTo( new Vector3().fromArray( rotateEuler( p, expected, 'XZY' ) ) ), 0, 1e-10 );
+
+						}
+
+					}
+
+				}
+				near( f.error(), 0, 1e-8 );
+
+			}
+
+		}
+
+	}
+
+} );
 test( 'coupled singular XZY coordinates reach a nearby target within bounds and the step cap', () => {
 
 	const p: Vec = [ 0.2, 0.5, 1 ];

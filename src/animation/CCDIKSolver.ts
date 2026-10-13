@@ -336,9 +336,48 @@ function constrainedAngles( bone: Bone, link: IKLink ): ConstrainedAngles {
 	const principal = order === 'YXZ' ? [ Math.atan2( -m[ 9 ], Math.hypot( m[ 8 ], m[ 10 ] ) ), Math.atan2( m[ 8 ], m[ 10 ] ), Math.atan2( m[ 1 ], m[ 5 ] ) ] :
 		order === 'ZYX' ? [ Math.atan2( m[ 6 ], m[ 10 ] ), Math.atan2( -m[ 2 ], Math.hypot( m[ 0 ], m[ 1 ] ) ), Math.atan2( m[ 1 ], m[ 0 ] ) ] :
 		[ Math.atan2( m[ 6 ], m[ 5 ] ), Math.atan2( m[ 8 ], m[ 0 ] ), Math.atan2( -m[ 4 ], Math.hypot( m[ 0 ], m[ 8 ] ) ) ];
-	const alternative = principal.slice(), middle = 'XYZ'.indexOf( order[ 1 ] );
+	const first = 'XYZ'.indexOf( order[ 0 ] ), middle = 'XYZ'.indexOf( order[ 1 ] ), last = 'XYZ'.indexOf( order[ 2 ] );
+	// Near a singularity both independent outer-angle matrix ratios amplify
+	// roundoff. Recover the first factor from the original quaternion after
+	// removing the other two instead: its coupled angle remains well conditioned
+	// even when the last factor's individual angle is uncertain.
+	_constraintQ.copy( bone.quaternion ).normalize()
+		.multiply( _prefixQ.setFromAxisAngle( _basis[ last ], -principal[ last ] ) )
+		.multiply( _prefixQ.setFromAxisAngle( _basis[ middle ], -principal[ middle ] ) );
+	principal[ first ] = 2 * Math.atan2( _constraintQ.toArray()[ first ], _constraintQ.w );
+	const alternative = principal.slice();
 	for ( let c = 0; c < 3; c ++ ) alternative[ c ] = c === middle ? Math.PI - alternative[ c ] : alternative[ c ] + Math.PI;
 	const candidates = [ principal, alternative ];
+	for ( const preferred of [ principal, alternative ] ) {
+
+		// Clipping an uncertain outer factor independently can destroy the
+		// well-conditioned coupled angle at a box edge. After clipping either
+		// factor, recover its partner from the quaternion before clipping again.
+		const bounded = preferred.slice();
+		for ( const c of [ last, first ] ) {
+
+			const lower = min?.getComponent( c ) ?? -Math.PI, upper = max?.getComponent( c ) ?? Math.PI;
+			bounded[ c ] += _tau * Math.round( ( lower / 2 + upper / 2 - bounded[ c ] ) / _tau );
+			bounded[ c ] = Math.max( lower, Math.min( upper, bounded[ c ] ) );
+			_constraintQ.copy( bone.quaternion ).normalize();
+			if ( c === last ) {
+
+				_constraintQ.multiply( _prefixQ.setFromAxisAngle( _basis[ last ], -bounded[ last ] ) )
+					.multiply( _prefixQ.setFromAxisAngle( _basis[ middle ], -bounded[ middle ] ) );
+
+			} else {
+
+				_constraintQ.premultiply( _prefixQ.setFromAxisAngle( _basis[ first ], -bounded[ first ] ) )
+					.premultiply( _prefixQ.setFromAxisAngle( _basis[ middle ], -bounded[ middle ] ) );
+
+			}
+			const other = c === last ? first : last;
+			bounded[ other ] = 2 * Math.atan2( _constraintQ.toArray()[ other ], _constraintQ.w );
+
+		}
+		candidates.push( bounded );
+
+	}
 	if ( Math.abs( Math.cos( principal[ middle ] ) ) < 1e-12 ) {
 
 		// At a singularity the outer factors are coupled: for these three
@@ -346,7 +385,6 @@ function constrainedAngles( bone: Bone, link: IKLink ): ConstrainedAngles {
 		// Intersect that line with the bounds rather than clamping a single
 		// arbitrary decomposition. Choose its midpoint for a continuous feasible
 		// representation as the combined angle changes across repeated updates.
-		const first = 'XYZ'.indexOf( order[ 0 ] ), last = 'XYZ'.indexOf( order[ 2 ] );
 		const sign = Math.sign( principal[ middle ] ), k = -sign;
 		_constraintQ.copy( bone.quaternion ).multiply( _prefixQ.setFromAxisAngle( _basis[ middle ], -sign * Math.PI / 2 ) );
 		const combined = 2 * Math.atan2( _constraintQ.toArray()[ first ], _constraintQ.w );
@@ -383,7 +421,12 @@ function constrainedAngles( bone: Bone, link: IKLink ): ConstrainedAngles {
 
 		}
 		_constraintEuler.set( candidate[ 0 ], candidate[ 1 ], candidate[ 2 ], order );
-		const d = _constraintQ.setFromEuler( _constraintEuler ).angleTo( bone.quaternion );
+		_constraintQ.setFromEuler( _constraintEuler );
+		const sign = _constraintQ.dot( bone.quaternion ) < 0 ? -1 : 1;
+		// Quaternion component distance distinguishes roundoff-sized residuals;
+		// acos(dot) loses that precision and can select the wrong feasible branch.
+		const d = ( _constraintQ.x - sign * bone.quaternion.x ) ** 2 + ( _constraintQ.y - sign * bone.quaternion.y ) ** 2 +
+			( _constraintQ.z - sign * bone.quaternion.z ) ** 2 + ( _constraintQ.w - sign * bone.quaternion.w ) ** 2;
 		if ( d < distance ) { best = candidate; distance = d; }
 
 	}
