@@ -259,7 +259,7 @@ test( 'first-publication recovery restores only verified HTTP 404 content and ca
 		await cp( recovery, site, { recursive: true } );
 		const restored = await verifyDeployment( base, await readFile( join( recovery, manifestName ) ), 'success' );
 		assert.equal( restored.success, true );
-		assert.equal( restored.checks!.filter( check => check.status === 404 ).length, 6 );
+		assert.equal( restored.checks!.filter( check => check.status === 404 ).length, 2 + requiredPages.filter( path => path.startsWith( 'examples/' ) ).length );
 		const backup = await backupSite( base, join( root, 'next-backup' ) );
 		assert.equal( backup.exists, true );
 		assert.equal( backup.state, 'unpublished' );
@@ -359,6 +359,36 @@ test( 'workflow scripts persist machine-readable evidence for successful and fai
 		assert.equal( failed.deployment_outcome, 'failure' );
 		assert.match( failed.error!, /deployment did not succeed/ );
 		assert.equal( requestCount(), before );
+
+	} );
+
+} );
+
+
+test( 'pre-Worker deployments remain verified backups and rollbacks, but cannot be new candidates', async () => {
+
+	await siteFixture( async ( { site, root, base } ) => {
+
+		const path = 'examples/webgl_loader_mmd_worker.html';
+		const manifest = JSON.parse( await readFile( join( site, manifestName ), 'utf8' ) );
+		manifest.files = manifest.files.filter( ( file: { path: string } ) => file.path !== path );
+		await rm( join( site, path ) );
+		await writeFile( join( site, manifestName ), JSON.stringify( manifest ) );
+		assert.throws( () => validateManifest( manifest ), /Missing example content: examples\/webgl_loader_mmd_worker.html/ );
+		const backup = join( root, 'legacy-backup' );
+		assert.equal( ( await backupSite( base, backup ) ).success, true );
+		const bytes = await readFile( join( backup, manifestName ) );
+		await assert.rejects( verifyDeployment( base, bytes, 'success' ), /Missing example content/ );
+		assert.equal( ( await verifyDeployment( base, bytes, 'success', { allowLegacyPages: true } ) ).success, true );
+		const verify = fileURLToPath( new URL( '../scripts/verify-pages.ts', import.meta.url ) );
+		const evidence = join( root, 'legacy-rollback.json' );
+		await promisify( execFile )( process.execPath, [ '--import', fileURLToPath( new URL( '../node_modules/tsx/dist/loader.mjs', import.meta.url ) ), verify, 'verify-rollback', backup, evidence ], {
+			cwd: root, env: { PAGE_URL: base, DEPLOYMENT_OUTCOME: 'success' }
+		} );
+		assert.equal( JSON.parse( await readFile( evidence, 'utf8' ) ).success, true );
+		// Compatibility still checks every file of the old deployment.
+		await rm( join( site, 'examples/webgl_loader_mmd.html' ) );
+		await assert.rejects( backupSite( base, join( root, 'broken-backup' ) ), /Public content mismatch/ );
 
 	} );
 

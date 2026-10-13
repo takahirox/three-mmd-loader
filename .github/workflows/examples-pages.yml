@@ -130,7 +130,7 @@ jobs:
       - name: Verify the restored public site
         if: >-
           !cancelled() && steps.rollback.outcome != 'skipped'
-        run: node --import tsx scripts/verify-pages.ts verify dist/rollback deployment-evidence/rollback.json
+        run: node --import tsx scripts/verify-pages.ts verify-rollback dist/rollback deployment-evidence/rollback.json
         env:
           PAGE_URL: ${{ needs.setup.outputs.page_url }}
           DEPLOYMENT_OUTCOME: ${{ steps.rollback.outcome }}

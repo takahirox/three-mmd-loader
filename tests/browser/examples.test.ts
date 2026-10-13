@@ -13,6 +13,7 @@ interface BrowserResult { page?: string; checks?: Record<string, boolean>; error
 // exercise rendered scenes and their controls. No alternate app code path.
 const harness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
 const results = [];
+function progress( stage ) { fetch( '/test-progress?stage=' + encodeURIComponent( stage ) ).catch( () => {} ); }
 function checkInfo( page, doc ) {
 	const info = doc.getElementById( 'info' );
 	const css = page.getComputedStyle( info );
@@ -32,17 +33,24 @@ function checkInfo( page, doc ) {
 		noHorizontalScroll: doc.documentElement.scrollWidth === page.innerWidth
 	};
 }
-function frameLoaded( frame ) {
+function frameLoaded( frame, transition = 'load' ) {
 	return new Promise( ( resolve, reject ) => {
-		const timeout = setTimeout( () => reject( new Error( 'Frame load timed out: ' + frame.src ) ), 8000 );
+		const timeout = setTimeout( () => reject( new Error( 'Frame load timed out (' + transition + '): ' + ( frame.src || frame.contentWindow.location.href ) ) ), ${process.env.MMD_EXAMPLE_SITE ? 30000 : 8000} );
 		frame.onload = () => { clearTimeout( timeout ); resolve(); };
 	} );
 }
 async function resizeFrame( frame, width, height ) {
+	progress( 'resize ' + width + 'x' + height + ': ' + frame.contentWindow.location.pathname );
 	frame.width = width;
 	frame.height = height;
-	// Let the iframe's resize event and layout finish before reading geometry.
-	await new Promise( resolve => frame.contentWindow.requestAnimationFrame( () => frame.contentWindow.requestAnimationFrame( resolve ) ) );
+	// Let resize/layout finish. Chrome can suspend animation callbacks for
+	// offscreen iframes; use a bounded parent timer too. The following assertions
+	// still verify the actual canvas size, camera aspect, and responsive layout.
+	await new Promise( resolve => {
+		const timer = setTimeout( resolve, 250 );
+		frame.contentWindow.requestAnimationFrame( () => frame.contentWindow.requestAnimationFrame( () => { clearTimeout( timer ); resolve(); } ) );
+	} );
+	progress( 'resized ' + width + 'x' + height + ': ' + frame.contentWindow.location.pathname );
 }
 try {
 	{
@@ -63,7 +71,7 @@ try {
 		const placeholder = doc.getElementById( 'placeholder' );
 		const toggle = doc.getElementById( 'expandButton' );
 		const cards = [...doc.querySelectorAll( '.card' )];
-		const ids = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose' ];
+		const ids = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose', 'webgl_loader_mmd_worker' ];
 		const css = element => page.getComputedStyle( element );
 		function wideLayout( width ) {
 			const panelRect = panel.getBoundingClientRect();
@@ -82,6 +90,7 @@ try {
 		async function settle() { await new Promise( resolve => page.setTimeout( resolve, 30 ) ); }
 		async function checkSelected( id ) {
 			const module = await viewer.contentWindow.eval( "import('/examples/" + id + ".js')" );
+			progress( 'ready ' + id );
 			const context = await module.ready;
 			context.renderer.setAnimationLoop( null );
 			return viewer.contentWindow.location.pathname === '/examples/' + id + '.html' && viewer.contentDocument.body.dataset.state === 'ready' && context.renderer.domElement.getBoundingClientRect().width === viewer.clientWidth && page.location.hash === '#' + id && cards.filter( card => card.classList.contains( 'selected' ) ).length === 1 && doc.querySelector( '.selected' ).dataset.example === id && doc.querySelectorAll( 'a[aria-current="page"]' ).length === 1 && doc.querySelector( '.selected a' ).getAttribute( 'aria-current' ) === 'page' && !viewer.hidden && placeholder.hidden && page.location.pathname === '/examples/';
@@ -89,9 +98,10 @@ try {
 		const indexChecks = {
 			wideLayout: wideLayout( 300 ),
 			placeholder: !placeholder.hidden && placeholder.textContent.includes( 'Select an example' ) && viewer.hidden && !viewer.hasAttribute( 'src' ) && !doc.querySelector( '.selected' ),
-			cards: cards.length === 3 && ids.every( ( id, i ) => cards[i].dataset.example === id && cards[i].querySelector( 'a' ).getAttribute( 'href' ) === './' + id + '.html' && cards[i].querySelector( 'a' ).target === 'viewer' && cards[i].querySelector( '.title' ).textContent.trim() ),
+			cards: cards.length === ids.length && ids.every( ( id, i ) => cards[i].dataset.example === id && cards[i].querySelector( 'a' ).getAttribute( 'href' ) === './' + id + '.html' && cards[i].querySelector( 'a' ).target === 'viewer' && cards[i].querySelector( '.title' ).textContent.trim() ),
+			workerTitle: doc.querySelector( '[data-example="webgl_loader_mmd_worker"] .title' ).textContent === 'Worker Physics',
 			category: doc.querySelector( '#content h2' ).textContent === 'webgl / loaders / mmd',
-			images: ids.every( ( id, i ) => { const image = cards[i].querySelector( 'img' ); return image.getAttribute( 'src' ) === './screenshots/' + id + '.jpg' && image.complete && image.naturalWidth === 400 && image.naturalHeight === 250 && image.alt.length > 0; } ),
+			images: ids.every( ( id, i ) => { const image = cards[i].querySelector( 'img' ); return image.getAttribute( 'src' ) === './screenshots/' + id.replace( '_worker', '' ) + '.jpg' && image.complete && image.naturalWidth === 400 && image.naturalHeight === 250 && image.alt.length > 0; } ),
 			previewAspect: cards.every( card => { const rect = card.querySelector( '.cover' ).getBoundingClientRect(); return Math.abs( rect.height / rect.width - 9 / 16 ) < 0.001; } ),
 			typography: css( doc.body ).fontFamily === '"Roboto Mono", monospace' && css( doc.body ).fontSize === '15px' && css( doc.body ).lineHeight === '25px' && doc.fonts.check( '15px "Roboto Mono"' ),
 			lightColors: css( doc.body ).backgroundColor === 'rgb(255, 255, 255)' && css( doc.body ).color === 'rgb(68, 68, 68)' && css( cards[0] ).backgroundColor === 'rgb(247, 247, 247)',
@@ -101,7 +111,8 @@ try {
 			wideNavigation: !navigation.inert && !viewerArea.inert && css( toggle ).display === 'none'
 		};
 		for ( const id of ids ) {
-			const loaded = frameLoaded( viewer );
+			progress( 'select ' + id );
+			const loaded = frameLoaded( viewer, id );
 			doc.querySelector( '[data-example="' + id + '"] a' ).click();
 			await loaded;
 			indexChecks['select_' + id] = await checkSelected( id );
@@ -111,14 +122,16 @@ try {
 		doc.querySelector( '.selected a' ).click();
 		await settle();
 		indexChecks.repeatSelection = viewer.contentDocument === selectedDocument;
-		let loaded = frameLoaded( viewer );
+		let loaded = frameLoaded( viewer, 'Back' );
+		progress( 'history Back' );
 		page.history.back();
 		await loaded;
-		indexChecks.historyBack = await checkSelected( ids[1] );
-		loaded = frameLoaded( viewer );
+		indexChecks.historyBack = await checkSelected( ids.at( - 2 ) );
+		loaded = frameLoaded( viewer, 'Forward' );
+		progress( 'history Forward' );
 		page.history.forward();
 		await loaded;
-		indexChecks.historyForward = await checkSelected( ids[2] );
+		indexChecks.historyForward = await checkSelected( ids.at( - 1 ) );
 		await resizeFrame( index, 360, 640 );
 		indexChecks.mobileClosed = mobileClosed();
 		toggle.click();
@@ -139,10 +152,16 @@ try {
 		indexChecks.mobileEscapeCloses = mobileClosed() && doc.activeElement === toggle;
 		toggle.click();
 		await settle();
-		loaded = frameLoaded( viewer );
+		loaded = frameLoaded( viewer, 'mobile selection' );
 		doc.querySelector( '[data-example="' + ids[0] + '"] a' ).click();
 		await loaded;
 		indexChecks.mobileSelection = mobileClosed() && await checkSelected( ids[0] );
+		toggle.click();
+		await settle();
+		loaded = frameLoaded( viewer, 'mobile selection' );
+		doc.querySelector( '[data-example="webgl_loader_mmd_worker"] a' ).click();
+		await loaded;
+		indexChecks.mobileWorkerSelection = mobileClosed() && await checkSelected( 'webgl_loader_mmd_worker' );
 		indexChecks.mobileNoScroll = doc.documentElement.scrollWidth === page.innerWidth;
 		await resizeFrame( index, 640, 640 );
 		indexChecks.breakpointMobile = mobileClosed();
@@ -166,6 +185,7 @@ try {
 		index.remove();
 		// Navigate a fresh browser document with a hash, rather than selecting first.
 		for ( const id of ids ) {
+			progress( 'direct ' + id );
 			const direct = document.createElement( 'iframe' );
 			direct.width = 360;
 			direct.height = 640;
@@ -191,7 +211,8 @@ try {
 		indexChecks.mobileInitialList = initialMobile.contentDocument.getElementById( 'panel' ).classList.contains( 'open' ) && initialMobile.contentDocument.getElementById( 'expandButton' ).getAttribute( 'aria-expanded' ) === 'true';
 		initialMobile.remove();
 	}
-	for ( const suffix of [ '', '_audio', '_pose' ] ) {
+	for ( const suffix of [ '', '_audio', '_pose', '_worker' ] ) {
+		progress( 'scene ' + suffix );
 		const frame = document.createElement( 'iframe' );
 		frame.width = 1024;
 		frame.height = 768;
@@ -252,8 +273,12 @@ try {
 		} else {
 			const state = helper.objects.get( mesh );
 			checks.physics = !!state.physics;
+			if ( suffix === '_worker' ) {
+				checks.workerDefault = state.physics.requestedPhysicsMode === 'worker' && state.physics.physicsMode === 'worker' && state.physics.workerStatus.initialized && state.physics.transport === 'transferable';
+				checks.actualMode = doc.getElementById( 'status' ).textContent.startsWith( 'worker / transferable' );
+			} else checks.syncDefault = state.physics.physicsMode === 'sync';
 			checks.animation = state.mixer._actions[ 0 ].getClip().tracks.length > 0;
-			if ( suffix === '' ) {
+			if ( suffix === '' || suffix === '_worker' ) {
 				for ( const name of [ 'animation', 'ik', 'physics' ] ) {
 					const input = control( name );
 					input.click();
@@ -361,7 +386,7 @@ function wavBuffer() {
 
 }
 
-test( 'example pages match Three.js layout, resize, render, and preserve interactive controls', { timeout: 180000 }, async t => {
+test( 'example pages match Three.js layout, resize, render, and preserve interactive controls', { timeout: process.env.MMD_EXAMPLE_SITE ? 360000 : 180000 }, async t => {
 
 	const temporary = await mkdtemp( join( tmpdir(), 'three-mmd-examples-' ) );
 	const assetRoot = join( temporary, 'assets' );
@@ -381,9 +406,17 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 	const handler = app.listeners( 'request' )[ 0 ];
 	const siteRoot = process.env.MMD_EXAMPLE_SITE && resolve( process.env.MMD_EXAMPLE_SITE );
 	const prefix = siteRoot ? '/three-mmd-loader' : '';
+	const validationStarted = performance.now();
+	let lastStage = 'launch';
 	const server = createServer( async ( request, response ) => {
 
-		if ( request.url === '/test' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness.replaceAll( '/examples/', prefix + '/examples/' ) );
+		if ( request.url?.startsWith( '/test-progress?' ) ) {
+
+			lastStage = new URL( request.url, 'http://localhost' ).searchParams.get( 'stage' ) || '';
+			if ( siteRoot ) process.stderr.write( `Example progress ${Math.round( performance.now() - validationStarted )} ms: ${lastStage}\n` );
+			response.writeHead( 204 ).end();
+
+		} else if ( request.url === '/test' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness.replaceAll( '/examples/', prefix + '/examples/' ) );
 		else if ( request.url === '/test-dark' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( darkHarness.replaceAll( '/examples/', prefix + '/examples/' ) );
 		else if ( request.headers.referer?.includes( 'missing=1' ) && request.url?.startsWith( prefix + '/examples/assets/mmd/' ) ) {
 
@@ -429,12 +462,17 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 		}
 		// The built site uses the full distributed model/motion/audio rather than
 		// synthetic fixtures. Repeated navigation and SwiftShader rendering can
-		// exceed 45 seconds on CI; give this session a bounded two-minute budget.
-		const timeoutMs = siteRoot ? 120000 : 45000;
+		// exceed 45 seconds on CI; give this four-page session a bounded five-minute budget.
+		const timeoutMs = siteRoot ? 300000 : 45000;
 		const started = performance.now();
-		const results = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test`, join( temporary, 'profile' ), 'light', timeoutMs );
+		const results = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test`, join( temporary, 'profile' ), 'light', timeoutMs ).catch( error => {
+
+			t.diagnostic( `Last example stage: ${lastStage}` );
+			throw error;
+
+		} );
 		t.diagnostic( `Light example validation: ${Math.round( performance.now() - started )} ms (budget ${timeoutMs} ms)` );
-		assert.equal( results.length, 5, JSON.stringify( results ) );
+		assert.equal( results.length, 6, JSON.stringify( results ) );
 		const darkResults = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test-dark`, join( temporary, 'profile-dark' ), 'dark' );
 		assert.equal( darkResults.length, 1, JSON.stringify( darkResults ) );
 		for ( const result of [ ...results, ...darkResults ] ) {

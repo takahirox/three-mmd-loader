@@ -11,7 +11,7 @@ export interface DeploymentReport {
 	deployment_outcome?: string; attempts?: number; recovery?: string; error?: string;
 	mode?: string; page_url?: string; deployment_url?: string; expected_commit?: string; run_id?: string; checked_at?: string;
 }
-interface SiteOptions { fetcher?: typeof fetch; directory?: string; checks?: ContentCheck[] }
+interface SiteOptions { fetcher?: typeof fetch; directory?: string; checks?: ContentCheck[]; allowLegacyPages?: boolean }
 
 async function get( base: string, path: string, fetcher: typeof fetch ) {
 
@@ -22,9 +22,9 @@ async function get( base: string, path: string, fetcher: typeof fetch ) {
 
 }
 
-async function checkSite( base: string, manifest: DeploymentManifest, { fetcher = fetch, directory, checks = [] }: SiteOptions = {} ) {
+async function checkSite( base: string, manifest: DeploymentManifest, { fetcher = fetch, directory, checks = [], allowLegacyPages = false }: SiteOptions = {} ) {
 
-	validateManifest( manifest );
+	validateManifest( manifest, { allowLegacyPages } );
 	const unpublished = manifest.state === 'unpublished';
 	const entries = unpublished ? manifest.files : [
 		...manifest.files,
@@ -86,30 +86,30 @@ export async function backupSite( base: string, directory: string, { fetcher = f
 
 	}
 	if ( live.status !== 200 ) throw new Error( `Cannot back up public site: HTTP ${live.status}` );
-	const manifest = validateManifest( JSON.parse( live.bytes.toString( 'utf8' ) ) );
+	const manifest = validateManifest( JSON.parse( live.bytes.toString( 'utf8' ) ), { allowLegacyPages: true } );
 	Object.assign( report, { exists: true, commit: manifest.commit, checks: [] } );
 	if ( manifest.state === 'unpublished' ) report.state = 'unpublished';
-	await checkSite( base, manifest, { fetcher, directory, checks: report.checks } );
+	await checkSite( base, manifest, { fetcher, directory, checks: report.checks, allowLegacyPages: true } );
 	await writeFile( join( directory, manifestName ), live.bytes );
 	report.success = true;
 	return report;
 
 }
 
-export async function verifySite( base: string, expectedBytes: string | Uint8Array, { fetcher = fetch, checks = [] }: SiteOptions = {} ) {
+export async function verifySite( base: string, expectedBytes: string | Uint8Array, { fetcher = fetch, checks = [], allowLegacyPages = false }: SiteOptions = {} ) {
 
-	const expected = validateManifest( JSON.parse( Buffer.from( expectedBytes ).toString( 'utf8' ) ) );
+	const expected = validateManifest( JSON.parse( Buffer.from( expectedBytes ).toString( 'utf8' ) ), { allowLegacyPages } );
 	const live = await get( base, manifestName, fetcher );
 	checks.push( { path: manifestName, status: live.status, success: live.status === 200 && sha256( live.bytes ) === sha256( expectedBytes ) } );
 	if ( ! checks[ 0 ].success ) throw new Error( `Public deployment manifest does not match commit ${expected.commit}` );
-	await checkSite( base, expected, { fetcher, checks } );
+	await checkSite( base, expected, { fetcher, checks, allowLegacyPages } );
 	return checks;
 
 }
 
-export async function verifyDeployment( base: string, bytes: string | Uint8Array, outcome: string, { attempts = 6, wait = delay, fetcher = fetch, report = {} }: { attempts?: number; wait?: ( milliseconds: number ) => Promise<unknown>; fetcher?: typeof fetch; report?: DeploymentReport } = {} ) {
+export async function verifyDeployment( base: string, bytes: string | Uint8Array, outcome: string, { attempts = 6, wait = delay, fetcher = fetch, report = {}, allowLegacyPages = false }: { attempts?: number; wait?: ( milliseconds: number ) => Promise<unknown>; fetcher?: typeof fetch; report?: DeploymentReport; allowLegacyPages?: boolean } = {} ) {
 
-	Object.assign( report, { success: false, deployment_outcome: outcome, commit: validateManifest( JSON.parse( Buffer.from( bytes ).toString( 'utf8' ) ) ).commit } );
+	Object.assign( report, { success: false, deployment_outcome: outcome, commit: validateManifest( JSON.parse( Buffer.from( bytes ).toString( 'utf8' ) ), { allowLegacyPages } ).commit } );
 	if ( outcome !== 'success' ) throw new Error( `GitHub Pages deployment did not succeed: ${outcome}` );
 	for ( let attempt = 1; attempt <= attempts; attempt ++ ) {
 
@@ -117,7 +117,7 @@ export async function verifyDeployment( base: string, bytes: string | Uint8Array
 		report.checks = [];
 		try {
 
-			await verifySite( base, bytes, { fetcher, checks: report.checks } );
+			await verifySite( base, bytes, { fetcher, checks: report.checks, allowLegacyPages } );
 			report.success = true;
 			return report;
 
@@ -155,15 +155,15 @@ if ( process.argv[ 1 ] && resolve( process.argv[ 1 ] ) === fileURLToPath( import
 			}
 			if ( process.env.GITHUB_OUTPUT ) await appendFile( process.env.GITHUB_OUTPUT, `exists=${report.exists}\n` );
 
-		} else if ( mode === 'verify' ) {
+		} else if ( mode === 'verify' || mode === 'verify-rollback' ) {
 
 			const bytes = await readFile( join( directory, manifestName ) );
 			if ( process.env.EXPECTED_COMMIT && JSON.parse( Buffer.from( bytes ).toString( 'utf8' ) ).commit !== process.env.EXPECTED_COMMIT ) throw new Error( 'Artifact commit differs from workflow commit' );
 			if ( process.env.DEPLOYED_PAGE_URL && new URL( process.env.DEPLOYED_PAGE_URL ).href.replace( /\/$/, '' ) !==
 				new URL( process.env.PAGE_URL ).href.replace( /\/$/, '' ) ) throw new Error( 'Deployment result URL differs from configured Pages URL' );
-			await verifyDeployment( process.env.PAGE_URL, bytes, process.env.DEPLOYMENT_OUTCOME || '', { report } );
+			await verifyDeployment( process.env.PAGE_URL, bytes, process.env.DEPLOYMENT_OUTCOME || '', { report, allowLegacyPages: mode === 'verify-rollback' } );
 
-		} else throw new Error( 'Expected backup or verify mode' );
+		} else throw new Error( 'Expected backup, verify, or verify-rollback mode' );
 
 	} catch ( error ) {
 
