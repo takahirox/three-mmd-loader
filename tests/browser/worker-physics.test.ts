@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -135,5 +135,94 @@ test( 'animation demo mode selector reloads Worker/sync scenes and displays meas
 		assert.equal( result.worker, true ); assert.equal( result.measurement, true ); assert.equal( result.sync, true ); assert.equal( result.url, '?physicsMode=sync' );
 
 	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( join( directory, 'profile' ) ); await rm( directory, { recursive: true, force: true } ); }
+
+} );
+
+
+const standaloneHarness = `<!doctype html><pre id="result">pending</pre><script type="module">
+const checks = {};
+function check(name, value) { if (!value) throw new Error(name); checks[name] = true; }
+const wait = () => new Promise(resolve => setTimeout(resolve, 20));
+async function until(predicate) {
+ const deadline=performance.now()+10000;
+ while(!predicate()) {if(performance.now()>deadline) throw new Error('status timeout'); await wait();}
+}
+try {
+ for(const failure of ['', 'startup', 'runtime']) {
+  const frame=document.createElement('iframe');frame.width=800;frame.height=600;
+  const loaded=new Promise(resolve=>frame.onload=resolve);
+  frame.src='/examples/webgl_loader_mmd_worker.html'+(failure ? '?failure='+failure : '');
+  document.body.appendChild(frame);await loaded;
+  const page=frame.contentWindow, doc=frame.contentDocument;
+  const module=await page.eval("import('/examples/webgl_loader_mmd_worker.js')");
+  const c=await module.ready, p=c.helper.objects.get(c.mesh).physics;
+  const status=()=>doc.getElementById('status').textContent;
+  check('requestedWorker'+failure,p.requestedPhysicsMode==='worker');
+  if(failure!=='startup') {
+   check('initialized'+failure,p.physicsMode==='worker' && p.workerStatus.initialized && p.transport==='transferable' && !page.crossOriginIsolated);
+   check('actualMode'+failure,status().startsWith('worker / transferable'));
+  }
+  if(failure==='runtime') page.demoWorker.dispatchEvent(new page.Event('error'));
+  await until(()=>/main-thread helper update: [0-9.]+ ms/.test(status()) && (!failure || status().startsWith('sync (Worker fallback: ')));
+  check('measurement'+failure,/main-thread helper update: [0-9.]+ ms/.test(status()));
+  if(failure) {
+   check('fallback'+failure,p.physicsMode==='sync' && !!p.world && !p.initializationError && !p.transport);
+   check('diagnostic'+failure,status().startsWith('sync (Worker fallback: ') && status().includes('Worker error'));
+   await new Promise(resolve=>setTimeout(resolve,550));
+   check('persistentDiagnostic'+failure,status().includes('Worker fallback:'));
+   c.helper.update(1/60);
+   check('syncContinues'+failure,c.mesh.skeleton.bones.every(b=>b.position.toArray().concat(b.quaternion.toArray()).every(Number.isFinite)));
+  }
+  const controller=c.gui.controllers.find(controller=>controller.property==='physicsMode');
+  check('selection'+failure,controller.getValue()==='worker');
+  check('controls'+failure,c.gui.controllers.some(controller=>controller.property==='show rigid bodies'));
+  if(!failure) {
+   page.dispatchEvent(new page.PageTransitionEvent('pagehide',{persisted:true}));
+   check('cachedSceneRetained',c.helper.objects.has(c.mesh) && !!p.workerAdapter && doc.querySelector('#controls')!==null);
+   page.dispatchEvent(new page.Event('pagehide'));
+   check('cleanup',!c.helper.objects.has(c.mesh) && !p.workerAdapter && doc.querySelector('#controls')===null);
+  }
+  frame.remove();
+ }
+ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks}));
+} catch(error) {document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error),checks}));}
+</script>`;
+
+test( 'standalone Worker page defaults to transferable physics, exposes startup/runtime fallback and cleans up', { timeout: 60000 }, async () => {
+
+	const directory = await mkdtemp( join( tmpdir(), 'mmd-standalone-worker-' ) );
+	await writeGeneratedExampleAssets( join( directory, 'assets' ) );
+	const files = createExamplesServer( { assetRoot: join( directory, 'assets' ) } );
+	const server = createServer( async ( request, response ) => {
+
+		if ( request.url === '/standalone-test' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( standaloneHarness );
+		else if ( request.url?.startsWith( '/examples/webgl_loader_mmd_worker.html?failure=' ) ) {
+
+			const failure = new URL( request.url, 'http://localhost' ).searchParams.get( 'failure' );
+			const html = await readFile( new URL( '../../examples/webgl_loader_mmd_worker.html', import.meta.url ), 'utf8' );
+			// Inject only in the test server, before the real entry point runs.
+			const injection = `<script>globalThis.Worker = class extends Worker {
+ constructor(url, options) { super(${failure === 'startup' ? "'/missing-worker.js'" : 'url'}, options); globalThis.demoWorker=this; }
+};</script>`;
+			response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( html.replace( '<script type="module"', injection + '<script type="module"' ) );
+
+		} else files.emit( 'request', request, response );
+
+	} );
+	await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
+	try {
+
+		const address = server.address(); assert.ok( address && typeof address !== 'string' );
+		const result = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/standalone-test`, join( directory, 'profile' ) );
+		assert.equal( result.error, undefined, JSON.stringify( result ) );
+		assert.ok( Object.values( result.checks ).every( Boolean ) );
+
+	} finally {
+
+		await new Promise( resolve => server.close( resolve ) );
+		await removeBrowserDirectory( join( directory, 'profile' ) );
+		await rm( directory, { recursive: true, force: true } );
+
+	}
 
 } );

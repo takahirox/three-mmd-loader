@@ -27,9 +27,12 @@ interface ExampleContext {
 }
 
 const assets = './assets/mmd/';
-const selectedPhysicsMode = new URLSearchParams( location.search ).get( 'physicsMode' ) === 'worker' ? 'worker' : 'sync';
 
-export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
+export async function initExample( mode: 'animation' | 'audio' | 'pose', options: { physicsMode?: 'sync' | 'worker' } = {} ) {
+
+	const queryMode = new URLSearchParams( location.search ).get( 'physicsMode' );
+	const selectedPhysicsMode = queryMode === 'worker' || queryMode === 'sync' ? queryMode : options.physicsMode ?? 'sync';
+	let fallbackReason = '';
 
 	const status = document.getElementById( 'status' )!;
 	let gui: GUI | undefined;
@@ -135,11 +138,28 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 			helper.add( mesh, {
 				animation: mmd.animation, physics: true,
 				physicsMode: mode === 'animation' ? selectedPhysicsMode : 'sync',
-				workerPhysics: { ammoURL: new URL( '../node_modules/ammojs-typed/ammo/ammo.js', location.href ).href }
+				workerPhysics: {
+					ammoURL: new URL( '../node_modules/ammojs-typed/ammo/ammo.js', location.href ).href,
+					onFallback: reason => { fallbackReason = reason; }
+				}
 			} );
 
 		}
 		await resourcesReady;
+		const activePhysics = helper.objects.get( mesh )?.physics;
+		if ( activePhysics ) {
+
+			status.textContent = activePhysics.requestedPhysicsMode === 'worker' ? 'Initializing Worker physics…' : 'Initializing physics…';
+			await activePhysics.ready;
+			if ( activePhysics.initializationError ) throw activePhysics.initializationError;
+
+		}
+		function physicsStatus( measurement: string ) {
+
+			const backend = `${activePhysics!.physicsMode}${activePhysics!.transport ? ` / ${activePhysics!.transport}` : ''}`;
+			return `${backend}${fallbackReason ? ` (Worker fallback: ${fallbackReason})` : ''} — main-thread helper update: ${measurement}`;
+
+		}
 		scene.add( mesh );
 		const context: ExampleContext = { mesh, helper, camera, scene, renderer, effect, gui };
 		const api = { pose: - 1, play: async () => {} };
@@ -236,7 +256,7 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 		gui.controllersRecursive().forEach( controller => controller.enable() );
 		gui.domElement.setAttribute( 'aria-disabled', 'false' );
 		gui.domElement.setAttribute( 'aria-busy', 'false' );
-		status.textContent = mode === 'audio' ? 'Ready — press Play to start.' : 'Ready';
+		status.textContent = mode === 'animation' ? physicsStatus( 'waiting for first frame' ) : mode === 'audio' ? 'Ready — press Play to start.' : 'Ready';
 		let previousTime: number | null = null;
 		let measuredTime = 0, measuredFrames = 0, lastReport = 0;
 		await renderer.setAnimationLoop( time => {
@@ -251,8 +271,8 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 					measuredTime += performance.now() - started; measuredFrames ++;
 					if ( mode === 'animation' && time - lastReport >= 500 ) {
 
-						const physics = helper.objects.get( mesh )!.physics!;
-						status.textContent = `${physics.physicsMode}${physics.transport ? ` / ${physics.transport}` : ''} — main-thread helper update: ${( measuredTime / measuredFrames ).toFixed( 2 )} ms (mean)`;
+						if ( activePhysics?.initializationError ) throw activePhysics.initializationError;
+						status.textContent = physicsStatus( `${( measuredTime / measuredFrames ).toFixed( 2 )} ms (mean)` );
 						measuredTime = measuredFrames = 0; lastReport = time;
 
 					}
@@ -271,6 +291,24 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' ) {
 		effect.render( scene, camera );
 		if ( document.body.dataset.state === 'error' ) throw new Error( status.textContent || 'Example failed' );
 		document.body.dataset.state = 'ready';
+		// Release the Worker and scene resources when the gallery replaces this page.
+		function disposeExample( event: PageTransitionEvent ) {
+
+			// Cached pages retain their scene when Back/Forward restores them.
+			if ( event.persisted ) return;
+			removeEventListener( 'pagehide', disposeExample );
+
+			renderer!.setAnimationLoop( null );
+			removeEventListener( 'resize', resize );
+			orbit?.dispose();
+			if ( helper.objects.has( mesh ) ) helper.remove( mesh );
+			if ( context.audio?.isPlaying ) context.audio.stop();
+			effect.dispose();
+			gui!.destroy();
+			renderer!.dispose();
+
+		}
+		addEventListener( 'pagehide', disposeExample );
 		return context;
 
 	} catch ( error ) {

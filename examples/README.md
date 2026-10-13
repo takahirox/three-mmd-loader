@@ -32,7 +32,8 @@ light/dark colors from the Issue #14 references: Three.js `examples/index.html`
 (blob `7b53cc789e644957e4b3bc8f9ca21b9ca81e5f06`) and `files/main.css`
 (blob `eab4263a7a7570bb433cab3048d5735d4782f673`). It is separate from the demo
 stylesheets. The three committed previews in `screenshots/` are the matching
-official r171 MMD example screenshots, retrieved from the same pinned Three.js
+official r171 MMD example screenshots (the Worker card reuses the model/animation
+preview), retrieved from the same pinned Three.js
 commit as the models below. They depict the credited Miku character and retain
 the applicable character/asset terms; they do not relicense the models. The
 Roboto Mono fonts in `fonts/` also come from that pinned commit and include
@@ -63,9 +64,38 @@ files directly. Stop it with Ctrl+C.
 
 | Page | Demonstrates |
 | --- | --- |
+| [`webgl_loader_mmd_worker.html`](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html) | **Worker Physics**: the same model, motion, camera, rendering, and controls as Model and animation, requesting Worker physics by default. |
 | `webgl_loader_mmd.html` | `MMDLoader.loadWithAnimation`, VMD bone/morph animation, IK, Ammo physics, outlines, and debug helpers. Toggle animation, IK, physics, and outlines independently. |
 | `webgl_loader_mmd_audio.html` | Model motion, `loadAnimation` camera motion, and `AudioLoader` music synchronized by `MMDAnimationHelper`. Wait for loading, then press Play to unlock audio. The music starts 160 frames (5.33 seconds) into the dance, matching the original example. |
 | `webgl_loader_mmd_pose.html` | `loadVPD` and `MMDAnimationHelper.pose`, with eleven Shift_JIS poses and a rest pose. Disable IK for poses 9 and 10 as described by their author. |
+
+## Worker Physics and comparison
+
+Open [Worker Physics directly](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html)
+or select **Worker Physics** in the gallery
+([direct gallery selection](https://takahirox.github.io/three-mmd-loader/examples/#webgl_loader_mmd_worker)).
+No query parameter or interaction is needed to request Worker mode. The
+[Model and animation page](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html)
+continues to default to synchronous physics. Both pages call the same shared
+scene setup, load the same Miku model and WAVEFILE motion, and preserve animation,
+IK, physics, outlines, and debug controls. **Physics mode (reload)** on either
+page reconstructs the scene with the chosen mode.
+
+The status waits for initialization, then shows the actual backend and transport:
+`worker / shared` on supported isolated origins, or `worker / transferable` when
+SharedArrayBuffer is unavailable. No COOP/COEP headers are required; GitHub Pages
+can use transferable buffers. The bundled classic Worker loads Ammo from the
+same local dependency URL. Main-thread Ammo is initialized for the existing
+fallback contract: Worker loading, initialization, or runtime failures terminate
+the Worker and rebuild synchronous physics. The status then shows `sync` with a
+persistent **Worker fallback** diagnostic, rather than claiming Worker is active.
+If fallback itself cannot initialize, the page reports an error.
+
+Compare the two pages on the same device, renderer backend, scene, and settings.
+Allow assets, shaders, and physics to warm up first. The status measures mean
+main-thread `helper.update` time over each reporting interval. Worker computation,
+rendering, and end-to-end latency are outside that measurement; a lower helper
+update time is **not an FPS guarantee**. No manual performance gain is claimed.
 
 Drag to orbit and scroll to zoom in the animation and pose scenes. The audio
 scene uses its animated camera. Failed asset requests are reported on the page

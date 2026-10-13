@@ -300,7 +300,11 @@ this fallback. If it is absent, `initializationError` explains why physics is
 frozen; `ready` still settles so an application can report the error. The
 Worker needs no main-thread Ammo when it operates successfully.
 
-Run `npm run examples:assets` then `npm run dev` and open the animation example.
+Open the dedicated [Worker Physics example](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html)
+from the gallery, or run `npm run examples:assets` then `npm run dev` locally.
+It requests Worker mode by default; [Model and animation](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html)
+still defaults to sync. Both share the same scene and controls. See the
+[comparison and fallback guide](examples/README.md#worker-physics-and-comparison).
 Its **Physics mode (reload)** selector reconstructs the scene in sync/worker
 mode, and its status shows actual transport and mean main-thread helper-update
 time. Compare the same scene and device after warmup; this measures helper CPU

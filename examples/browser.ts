@@ -28,7 +28,7 @@ function setPanelOpen( open: boolean ) {
 
 function restoreSelection() {
 
-	// Resolve only the three known examples, never a URL supplied by the hash.
+	// Resolve only the known gallery examples, never a URL supplied by the hash.
 	const hash = window.location.hash.slice( 1 );
 	const id = cards.has( hash ) ? hash : null;
 	for ( const [ name, card ] of cards ) {

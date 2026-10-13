@@ -9,11 +9,12 @@ export const manifestName = 'deployment-manifest.json';
 export const requiredPages = [
 	'index.html', 'examples/index.html',
 	'examples/webgl_loader_mmd.html', 'examples/webgl_loader_mmd_audio.html',
-	'examples/webgl_loader_mmd_pose.html', 'src/loaders/MMDLoader.js'
+	'examples/webgl_loader_mmd_pose.html', 'examples/webgl_loader_mmd_worker.html',
+	'src/loaders/MMDLoader.js'
 ];
 export const sha256 = ( bytes: string | Uint8Array ) => createHash( 'sha256' ).update( bytes ).digest( 'hex' );
 
-export function validateManifest( value: unknown ): DeploymentManifest {
+export function validateManifest( value: unknown, { allowLegacyPages = false } = {} ): DeploymentManifest {
 
 	if ( ! value || typeof value !== 'object' ) throw new Error( 'Invalid deployment commit' );
 	const manifest = value as Partial<DeploymentManifest>;
@@ -38,7 +39,10 @@ export function validateManifest( value: unknown ): DeploymentManifest {
 		paths.add( path );
 
 	}
-	const required = manifest.state === 'unpublished' ? [ '404.html' ] : requiredPages;
+	// Existing deployments can predate the Worker page. Only backup/rollback
+	// opt in to the previous page set; newly built/published artifacts require it.
+	const required = manifest.state === 'unpublished' ? [ '404.html' ] :
+		allowLegacyPages ? requiredPages.filter( path => path !== 'examples/webgl_loader_mmd_worker.html' ) : requiredPages;
 	for ( const path of required ) if ( ! paths.has( path ) ) throw new Error( `Missing example content: ${path}` );
 	if ( manifest.state === 'unpublished' && paths.size !== required.length ) throw new Error( 'Unpublished recovery site must not contain examples' );
 	return manifest as DeploymentManifest;
