@@ -1,0 +1,78 @@
+{
+  "checkedAt": "2026-10-13T06:26:44.871Z",
+  "mergeCommit": "751c0c66b429bc46ff1ce68d273a76db743f2dfd",
+  "workflowURL": "https://github.com/takahirox/three-mmd-loader/actions/runs/38356422510",
+  "publishedManifest": "https://takahirox.github.io/three-mmd-loader/deployment-manifest.json",
+  "demoURL": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html",
+  "syncDefault": {
+    "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html",
+    "pageState": "ready",
+    "mode": "sync",
+    "transport": null,
+    "isolated": false,
+    "status": "sync — main-thread helper update: 1.30 ms (mean)",
+    "completedSequence": null,
+    "injectedAmmoFailure": false,
+    "mainAmmoReady": true,
+    "initializationError": null
+  },
+  "worker": {
+    "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html?physicsMode=worker",
+    "pageState": "ready",
+    "mode": "worker",
+    "transport": "transferable",
+    "isolated": false,
+    "status": "worker / transferable — main-thread helper update: 1.80 ms (mean)",
+    "completedSequence": 60,
+    "injectedAmmoFailure": false,
+    "mainAmmoReady": true,
+    "initializationError": null
+  },
+  "fallback": {
+    "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html?physicsMode=worker",
+    "pageState": "ready",
+    "mode": "sync",
+    "transport": null,
+    "isolated": false,
+    "status": "sync — main-thread helper update: 0.90 ms (mean)",
+    "completedSequence": null,
+    "injectedAmmoFailure": true,
+    "mainAmmoReady": true,
+    "initializationError": null
+  },
+  "syncSelected": {
+    "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html?physicsMode=sync",
+    "pageState": "ready",
+    "mode": "sync",
+    "transport": null,
+    "isolated": false,
+    "status": "sync — main-thread helper update: 1.90 ms (mean)",
+    "completedSequence": null,
+    "injectedAmmoFailure": false,
+    "mainAmmoReady": true,
+    "initializationError": null
+  },
+  "fallbackDiagnostic": "THREE.MMDPhysics: Worker physics fell back to sync: NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'https://takahirox.github.io/three-mmd-loader/examples/missing-ammo-post-merge-verification.js' failed to load.",
+  "fallbackInjection": "Intercepted only Worker init message and replaced its Ammo URL with an intentionally missing URL on the published origin; main-thread Ammo was unaffected.",
+  "environment": "Isolated headless Chrome with software graphics; no hardware performance claim.",
+  "deploymentWorkflowConclusion": "success",
+  "deploymentJobs": {
+    "build": "success",
+    "setup": "success",
+    "deploy": "success"
+  },
+  "mergeAudit": {
+    "sourceIssue": 47,
+    "issueStateImmediatelyBeforeMerge": "open",
+    "pullRequest": 48,
+    "expectedHead": "98a84167e8efc8204fb31943412d6683b0720b9c",
+    "mergeMethod": "merge",
+    "githubMerged": true
+  },
+  "postMergeTestsWorkflow": {
+    "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38356422637",
+    "lastObservedStatus": "in_progress",
+    "conclusion": null,
+    "note": "Additional post-merge CI was still running when checked; upstream pre-merge test success is recorded separately."
+  }
+}

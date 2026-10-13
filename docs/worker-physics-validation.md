@@ -39,23 +39,27 @@ its status reports measured main-thread helper-update time. Existing WebGL2 and
 WebGPU rendering regressions also passed under the runner's software graphics
 configuration. No hardware performance or universal FPS improvement is claimed.
 
-Required post-merge verification is **pending** because the public animation
-example changes and this node does not merge or publish:
+Required post-merge verification **passed** on 2026-10-13 for merge commit
+`751c0c66b429bc46ff1ce68d273a76db743f2dfd`:
 
-1. Confirm `.github/workflows/examples-pages.yml` succeeds for the merged commit,
-   including its project-prefix artifact validation and Pages deployment.
-2. Load the published animation demo at
-   `https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html`.
-   Confirm sync defaults, select **Physics mode (reload)** → worker, confirm the
-   actual backend/transport and timing display, then reload back to sync.
-3. Confirm the published worker and Ammo assets load correctly without requiring
-   isolation headers. Exercise a failed Worker/Ammo request (for example by
-   blocking the Ammo script request in browser developer tools after the
-   main-thread Ammo initialization) and verify a clear diagnostic and sync
-   fallback. Keep successful main-thread Ammo available for that fallback.
-4. Record the workflow/deployment URL, merged revision, demo URLs, transport,
-   fallback evidence and verification date. Keep this status pending until those
-   checks have actually run.
+1. [Deployment workflow](https://github.com/takahirox/three-mmd-loader/actions/runs/38356422510)
+   completed successfully, including build, setup and deployment. The public
+   deployment manifest identifies the merge commit.
+2. The [published animation demo](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html)
+   loaded in isolated headless Chrome with software graphics. Sync was the
+   default; the **Physics mode (reload)** selector loaded worker mode with
+   completed simulation results, transferable transport and the measured
+   main-thread helper-update display. `crossOriginIsolated` was false. The
+   selector successfully reloaded the demo back to sync.
+3. A verification-only Worker wrapper replaced the Worker's initialization
+   Ammo URL with an intentionally missing same-origin URL. Main-thread Ammo
+   remained initialized. The published demo logged a clear fallback diagnostic
+   and continued rendering with synchronous physics, without an initialization
+   error.
+4. URLs, revision, verification date, observed modes, transport, timing displays
+   and the fallback diagnostic are recorded in
+   [worker-physics-post-merge.json](worker-physics-post-merge.json). Timing samples
+   verify the display only; they do not establish a performance improvement.
 
 Optional representative desktop/mobile profiling remains unperformed. It should
 report main-thread CPU time, visual latency and transport, rather than infer
