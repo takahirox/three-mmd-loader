@@ -302,12 +302,14 @@ Worker needs no main-thread Ammo when it operates successfully.
 
 Open the dedicated [Worker Physics example](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html)
 from the gallery, or run `npm run examples:assets` then `npm run dev` locally.
-It requests Worker mode by default; [Model and animation](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html)
-still defaults to sync. Both share the same scene and controls. See the
+Its entry point requests Worker mode; [Model and animation](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html)
+requests sync. Choose the example from the gallery to select the execution mode;
+both share the same scene and controls. See the
 [comparison and fallback guide](examples/README.md#worker-physics-and-comparison).
-Its **Physics mode (reload)** selector reconstructs the scene in sync/worker
-mode, and its status shows actual transport and mean main-thread helper-update
-time. Compare the same scene and device after warmup; this measures helper CPU
+Each page's initial mode is fixed; `?physicsMode=...` does not override it.
+Their status shows the actual backend/transport, any Worker fallback diagnostic,
+and mean main-thread helper-update time. Compare the same scene and device after
+warmup; this measures helper CPU
 time, not universal FPS improvement or end-to-end latency. No isolation headers
 are needed for this demonstration. Browser tests additionally serve an isolated
 origin to exercise SAB when supported.

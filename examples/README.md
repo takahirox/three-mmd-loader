@@ -65,7 +65,7 @@ files directly. Stop it with Ctrl+C.
 | Page | Demonstrates |
 | --- | --- |
 | [`webgl_loader_mmd_worker.html`](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html) | **Worker Physics**: the same model, motion, camera, rendering, and controls as Model and animation, requesting Worker physics by default. |
-| `webgl_loader_mmd.html` | `MMDLoader.loadWithAnimation`, VMD bone/morph animation, IK, Ammo physics, outlines, and debug helpers. Toggle animation, IK, physics, and outlines independently. |
+| [`webgl_loader_mmd.html`](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html) | **Model and animation**: `MMDLoader.loadWithAnimation`, VMD bone/morph animation, IK, synchronous Ammo physics, outlines, and debug helpers. Toggle animation, IK, physics, and outlines independently. |
 | `webgl_loader_mmd_audio.html` | Model motion, `loadAnimation` camera motion, and `AudioLoader` music synchronized by `MMDAnimationHelper`. Wait for loading, then press Play to unlock audio. The music starts 160 frames (5.33 seconds) into the dance, matching the original example. |
 | `webgl_loader_mmd_pose.html` | `loadVPD` and `MMDAnimationHelper.pose`, with eleven Shift_JIS poses and a rest pose. Disable IK for poses 9 and 10 as described by their author. |
 
@@ -76,10 +76,12 @@ or select **Worker Physics** in the gallery
 ([direct gallery selection](https://takahirox.github.io/three-mmd-loader/examples/#webgl_loader_mmd_worker)).
 No query parameter or interaction is needed to request Worker mode. The
 [Model and animation page](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html)
-continues to default to synchronous physics. Both pages call the same shared
-scene setup, load the same Miku model and WAVEFILE motion, and preserve animation,
-IK, physics, outlines, and debug controls. **Physics mode (reload)** on either
-page reconstructs the scene with the chosen mode.
+requests synchronous physics. Each page's entry point fixes its initial mode;
+choose the corresponding gallery example to select sync or Worker execution.
+There is no per-page mode selector, and stray `?physicsMode=...` parameters are
+ignored. Both pages call the same shared scene setup, load the same Miku model
+and WAVEFILE motion, and preserve animation,
+IK, physics, outlines, and debug controls, including **show rigid bodies**.
 
 The status waits for initialization, then shows the actual backend and transport:
 `worker / shared` on supported isolated origins, or `worker / transferable` when
@@ -303,11 +305,9 @@ validates local examples with fixtures; the deployment workflow additionally
 validates the built site with the pinned original assets before publication.
 
 
-The animation example includes **Physics mode (reload)**. Sync is the default;
-worker mode initializes its own Ammo and displays the latest completed pose.
-The status reports actual backend/transport and mean main-thread helper-update
-CPU time. Reloading reconstructs the scene because physics mode is selected at
-setup. Compare after warmup on the same device; the measurement is not a claim
-of universal FPS gains. Without cross-origin isolation, the demo uses reusable
-transferable buffers; COOP/COEP is optional. Worker failures fall back to sync
-with a console diagnostic. See the root README for lifecycle and latency details.
+The browser tests verify the separate sync and Worker entry points, including
+conflicting `?physicsMode` parameters, absence of a mode selector, retained
+controls, actual backend/transport and measured helper-update time. Startup and
+runtime Worker failures are checked for continued sync physics and persistent
+on-page diagnostics. Gallery navigation and direct hash selection exercise both
+page roles. See the root README for the library's lifecycle and latency details.

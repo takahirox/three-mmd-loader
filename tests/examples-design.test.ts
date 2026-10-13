@@ -19,3 +19,17 @@ test( 'shared example stylesheet preserves the official Three.js reference blob'
 	}
 
 } );
+
+test( 'animation example entry points explicitly select physics mode without a query override or GUI selector', async () => {
+
+	for ( const [ name, mode ] of [ [ 'webgl_loader_mmd', 'sync' ], [ 'webgl_loader_mmd_worker', 'worker' ] ] ) {
+
+		const entry = await readFile( new URL( `../examples/${name}.ts`, import.meta.url ), 'utf8' );
+		assert.ok( entry.includes( `initExample( 'animation', { physicsMode: '${mode}' } )` ), name );
+
+	}
+	const scene = await readFile( new URL( '../examples/scene.ts', import.meta.url ), 'utf8' );
+	assert.doesNotMatch( scene, /(?:get|set)\( 'physicsMode'|gui\.add\( [^\n]*'physicsMode'|Physics mode \(reload\)/ );
+	assert.match( scene, /get\( 'backend' \) === 'webgl'/ );
+
+} );
