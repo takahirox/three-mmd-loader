@@ -308,7 +308,7 @@ export class WorkerPhysicsAdapter {
 
 		this.withUnitScale( () => {
 
-			for ( const [ i, body ] of this.model.bodies.entries() ) if ( this.deferred[ i ] && ( body.type === 0 || body.type === 2 ) ) this.pending[ i ] = this.bodyPose( i );
+			for ( const [ i, body ] of this.model.bodies.entries() ) if ( this.deferred[ i ] && ( body.type === 0 || ( body.type === 2 && this.model.format !== 'pmx' ) ) ) this.pending[ i ] = this.bodyPose( i );
 
 		} );
 

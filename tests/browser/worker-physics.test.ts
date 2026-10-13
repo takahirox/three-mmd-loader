@@ -24,7 +24,9 @@ function check(name, value) { if (!value) throw new Error(name); checks[name] = 
 function near(a,b) {return a.length===b.length && a.every((v,i)=>Math.abs(v-b[i])<1e-4);}
 function model() {
  const loader = new MMDLoader();loader.meshBuilder.materialBuilder.textureLoader.load=()=>new Texture();
- return loader.meshBuilder.build(new Parser().parsePmx(new Uint8Array(${JSON.stringify( fixture )}).buffer,true),'');
+ const data=new Parser().parsePmx(new Uint8Array(${JSON.stringify( fixture )}).buffer,true);
+ data.rigidBodies[3].type=2; // constrained to mode 0, retaining effective mode 2
+ return loader.meshBuilder.build(data,'');
 }
 async function complete(p, sequence) {
  const deadline = performance.now()+8000;
@@ -48,6 +50,7 @@ try {
  check('sharedWorld',p.workerAdapter.group===q.workerAdapter.group);
  const savedAmmo=globalThis.Ammo; globalThis.Ammo=undefined;
  for(let i=1;i<=8;i++) {
+  first.skeleton.bones[3].position.x=2+i/10; reference.skeleton.bones[3].position.x=2+i/10;
   // Worker stepping must not touch main-thread Ammo.
   helper.update(1/60);
   for(let spin=0;spin<30;spin++) helper.update(0);
@@ -55,6 +58,9 @@ try {
   globalThis.Ammo=savedAmmo;sync.update(1/60);globalThis.Ammo=undefined;
   check('coherent'+i,p.workerStatus.completedSequence===q.workerStatus.completedSequence);
   check('dynamicPostIK'+i,near(first.skeleton.bones[1].quaternion.toArray(),reference.skeleton.bones[1].quaternion.toArray()));
+  const raw=sync.objects.get(reference).physics.bodyResults;
+  check('type2RawBullet'+i,p.bodyResults.every((r,j)=>near(r.position,raw[j].position)&&near(r.quaternion,raw[j].quaternion)));
+  check('type2SkeletalPosition'+i,Math.abs(first.skeleton.bones[3].position.x-(2+i/10))<1e-4);
  }
  globalThis.Ammo=savedAmmo;
  const debug=p.createHelper();debug.updateMatrixWorld(true);check('debugBodies',debug.children.length===first.geometry.userData.MMD.rigidBodies.length);debug.dispose();

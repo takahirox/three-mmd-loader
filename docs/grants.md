@@ -62,7 +62,7 @@ For PMX, both default and `pmxAnimation: true` use the same order:
    body-derived rotation. Mode 2 retains authored position and simulated rotation.
 6. Process post grants/IK in class/index order. Reproject dynamic bones as their
    parents move, retaining skeletal contributions. Capture the final pose.
-7. Save complete post kinematic/mode-2 follow inputs for the next positive step.
+7. Save complete post kinematic follow inputs for the next positive step.
    Publish matrices to skinning, SDEF, surface, outline and shadow consumers.
 
 PMD retains its existing IK/grant behavior. `pmxAnimation` remains accepted for
@@ -118,13 +118,20 @@ simulation, including shared worlds. Calls at zero delta can evaluate a new
 final pose/deferred input but neither advance Ammo nor consume that input.
 Pre-phase kinematics retain same-step synchronization.
 
-A post mode-2 body's position alignment is likewise deferred: the next step
-consumes the final controlling-bone/body-offset position while retaining the
-body's simulated rotation. Mode-1 post transforms never become next-step body
-inputs. Pre-phase mode-2 alignment retains the existing adapter behavior after positive
-steps. `physics.bodyResults` stores the actual Bullet output **before** alignment,
-separately from current body/adapter and next-input poses; the viewer reports all
-three. Zero-time evaluation performs no position alignment or body writes.
+PMX mode 2 preserves skeletal position while projecting Bullet rotation onto the
+bone. It never aligns the native dynamic body's position, either after a step
+or from deferred post input. Mode-1 and mode-2 post transforms never become
+next-step body inputs. This corrects the earlier mode-2 alignment policy from
+Issue #39: real Ammo fixtures reproduce joint/contact trajectory errors from
+those writes, while independent Saba/Babylon policies merge on the skeleton.
+See the [type-2 audit and numerical evidence](type2-physics-validation.md).
+Post mode-0 timing and dynamic post-layer composition above still apply.
+
+`physics.bodyResults` stores the actual Bullet output **before** any adapter
+alignment, separately from current body/adapter and next-input poses; the viewer
+reports all three. For PMX mode 2, raw and native results now agree, and there is
+no alignment input. PMD retains its legacy type-2 alignment. Zero-time PMX
+evaluation performs no position alignment or body writes.
 
 Both helper modes use these semantics. Shared worlds stage every mesh before
 one world step and finish every post phase afterward. Warmup settles physics at

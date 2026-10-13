@@ -1059,6 +1059,7 @@ class RigidBody {
 	boneOffsetFormInverse!: AmmoTransform;
 	private deferred = false;
 	private pending: AmmoTransform | undefined;
+	private readonly skeletalPositionOnly: boolean;
 
 	constructor( mesh: SkinnedMesh, world: AmmoWorld, params: RigidBodyParameters, manager: ResourceManager ) {
 
@@ -1068,6 +1069,9 @@ class RigidBody {
 		this.manager = manager;
 
 		const metadata = ( mesh as MMDMesh ).geometry.userData.MMD;
+		// PMX mode 2 merges skeletal translation with physical rotation on the
+		// bone only. Native dynamic translation must remain in Bullet's solve.
+		this.skeletalPositionOnly = metadata?.format === 'pmx' && params.type === 2;
 		if ( metadata?.format === 'pmx' ) {
 
 			const visited = new Set<number>();
@@ -1089,7 +1093,7 @@ class RigidBody {
 	setDeferredPose( data: Float64Array, offset: number ) {
 
 		this.clearDeferred();
-		if ( ! Number.isFinite( data[ offset ] ) ) return;
+		if ( this.skeletalPositionOnly || ! Number.isFinite( data[ offset ] ) ) return;
 		const transform = this.manager.allocTransform();
 		this.manager.setOriginFromArray3( transform, Array.from( data.subarray( offset, offset + 3 ) ) );
 		const q = this.manager.allocQuaternion();
@@ -1116,7 +1120,7 @@ class RigidBody {
 
 	deferFromBone() {
 
-		if ( ! this.deferred || ( this.params.type !== 0 && this.params.type !== 2 ) ) return;
+		if ( this.skeletalPositionOnly || ! this.deferred || ( this.params.type !== 0 && this.params.type !== 2 ) ) return;
 		if ( this.pending ) this.manager.freeTransform( this.pending );
 		this.pending = this._getBoneTransform();
 
@@ -1157,7 +1161,7 @@ class RigidBody {
 					this.body.setCenterOfMassTransform( this.pending );
 					this.body.getMotionState().setWorldTransform( this.pending );
 
-				} else if ( this.params.type === 2 ) {
+				} else if ( this.params.type === 2 && ! this.skeletalPositionOnly ) {
 
 					const transform = this.manager.allocTransform();
 					transform.setRotation( this.body.getCenterOfMassTransform().getRotation() );
@@ -1203,7 +1207,7 @@ class RigidBody {
 
 		this.bone.updateMatrixWorld( true );
 
-		if ( this.params.type === 2 && alignPosition && ! ( this.deferred && defer ) ) {
+		if ( this.params.type === 2 && ! this.skeletalPositionOnly && alignPosition && ! ( this.deferred && defer ) ) {
 
 			this._setPositionFromBone();
 

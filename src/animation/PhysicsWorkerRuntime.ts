@@ -90,8 +90,8 @@ export class PhysicsWorkerRuntime {
 				data.set( result.position, offset ); data.set( result.quaternion, offset + 3 ); offset += 7;
 
 			}
-			// Mode-2 position alignment belongs to this completed simulation step,
-			// before the next input; delayed main-thread display cannot reorder it.
+			// PMX mode 2 projects rotation without writing the native body. PMD
+			// retains legacy alignment here, independent of delayed display.
 			for ( const body of physics.bodies ) body.updateBone( ! evaluateOnly, frame.staged );
 
 		}
