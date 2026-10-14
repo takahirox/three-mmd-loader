@@ -15,10 +15,11 @@ const types: Record<string, string> = {
 };
 
 // Serve only example files and their dependencies, including when used by tests.
-export function createExamplesServer( { assetRoot = resolve( root, 'examples/assets/mmd' ) } = {} ) {
+export function createExamplesServer( { assetRoot = resolve( root, 'examples/assets/mmd' ), geneAssetRoot = resolve( root, 'examples/assets/gene-light' ) } = {} ) {
 
 	const mounts: [ string, string ][] = [
 		[ '/examples/assets/mmd/', assetRoot ],
+		[ '/examples/assets/gene-light/', geneAssetRoot ],
 		[ '/examples/', resolve( root, 'examples' ) ],
 		[ '/src/', resolve( root, 'dist' ) ],
 		[ '/node_modules/mmd-parser/build/', resolve( root, 'node_modules/mmd-parser/build' ) ],

@@ -1,3 +1,4 @@
+import { fetchGeneLightAssets } from './gene-light-assets.ts';
 import { assetManifest as manifest } from './assets-manifest.ts';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -34,6 +35,8 @@ if ( process.env.MMD_EXAMPLE_FIXTURES === '1' ) {
 		console.log( path );
 
 	}
+	await fetchGeneLightAssets();
+	console.log( 'Public Gene Light assets verified. See examples/gene-light.md for provenance and terms.' );
 	console.log( 'Assets ready. Run npm run dev and open http://127.0.0.1:8080/.' );
 
 }

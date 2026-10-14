@@ -31,7 +31,7 @@ how to choose a demo and the mobile list opens initially.
 light/dark colors from the Issue #14 references: Three.js `examples/index.html`
 (blob `7b53cc789e644957e4b3bc8f9ca21b9ca81e5f06`) and `files/main.css`
 (blob `eab4263a7a7570bb433cab3048d5735d4782f673`). It is separate from the demo
-stylesheets. The three committed previews in `screenshots/` are the matching
+stylesheets. The three original Miku previews in `screenshots/` are the matching
 official r171 MMD example screenshots (the Worker card reuses the model/animation
 preview), retrieved from the same pinned Three.js
 commit as the models below. They depict the credited Miku character and retain
@@ -66,8 +66,44 @@ files directly. Stop it with Ctrl+C.
 | --- | --- |
 | [`webgl_loader_mmd_worker.html`](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html) | **Worker Physics**: the same model, motion, camera, rendering, and controls as Model and animation, requesting Worker physics by default. |
 | [`webgl_loader_mmd.html`](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html) | **Model and animation**: `MMDLoader.loadWithAnimation`, VMD bone/morph animation, IK, synchronous Ammo physics, outlines, and debug helpers. Toggle animation, IK, physics, and outlines independently. |
+| [`webgl_loader_mmd_pmx_gene.html`](./webgl_loader_mmd_pmx_gene.html) | **PMX — Gene (Light)**: generated foot/torso/eye/arm animation, IK, grants, synchronous physics including type 2, vertex/group/UV/material morph sliders, outlines and debugging. |
 | `webgl_loader_mmd_audio.html` | Model motion, `loadAnimation` camera motion, and `AudioLoader` music synchronized by `MMDAnimationHelper`. Wait for loading, then press Play to unlock audio. The music starts 160 frames (5.33 seconds) into the dance, matching the original example. |
 | `webgl_loader_mmd_pose.html` | `loadVPD` and `MMDAnimationHelper.pose`, with eleven Shift_JIS poses and a rest pose. Disable IK for poses 9 and 10 as described by their author. |
+
+## PMX — Gene (Light)
+
+Select **PMX — Gene (Light)** in the gallery
+([unique hash](./#webgl_loader_mmd_pmx_gene)) or open its standalone page.
+This personal noncommercial technical showcase uses the author-published
+`Gene_light.pmx` and exactly ten referenced light textures, pinned at
+`c7eace43dffaccff6ad0597433ef85fa57c91e03` from
+[mmdagent-ex/gene](https://github.com/mmdagent-ex/gene/tree/c7eace43dffaccff6ad0597433ef85fa57c91e03).
+
+CG-CA Gene (c) 2023 by Nagoya Institute of Technology, Moonshot R&D Goal 1 Avatar Symbiotic Society
+
+Model, textures, original notices, and the locally generated Gene scene preview
+retain [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) rights, separately
+from this package's MIT license. Source files are unchanged; the animation and
+preview presentation are generated locally. No VMD is included.
+The author separately retains trademark/design rights, permits academic and
+personal noncommercial use, and asks for contact regarding other commercial
+use. Do not infer unrestricted commercial permission. Preserve the usage
+guidelines and disclaimer in the unchanged [English](./assets/gene-light/README.md)
+and [Japanese](./assets/gene-light/README.ja.md) source notices.
+
+The [provenance and inspection record](./gene-light.md) documents the pre-merge
+rights review, exact asset selection, and measured lightweight PMX features.
+Use the animation/IK/grant/physics/debug toggles and open **Morph weights** for
+vertex, group, UV, and material sliders. The asset has no SDEF or bone morphs.
+The new preview is a rendering of this permitted scene, with credit above;
+it is separate from the three official Miku previews.
+
+`npm run examples:assets` acquires and integrity-checks the public allowlist;
+`npm run build:examples` rechecks every Gene model/texture/notice file. The
+private full-Gene catalog is unchanged and remains excluded from Pages.
+**Post-merge publication verification is PENDING**, tracked in
+[the verification record](https://github.com/takahirox/three-mmd-loader/blob/main/docs/gene-light-validation.md); it never blocks
+pre-merge checks.
 
 ## Worker Physics and comparison
 
@@ -108,7 +144,7 @@ audio playback also needs browser audio support.
 
 ## Assets and credits
 
-The MMD assets are **not covered by this repository's MIT license** and are
+The Miku PMD/VMD/audio/pose assets described in this section are **not covered by this repository's MIT license** and are
 not committed or included in the npm package. Consult the upstream
 [asset license summary](https://github.com/mrdoob/three.js/blob/r171/examples/models/mmd/Readme.txt)
 and each author's original archive and terms before using them. The setup
@@ -119,8 +155,8 @@ commercial-use rights.
 The download is pinned to Three.js commit
 `2898f5b1ba10b1e94174c0a62d072f5f7b80442c`. The manifest records Git blob hashes;
 the script verifies each file, reuses matching local files, and reports HTTP
-or integrity failures. It makes no changes outside `examples/assets/mmd/`,
-which Git ignores. Downloading needs network access; afterward, the examples
+or integrity failures. The setup writes only Git-ignored `examples/assets/mmd/`
+and the separate public `examples/assets/gene-light/` allowlist described above. Downloading needs network access; afterward, the examples
 can run offline.
 
 For manual setup, obtain the
@@ -270,8 +306,7 @@ artifact before any deployment. All presentation checks can run before merge,
 without a deployed site or human visual confirmation.
 
 The browser suite requires Google Chrome, with the same `CHROME_BIN` override
-as the TSL rendering suite. `npm run test:examples` runs only the examples
-check. It serves the actual pages and repository modules in headless Chrome,
+as the TSL rendering suite. `npm run test:examples` runs the examples and Gene Light checks. It serves the actual pages and repository modules in headless Chrome,
 checks the index and scene DOM, computed typography/colors/spacing, overlay
 positioning, link behavior, desktop/mobile GUI placement, viewport canvas sizing,
 and resizing from desktop to mobile and back. It renders with the WebGL2 TSL
@@ -279,11 +314,12 @@ backend, exercises animation/IK/physics/outline
 controls, advances model and camera animation, starts decoded audio through
 Play, applies/resets VPD poses, and verifies loading/runtime error status and
 disabled controls. Generated PMD/VMD/VPD and silent WAV fixtures
-make this check independent of downloaded third-party assets and network
-access. The audio autoplay flag is used only by tests; the normal page requires
+keep the existing PMD behavior checks deterministic. The new Gene PMX checks
+use the licensed pinned assets: missing caches are acquired with hashes verified,
+so first-run network access is required. Later runs verify and reuse the cache. The audio autoplay flag is used only by tests; the normal page requires
 a Play click.
 
-The index checks cover wide and extra-wide panel/viewer geometry, all three
+The index checks cover wide and extra-wide panel/viewer geometry, all four
 decoded preview images, card aspect ratios, selection and iframe scene loading,
 URL hashes and Back/Forward, direct links to every demo, repeated selection,
 empty/unknown hashes, and mobile open/close behavior at the 640px breakpoint.
@@ -311,3 +347,12 @@ controls, actual backend/transport and measured helper-update time. Startup and
 runtime Worker failures are checked for continued sync physics and persistent
 on-page diagnostics. Gallery navigation and direct hash selection exercise both
 page roles. See the root README for the library's lifecycle and latency details.
+
+The Gene browser check loads the real PMX with the released parser and compares
+its inspection report, verifies every public asset URL, tests IK/grant effects
+at the same animation time, steps physics, changes/resets vertex/group/UV/material
+morphs, renders rigid-body/IK debug mode, exercises mobile controls and orbit,
+and checks missing model/texture errors and shader-failure controls. It runs
+without COOP/COEP. The examples gallery tests select all five demos and restore
+them through Back/Forward and direct hashes. The Pages workflow runs both suites
+against the compiled artifact under `/three-mmd-loader/` before deployment.

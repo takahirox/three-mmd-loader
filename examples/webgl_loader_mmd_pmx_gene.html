@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>PMX — Gene (Light)</title>
+	<link rel="stylesheet" href="./common.css">
+	<script type="importmap">
+	{"imports": {
+		"mmd-parser": "../node_modules/mmd-parser/build/mmdparser.module.mjs",
+		"three": "../node_modules/three/build/three.module.js",
+		"three/webgpu": "../node_modules/three/build/three.webgpu.js",
+		"three/tsl": "../node_modules/three/build/three.tsl.js",
+		"three/addons/": "../node_modules/three/examples/jsm/",
+		"@takahirox/three-mmd/": "../src/"
+	}}
+	</script>
+	<script src="../node_modules/ammojs-typed/ammo/ammo.js"></script>
+</head>
+<body data-state="loading">
+	<div id="info">
+		PMX — Gene (Light)<br>
+		IK, grants, morphs, and physics including body mode 2.<br>
+		Open Morph weights for expressions. Drag to orbit; scroll to zoom.<br>
+		<details id="gene-terms">
+			<summary>Credits and terms — CC BY 4.0 / personal noncommercial showcase</summary>
+		<span class="credits">CG-CA Gene (c) 2023 by Nagoya Institute of Technology, Moonshot R&amp;D Goal 1 Avatar Symbiotic Society</span><br>
+		<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> ·
+		<a href="https://github.com/mmdagent-ex/gene/tree/c7eace43dffaccff6ad0597433ef85fa57c91e03" target="_blank" rel="noopener">Original source</a> ·
+		<a href="./assets/gene-light/README.md">English terms</a> / <a href="./assets/gene-light/README.ja.md">日本語</a><br>
+		Personal noncommercial showcase. Separate trademark/design conditions and usage guidelines apply; contact the author for other commercial use.<br>
+		Source assets unchanged; generated animation and preview. Assets are separate from the package’s MIT license.<br>
+		</details>
+		<a href="./">All examples</a> · <a href="./README.md">Asset terms and setup</a> · <a href="./gene-light.md">Provenance and measured features</a><br>
+		<span id="status" role="status">Loading assets…</span>
+	</div>
+	<script type="module" src="./webgl_loader_mmd_pmx_gene.js"></script>
+</body>
+</html>

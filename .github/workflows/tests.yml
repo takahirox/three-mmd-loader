@@ -26,6 +26,7 @@ jobs:
         env:
           CHROME_BIN: /usr/bin/google-chrome
           MMD_EXAMPLE_SITE: dist/examples
+          MMD_EXAMPLE_FIXTURES: '1'
       - run: npm pack --dry-run
       - name: Validate npm release lifecycle (dry-run only, no upload)
         run: npm publish --dry-run --access public
