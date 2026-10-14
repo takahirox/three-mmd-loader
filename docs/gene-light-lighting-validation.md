@@ -36,15 +36,13 @@ The built-site run serves only the static artifact under `/three-mmd-loader/`,
 using the original Miku assets as well as Gene. It cannot fall back to source
 checkout imports. Both suites pass without cross-origin isolation.
 
-## Required post-merge publication verification — PENDING
+## Required post-merge publication verification — COMPLETED
 
-After merge, verify the merge-triggered
-[Pages workflow](https://github.com/takahirox/three-mmd-loader/actions/workflows/examples-pages.yml)
-succeeds and publishes the merged commit. Record its workflow URL and deployed
-commit/date. Check the published
-[Gene Light PMX example](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_pmx_gene.html)
-and the PMD, Worker Physics, audio, and pose examples for asset/runtime errors.
-
-Workflow URL, deployed commit/date, and published-page outcomes: **PENDING**.
-These post-merge checks are not pre-merge acceptance criteria. Optional
-maintainer visual comparison is separate from the automated results above.
+The merge-triggered Pages workflow succeeded and published merge commit
+`5a2263cfe0eb883f0b5651e56659d1dc176e4f53` on 2026-10-14 UTC. All five
+published examples loaded and rendered with the expected intensities, without
+scene asset or runtime errors. The browser also observed an unrelated site-root
+favicon 404. Workflow, deployment timestamps, and full outcomes are recorded in
+[the post-merge verification report](gene-light-post-merge-verification.md).
+These checks were completed after merge. Optional maintainer visual comparison
+remains separate from the automated results above.
