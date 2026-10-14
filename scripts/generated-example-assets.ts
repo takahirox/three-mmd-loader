@@ -1,7 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { geneLightManifest } from './gene-light-assets.ts';
 import { assetManifest } from './assets-manifest.ts';
-import { cameraVmdBuffer, pmdBuffer, vmdBuffer } from '../tests/fixtures.ts';
+import { cameraVmdBuffer, pmdBuffer, pmxBuffer, vmdBuffer } from '../tests/fixtures.ts';
 
 /** Synthetic build validation only; never fetch or substitute licensed assets. */
 export async function writeGeneratedExampleAssets( directory: string ) {
@@ -21,6 +22,14 @@ export async function writeGeneratedExampleAssets( directory: string ) {
 		else if ( /\.(bmp|png|jpg)$/.test( path ) ) content = Buffer.from( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64' );
 		const target = join( directory, path );
 		await mkdir( dirname( target ), { recursive: true } ); await writeFile( target, content );
+
+	}
+
+	for ( const { path } of geneLightManifest.files ) {
+
+		const target = join( directory, 'gene-light', path );
+		await mkdir( dirname( target ), { recursive: true } );
+		await writeFile( target, path.endsWith( '.pmx' ) ? Buffer.from( pmxBuffer() ) : path.endsWith( '.png' ) ? Buffer.from( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64' ) : 'Generated fixture; no Gene assets or license.\n' );
 
 	}
 

@@ -1,8 +1,9 @@
+import { geneLightDirectory, geneLightManifest, verifyGeneLightFile } from './gene-light-assets.ts';
 import { assetManifest as manifest } from './assets-manifest.ts';
 import { writeGeneratedExampleAssets } from './generated-example-assets.ts';
 import { tmpdir } from 'node:os';
-import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -14,8 +15,10 @@ const root = fileURLToPath( new URL( '../', import.meta.url ) );
 export async function buildExamples( {
 	outputDirectory = join( root, 'dist/examples' ),
 	assetDirectory = join( root, 'examples/assets/mmd' ),
+	geneAssetDirectory = geneLightDirectory,
+	generatedFixtures = false,
 	commit = process.env.GITHUB_SHA
-}: { outputDirectory?: string; assetDirectory?: string; commit?: string } = {} ) {
+}: { outputDirectory?: string; assetDirectory?: string; geneAssetDirectory?: string; generatedFixtures?: boolean; commit?: string } = {} ) {
 
 	await rm( outputDirectory, { recursive: true, force: true } );
 	await mkdir( outputDirectory, { recursive: true } );
@@ -35,6 +38,15 @@ export async function buildExamples( {
 
 		// Missing assets or notices fail the build instead of producing a partial site.
 		await cp( join( assetDirectory, path ), join( outputDirectory, 'examples/assets/mmd', path ) );
+
+	}
+	for ( const file of geneLightManifest.files ) {
+
+		const bytes = await readFile( join( geneAssetDirectory, file.path ) );
+		if ( ! generatedFixtures ) verifyGeneLightFile( file, bytes );
+		const target = join( outputDirectory, 'examples/assets/gene-light', file.path );
+		await mkdir( dirname( target ), { recursive: true } );
+		await writeFile( target, bytes );
 
 	}
 	for ( const path of [
@@ -79,7 +91,7 @@ if ( process.argv[ 1 ] && resolve( process.argv[ 1 ] ) === fileURLToPath( import
 		try {
 
 			await writeGeneratedExampleAssets( temporary );
-			await buildExamples( { assetDirectory: temporary } );
+			await buildExamples( { assetDirectory: temporary, geneAssetDirectory: join( temporary, 'gene-light' ), generatedFixtures: true } );
 			console.log( 'Generated fixture artifact only; do not deploy as the public examples.' );
 
 		} finally { await rm( temporary, { recursive: true, force: true } ); }

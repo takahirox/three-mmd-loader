@@ -1,3 +1,4 @@
+import { geneLightManifest } from './gene-light-assets.ts';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -10,6 +11,10 @@ export const requiredPages = [
 	'index.html', 'examples/index.html',
 	'examples/webgl_loader_mmd.html', 'examples/webgl_loader_mmd_audio.html',
 	'examples/webgl_loader_mmd_pose.html', 'examples/webgl_loader_mmd_worker.html',
+	'examples/webgl_loader_mmd_pmx_gene.html', 'examples/webgl_loader_mmd_pmx_gene.js',
+	'examples/gene-showcase.js', 'examples/gene-light-inspection.json',
+	'examples/gene-light.md', 'examples/screenshots/webgl_loader_mmd_pmx_gene.jpg',
+	...geneLightManifest.files.map( file => 'examples/assets/gene-light/' + file.path ),
 	'src/loaders/MMDLoader.js'
 ];
 export const sha256 = ( bytes: string | Uint8Array ) => createHash( 'sha256' ).update( bytes ).digest( 'hex' );
@@ -39,10 +44,10 @@ export function validateManifest( value: unknown, { allowLegacyPages = false } =
 		paths.add( path );
 
 	}
-	// Existing deployments can predate the Worker page. Only backup/rollback
+	// Existing deployments can predate the Worker and Gene pages. Only backup/rollback
 	// opt in to the previous page set; newly built/published artifacts require it.
 	const required = manifest.state === 'unpublished' ? [ '404.html' ] :
-		allowLegacyPages ? requiredPages.filter( path => path !== 'examples/webgl_loader_mmd_worker.html' ) : requiredPages;
+		allowLegacyPages ? requiredPages.filter( path => path !== 'examples/webgl_loader_mmd_worker.html' && ! /gene-light|pmx_gene|gene-showcase/.test( path ) ) : requiredPages;
 	for ( const path of required ) if ( ! paths.has( path ) ) throw new Error( `Missing example content: ${path}` );
 	if ( manifest.state === 'unpublished' && paths.size !== required.length ) throw new Error( 'Unpublished recovery site must not contain examples' );
 	return manifest as DeploymentManifest;

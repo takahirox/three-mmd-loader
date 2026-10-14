@@ -1,3 +1,4 @@
+import { addGeneControls, createGeneAnimation } from './gene-showcase.js';
 import type { AnimationClip } from 'three';
 import type { Vpd } from 'mmd-parser';
 import type { MMDMesh } from '../dist/types.js';
@@ -28,7 +29,7 @@ interface ExampleContext {
 
 const assets = './assets/mmd/';
 
-export async function initExample( mode: 'animation' | 'audio' | 'pose', options: { physicsMode?: 'sync' | 'worker' } = {} ) {
+export async function initExample( mode: 'animation' | 'audio' | 'pose' | 'gene', options: { physicsMode?: 'sync' | 'worker' } = {} ) {
 
 	const requestedPhysicsMode = options.physicsMode ?? 'sync';
 	let fallbackReason = '';
@@ -120,11 +121,16 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose', options
 		};
 		const loader = new MMDLoader( manager );
 		const helper = new MMDAnimationHelper( { afterglow: mode === 'audio' ? 0 : 2 } );
-		const modelURL = assets + 'miku/miku_v2.pmd';
+		const modelURL = mode === 'gene' ? './assets/gene-light/Gene_light.pmx' : assets + 'miku/miku_v2.pmd';
 		let mesh: MMDMesh;
 		if ( mode === 'pose' ) {
 
 			mesh = await loader.loadAsync( modelURL );
+
+		} else if ( mode === 'gene' ) {
+
+			mesh = await loader.loadAsync( modelURL );
+			helper.add( mesh, { animation: createGeneAnimation( mesh ), physics: true, physicsMode: 'sync' } );
 
 		} else {
 
@@ -169,8 +175,8 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose', options
 			gui!.add( toggles, name ).onChange( change ).disable();
 
 		}
-		let running = mode === 'animation';
-		if ( mode === 'animation' ) {
+		let running = mode === 'animation' || mode === 'gene';
+		if ( mode === 'animation' || mode === 'gene' ) {
 
 			for ( const name of [ 'animation', 'ik', 'physics' ] as const ) {
 
@@ -245,11 +251,12 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose', options
 			context.poses = poses;
 
 		}
+		if ( mode === 'gene' ) addGeneControls( mesh, helper, gui );
 		checkbox( 'outline', true, value => { effect.enabled = value; } );
 		gui.controllersRecursive().forEach( controller => controller.enable() );
 		gui.domElement.setAttribute( 'aria-disabled', 'false' );
 		gui.domElement.setAttribute( 'aria-busy', 'false' );
-		status.textContent = mode === 'animation' ? physicsStatus( 'waiting for first frame' ) : mode === 'audio' ? 'Ready — press Play to start.' : 'Ready';
+		status.textContent = mode === 'animation' || mode === 'gene' ? physicsStatus( 'waiting for first frame' ) : mode === 'audio' ? 'Ready — press Play to start.' : 'Ready';
 		let previousTime: number | null = null;
 		let measuredTime = 0, measuredFrames = 0, lastReport = 0;
 		await renderer.setAnimationLoop( time => {
@@ -262,7 +269,7 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose', options
 
 					const started = performance.now(); helper.update( delta );
 					measuredTime += performance.now() - started; measuredFrames ++;
-					if ( mode === 'animation' && time - lastReport >= 500 ) {
+					if ( ( mode === 'animation' || mode === 'gene' ) && time - lastReport >= 500 ) {
 
 						if ( activePhysics?.initializationError ) throw activePhysics.initializationError;
 						status.textContent = physicsStatus( `${( measuredTime / measuredFrames ).toFixed( 2 )} ms (mean)` );

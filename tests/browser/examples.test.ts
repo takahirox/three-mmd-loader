@@ -1,3 +1,4 @@
+import { fetchGeneLightAssets } from '../../scripts/gene-light-assets.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -73,7 +74,7 @@ try {
 		const placeholder = doc.getElementById( 'placeholder' );
 		const toggle = doc.getElementById( 'expandButton' );
 		const cards = [...doc.querySelectorAll( '.card' )];
-		const ids = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose', 'webgl_loader_mmd_worker' ];
+		const ids = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose', 'webgl_loader_mmd_worker', 'webgl_loader_mmd_pmx_gene' ];
 		const css = element => page.getComputedStyle( element );
 		function wideLayout( width ) {
 			const panelRect = panel.getBoundingClientRect();
@@ -108,6 +109,7 @@ try {
 			wideLayout: wideLayout( 300 ),
 			placeholder: !placeholder.hidden && placeholder.textContent.includes( 'Select an example' ) && viewer.hidden && !viewer.hasAttribute( 'src' ) && !doc.querySelector( '.selected' ),
 			cards: cards.length === ids.length && ids.every( ( id, i ) => cards[i].dataset.example === id && cards[i].querySelector( 'a' ).getAttribute( 'href' ) === './' + id + '.html' && cards[i].querySelector( 'a' ).target === 'viewer' && cards[i].querySelector( '.title' ).textContent.trim() ),
+			geneTitle: doc.querySelector( '[data-example="webgl_loader_mmd_pmx_gene"] .title' ).textContent === 'PMX — Gene (Light)',
 			workerTitle: doc.querySelector( '[data-example="webgl_loader_mmd_worker"] .title' ).textContent === 'Worker Physics',
 			category: doc.querySelector( '#content h2' ).textContent === 'webgl / loaders / mmd',
 			images: ids.every( ( id, i ) => { const image = cards[i].querySelector( 'img' ); return image.getAttribute( 'src' ) === './screenshots/' + id.replace( '_worker', '' ) + '.jpg' && image.complete && image.naturalWidth === 400 && image.naturalHeight === 250 && image.alt.length > 0; } ),
@@ -121,9 +123,8 @@ try {
 		};
 		for ( const id of ids ) {
 			progress( 'select ' + id );
-			const loaded = frameLoaded( viewer, id );
-			doc.querySelector( '[data-example="' + id + '"] a' ).click();
-			await loaded;
+						doc.querySelector( '[data-example="' + id + '"] a' ).click();
+			await waitForSelection( id );
 			indexChecks['select_' + id] = await checkSelected( id );
 			indexChecks['highlight_' + id] = css( doc.querySelector( '.selected' ) ).boxShadow === 'rgb(4, 158, 244) 0px 0px 0px 3px' && css( doc.querySelector( '.selected a' ) ).color === 'rgb(4, 158, 244)';
 		}
@@ -131,16 +132,25 @@ try {
 		doc.querySelector( '.selected a' ).click();
 		await settle();
 		indexChecks.repeatSelection = viewer.contentDocument === selectedDocument;
-		let loaded = frameLoaded( viewer, 'Back' );
+		// Selection and Back/Forward can restore an iframe from bfcache without firing load.
+		// Wait for the selected, complete document and hash, then await its ready promise.
+		async function waitForSelection( id ) {
+			const started = performance.now();
+			while ( performance.now() - started < 15000 ) {
+				if ( page.location.hash === '#' + id && viewer.contentWindow.location.pathname === '/examples/' + id + '.html' && viewer.contentDocument.readyState === 'complete' && doc.querySelector( '.selected' )?.dataset.example === id ) return;
+				await settle();
+			}
+			throw new Error( 'Gallery selection timed out: ' + id );
+		}
 		progress( 'history Back' );
 		page.history.back();
-		await loaded;
+		await waitForSelection( ids.at( - 2 ) );
 		indexChecks.historyBack = await checkSelected( ids.at( - 2 ) );
-		loaded = frameLoaded( viewer, 'Forward' );
 		progress( 'history Forward' );
 		page.history.forward();
-		await loaded;
+		await waitForSelection( ids.at( - 1 ) );
 		indexChecks.historyForward = await checkSelected( ids.at( - 1 ) );
+		let loaded;
 		await resizeFrame( index, 360, 640, mobileClosed );
 		indexChecks.mobileClosed = mobileClosed();
 		toggle.click();
@@ -161,16 +171,19 @@ try {
 		indexChecks.mobileEscapeCloses = mobileClosed() && doc.activeElement === toggle;
 		toggle.click();
 		await settle();
-		loaded = frameLoaded( viewer, 'mobile selection' );
 		doc.querySelector( '[data-example="' + ids[0] + '"] a' ).click();
-		await loaded;
+		await waitForSelection( ids[0] );
 		indexChecks.mobileSelection = mobileClosed() && await checkSelected( ids[0] );
 		toggle.click();
 		await settle();
-		loaded = frameLoaded( viewer, 'mobile selection' );
 		doc.querySelector( '[data-example="webgl_loader_mmd_worker"] a' ).click();
-		await loaded;
+		await waitForSelection( 'webgl_loader_mmd_worker' );
 		indexChecks.mobileWorkerSelection = mobileClosed() && await checkSelected( 'webgl_loader_mmd_worker' );
+		toggle.click();
+		await settle();
+		doc.querySelector( '[data-example="webgl_loader_mmd_pmx_gene"] a' ).click();
+		await waitForSelection( 'webgl_loader_mmd_pmx_gene' );
+		indexChecks.mobileGeneSelection = mobileClosed() && await checkSelected( 'webgl_loader_mmd_pmx_gene' );
 		indexChecks.mobileNoScroll = doc.documentElement.scrollWidth === page.innerWidth;
 		await resizeFrame( index, 640, 640, mobileClosed );
 		indexChecks.breakpointMobile = mobileClosed();
@@ -401,6 +414,7 @@ function wavBuffer() {
 
 test( 'example pages match Three.js layout, resize, render, and preserve interactive controls', { timeout: process.env.MMD_EXAMPLE_SITE ? 360000 : 180000 }, async t => {
 
+	if ( ! process.env.MMD_EXAMPLE_SITE ) await fetchGeneLightAssets();
 	const temporary = await mkdtemp( join( tmpdir(), 'three-mmd-examples-' ) );
 	const assetRoot = join( temporary, 'assets' );
 	for ( const dir of [ 'miku', 'vmds', 'vpds', 'audios' ] ) await mkdir( join( assetRoot, dir ), { recursive: true } );
@@ -476,7 +490,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 		// The built site uses the full distributed model/motion/audio rather than
 		// synthetic fixtures. Repeated navigation and SwiftShader rendering can
 		// exceed 45 seconds on CI; give this four-page session a bounded five-minute budget.
-		const timeoutMs = siteRoot ? 300000 : 45000;
+		const timeoutMs = siteRoot ? 300000 : 120000;
 		const started = performance.now();
 		const results = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test`, join( temporary, 'profile' ), 'light', timeoutMs ).catch( error => {
 

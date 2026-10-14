@@ -1,3 +1,5 @@
+import { geneLightManifest } from '../scripts/gene-light-assets.ts';
+import { writeGeneratedExampleAssets } from '../scripts/generated-example-assets.ts';
 import { assetManifest as manifest } from '../scripts/assets-manifest.ts';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -16,6 +18,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 	const outputDirectory = join( temporary, 'site' );
 	try {
 
+		await writeGeneratedExampleAssets( assetDirectory );
 		for ( const { path } of manifest.files ) {
 
 			await mkdir( dirname( join( assetDirectory, path ) ), { recursive: true } );
@@ -44,7 +47,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		await mkdir( outputDirectory );
 		await writeFile( join( outputDirectory, 'stale.html' ), 'old build' );
 		const commit = 'c'.repeat( 40 );
-		await buildExamples( { assetDirectory, outputDirectory, commit } );
+		await buildExamples( { assetDirectory, geneAssetDirectory: join( assetDirectory, 'gene-light' ), generatedFixtures: true, outputDirectory, commit } );
 		const deployment: import( '../scripts/pages-manifest.ts' ).DeploymentManifest = JSON.parse( await readFile( join( outputDirectory, manifestName ), 'utf8' ) );
 		assert.equal( deployment.commit, commit );
 		assert.ok( deployment.files.every( file => ! /private|local-viewer|local-sdef|serve-sdef/.test( file.path ) ) );
@@ -58,7 +61,14 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			assert.equal( await readFile( join( outputDirectory, 'examples/assets/mmd', path ), 'utf8' ), path );
 
 		}
+		for ( const { path } of geneLightManifest.files ) {
+
+			assert.deepEqual( await readFile( join( outputDirectory, 'examples/assets/gene-light', path ) ), await readFile( join( assetDirectory, 'gene-light', path ) ) );
+
+		}
 		for ( const path of [
+			'examples/webgl_loader_mmd_pmx_gene.html', 'examples/webgl_loader_mmd_pmx_gene.js', 'examples/gene-showcase.js',
+			'examples/gene-light.md', 'examples/gene-light-inspection.json', 'examples/screenshots/webgl_loader_mmd_pmx_gene.jpg',
 			'examples/index.html', 'examples/scene.js', 'examples/README.md',
 			'examples/common.css', 'examples/main.css',
 			'examples/browser.css', 'examples/browser.js',
@@ -91,6 +101,8 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			await assert.rejects( readFile( join( outputDirectory, path ) ), { code: 'ENOENT' }, path );
 
 		}
+		// Production builds reject changed public model/notices before publishing.
+		await assert.rejects( buildExamples( { assetDirectory, geneAssetDirectory: join( assetDirectory, 'gene-light' ), outputDirectory } ), /Gene Light integrity mismatch/ );
 		await rm( join( assetDirectory, 'vpds/readme.txt' ) );
 		await assert.rejects( buildExamples( { assetDirectory, outputDirectory } ), { code: 'ENOENT' } );
 

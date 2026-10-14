@@ -393,3 +393,21 @@ test( 'pre-Worker deployments remain verified backups and rollbacks, but cannot 
 	} );
 
 } );
+
+test( 'pre-Gene sites can be backed up and rolled back, while new publications require PMX, textures and notices', async () => {
+
+	await siteFixture( async ( { site, root, base } ) => {
+
+		const manifest = JSON.parse( await readFile( join( site, manifestName ), 'utf8' ) );
+		const removed = requiredPages.filter( path => /gene-light|pmx_gene|gene-showcase/.test( path ) );
+		for ( const path of removed ) await rm( join( site, path ) );
+		manifest.files = manifest.files.filter( ( file: { path: string } ) => ! removed.includes( file.path ) );
+		await writeFile( join( site, manifestName ), JSON.stringify( manifest ) );
+		assert.throws( () => validateManifest( manifest ), /Missing example content: examples\/webgl_loader_mmd_pmx_gene.html/ );
+		const directory = join( root, 'pre-gene-backup' );
+		assert.equal( ( await backupSite( base, directory ) ).success, true );
+		assert.equal( ( await verifyDeployment( base, await readFile( join( directory, manifestName ) ), 'success', { allowLegacyPages: true } ) ).success, true );
+
+	} );
+
+} );

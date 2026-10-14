@@ -77,7 +77,7 @@
     "examples:assets": "node --import tsx scripts/fetch-example-assets.ts",
     "build:examples": "npm run examples:assets && node --import tsx scripts/build-examples.ts",
     "setup:pages": "node --import tsx scripts/setup-pages.ts --configure",
-    "test:examples": "node --import tsx --test tests/browser/examples.test.ts",
+    "test:examples": "node --import tsx --test --test-concurrency=1 tests/browser/examples.test.ts tests/browser/gene-light.test.ts",
     "pretest:browser": "npm run build",
     "pretest:examples": "npm run build",
     "predev": "npm run build",
