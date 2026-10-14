@@ -23,6 +23,11 @@ try {
  const context=await (await page.eval("import('/examples/webgl_loader_mmd_pmx_gene.js')")).ready;
  const {mesh, helper, gui, renderer, scene, camera, effect}=context;
  renderer.setAnimationLoop(null);
+ const lights=scene.children.filter(c=>c.isLight);
+ const ambient=lights.find(c=>c.isAmbientLight), directional=lights.find(c=>c.isDirectionalLight);
+ checks.defaultLightIntensities=lights.length===2 && ambient.intensity===1 && directional.intensity===1;
+ checks.lightColors=ambient.color.getHex()===0xffffff && directional.color.getHex()===0xffffff;
+ checks.lightDirection=directional.position.toArray().join(',')==='-1,2,1' && directional.target.position.toArray().join(',')==='0,0,0';
  const state=helper.objects.get(mesh), data=mesh.geometry.userData.MMD;
  checks.ready=doc.body.dataset.state==='ready' && doc.getElementById('status').textContent.startsWith('sync');
  checks.model=data.format==='pmx' && mesh.skeleton.bones.length===224 && data.iks.length===6 && data.grants.length===11;
