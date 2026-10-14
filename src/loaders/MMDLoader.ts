@@ -1198,16 +1198,7 @@ class MaterialBuilder {
 
 			if ( 'name' in material ) params.name = material.name;
 
-			/*
-				 * Color
-				 *
-				 * MMD         MMDToonMaterial
-				 * ambient  -  emissive * a
-				 *               (a = 1.0 without map texture or 0.2 with map texture)
-				 *
-				 * MMDToonMaterial doesn't have ambient. Set it to emissive instead.
-				 * It'll be too bright if material has map texture so using coef 0.2.
-				 */
+			// MMD source colors are sRGB; material uniforms use the linear working space.
 			params.diffuse = new Color().setRGB(
 				material.diffuse[ 0 ],
 				material.diffuse[ 1 ],
@@ -1217,7 +1208,7 @@ class MaterialBuilder {
 			params.opacity = material.diffuse[ 3 ];
 			params.specular = new Color().setRGB( ...material.specular, SRGBColorSpace );
 			params.shininess = material.shininess;
-			params.emissive = new Color().setRGB( ...material.ambient, SRGBColorSpace );
+			params.ambient = new Color().setRGB( ...material.ambient, SRGBColorSpace );
 			params.transparent = params.opacity !== 1.0;
 
 			//
@@ -1382,8 +1373,6 @@ class MaterialBuilder {
 					this._checkImageTransparency( params.map, geometry, i );
 
 				}
-
-				params.emissive.multiplyScalar( 0.2 );
 
 			}
 

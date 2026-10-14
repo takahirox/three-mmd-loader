@@ -36,7 +36,7 @@ function check( mesh: MMDMesh, weights = mesh.morphTargetInfluences! ) {
 		near( m.color.toArray(), expected.diffuse.slice( 0, 3 ).map( linear ) );
 		near( [ m.opacity, m.shininess ], [ expected.diffuse[ 3 ], expected.shininess ], 1e-5 );
 		near( m.specular.toArray(), expected.specular.map( linear ) );
-		near( m.emissive.toArray(), expected.ambient.map( v => linear( v ) * ( m.map ? 0.2 : 1 ) ) );
+		near( m.ambient.toArray(), expected.ambient.map( linear ) );
 		near( m.mmdTextureColor.toArray(), [ ...expected.textureColor.slice( 0, 3 ).map( linear ), expected.textureColor[ 3 ] ] );
 		near( m.mmdSphereColor.toArray(), [ ...expected.sphereTextureColor.slice( 0, 3 ).map( linear ), expected.sphereTextureColor[ 3 ] ] );
 		near( m.mmdToonColor.toArray(), [ ...expected.toonColor.slice( 0, 3 ).map( linear ), expected.toonColor[ 3 ] ] );
@@ -173,9 +173,9 @@ test( 'invalid material indices/modes, nonfinite components and public weights a
 	helper.update( 0 ); check( mesh, [] );
 	const loader = new MMDLoader(); loader.meshBuilder.materialBuilder.textureLoader.load = () => new Texture();
 	const pmd = loader.meshBuilder.build( new Parser().parsePmd( pmdBuffer(), true ), '' );
-	const before = pmd.material.map( m => [ m.color.toArray(), m.opacity, m.emissive.toArray() ] );
+	const before = pmd.material.map( m => [ m.color.toArray(), m.opacity, m.ambient.toArray(), m.emissive.toArray() ] );
 	helper.add( pmd, { physics: false } ).update( 0 );
-	assert.deepEqual( pmd.material.map( m => [ m.color.toArray(), m.opacity, m.emissive.toArray() ] ), before );
+	assert.deepEqual( pmd.material.map( m => [ m.color.toArray(), m.opacity, m.ambient.toArray(), m.emissive.toArray() ] ), before );
 
 } );
 

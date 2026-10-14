@@ -11,7 +11,7 @@ import { removeBrowserDirectory, runBrowser } from './browser.ts';
 const weights = [ [], [ 0, 0.5 ], [ 0, 1 ], [ 0, 0, 0.5 ], [ 0, 0, 1 ], [ 0, 0, 0, 0, 0.5 ], [ 0, 0, 0, 0, 1 ], [ 0, 0.2, 0.1, 0.3, 0.4, 0.2 ], [], [ 0, 0, 2 ], [ 0, 0, 0, 0, 1.6 ] ];
 const cases = weights.map( w => ( { weights: w, expected: [ 0, 1, 2 ].map( i => referenceMaterial( w, i ) ) } ) );
 
-test( 'PMX material morph surface RGBA, sampler factors, outlines and zero-alpha shadows render on both TSL backends', { timeout: 120000 }, async t => {
+test( 'PMX material morph surface RGBA, sampler factors, outlines and zero-alpha shadows render on both TSL backends', { timeout: 180000 }, async t => {
 
 	const html = `<!doctype html><script type="importmap">{"imports":{
 "mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs",
@@ -77,28 +77,34 @@ try {
   }
   effect.enabled=false;
   let samples=0;
-  const modes=['emissive','diffuse','map','toon','sphere-multiply','sphere-add','all','specular'];
+  const modes=['ambient','ambient-map','ambient-toon','diffuse','map','toon','sphere-multiply','sphere-add','all','specular'];
   for(const mode of modes) {
 
    for(let index=0;index<3;index++) {
     mesh.material.forEach((m,i)=>m.visible=i===index);
     const m=mesh.material[index];
-    m.map=(mode==='map'||mode==='all')&&index!==2?shared:null;
-    m.gradientMap=mode==='toon'||mode==='all'?shared:null;
+    m.map=(mode==='map'||mode==='ambient-map'||mode==='all')&&index!==2?shared:null;
+    m.gradientMap=mode==='toon'||mode==='ambient-toon'||mode==='all'?shared:null;
     m.matcap=(mode.startsWith('sphere')||mode==='all')&&index!==2?shared:null;
     m.matcapCombine=mode==='sphere-add'?2:mode==='sphere-multiply'?0:index===1?2:0;
     m.needsUpdate=true;
     for(const c of cases) {
      mesh.morphTargetInfluences.fill(0);c.weights.forEach((w,i)=>mesh.morphTargetInfluences[i]=w);helper.update(0);
-     const e=c.expected[index],spec=mode==='specular',lit=['diffuse','map','toon','all','specular'].includes(mode);
+     const e=c.expected[index],spec=mode==='specular',lit=['diffuse','map','toon','ambient-toon','all','specular'].includes(mode),ambient=mode.startsWith('ambient')||!lit||mode==='all';
      light.visible=lit;light.intensity=Math.PI*(spec?0.05:1);
-     if(lit)m.emissive.setRGB(0,0,0);if(!spec)m.specular.setRGB(0,0,0);
+     if(!ambient)m.ambient.setRGB(0,0,0);if(mode.startsWith('ambient'))m.color.setRGB(0,0,0);if(!spec)m.specular.setRGB(0,0,0);
      const map=m.map?[128/255,192/255,224/255].map(linear):[1,1,1];
      const toon=m.gradientMap?[128/255,192/255,224/255].map(linear):[1,1,1];
      let alpha=e.diffuse[3]*(m.map?192/255*e.textureColor[3]:1)*(m.matcap?e.sphereTextureColor[3]:1)*(m.gradientMap?e.toonColor[3]:1);
-     let rgb=lit?e.diffuse.slice(0,3).map((v,i)=>linear(v)*map[i]*(m.map?linear(e.textureColor[i]):1)*toon[i]*(m.gradientMap?linear(e.toonColor[i]):1)*(spec?0.05:1)) : e.ambient.map(v=>linear(v)*(m.map?0.2:1));
+     // Independent equation from docs/material-shading.md; source morph values
+     // come from the authored PMX oracle, never the GPU material uniforms.
+     let rgb=e.ambient.map((a,i)=>{
+      const d=lit&&!mode.startsWith('ambient')?linear(e.diffuse[i])*(spec?0.05:1):0;
+      const r=lit?toon[i]*(m.gradientMap?linear(e.toonColor[i]):1):1;
+      return (d+(ambient?0.5*linear(a):0))*map[i]*(m.map?linear(e.textureColor[i]):1)*r;
+     });
      if(spec)rgb=rgb.map((v,i)=>v+linear(e.specular[i])*0.05*(Math.max(e.shininess,0.0001)*0.5+1)/4);
-     if(m.matcap)rgb=rgb.map((v,i)=>m.matcapCombine===0?v*linear([128/255,192/255,224/255][i])*linear(e.sphereTextureColor[i]):v+linear([128/255,192/255,224/255][i])*linear(e.sphereTextureColor[i]));
+     if(m.matcap)rgb=rgb.map((v,i)=>m.matcapCombine===0?v*linear([128/255,192/255,224/255][i])*linear(e.sphereTextureColor[i]):v+linear([128/255,192/255,224/255][i])*linear(e.sphereTextureColor[i])*toon[i]*(m.gradientMap?linear(e.toonColor[i]):1));
      const expected=[...rgb.map(v=>Math.round(Math.max(0,Math.min(1,v))*alpha*255)),Math.round(alpha*alpha*255)];
      near(center(await pixels()),expected,backend+' '+mode+' material '+index+' weights '+c.weights);samples++;
     }
@@ -119,7 +125,7 @@ try {
   effect.enabled=true;light.visible=false;
   const rings=[];
   for(const c of [cases[0],cases[1],cases[5],cases[2],cases[3],cases[0]]) {
-   mesh.morphTargetInfluences.fill(0);c.weights.forEach((w,i)=>mesh.morphTargetInfluences[i]=w);helper.update(0);m.emissive.setRGB(0,0,0);m.specular.setRGB(0,0,0);m.color.setRGB(0,0,0);
+   mesh.morphTargetInfluences.fill(0);c.weights.forEach((w,i)=>mesh.morphTargetInfluences[i]=w);helper.update(0);m.ambient.setRGB(0,0,0);m.emissive.setRGB(0,0,0);m.specular.setRGB(0,0,0);m.color.setRGB(0,0,0);
    const p=await pixels(),e=c.expected[0],points=[];
    for(let i=0;i<p.length;i+=4){const x=i/4%128+0.5-64,y=Math.floor(i/4/128)+0.5-64;if(Math.hypot(x,y)>0.45*64&&p[i]+p[i+1]+p[i+2]>6)points.push(Array.from(p.slice(i,i+4)));}
    if(e.edgeSize<=0||e.edgeColor[3]<=0)check(points.length===0,'invisible outline left pixels');
@@ -133,7 +139,7 @@ try {
   mesh.castShadow=true;mesh.position.set(0.7,0,0.7);light.position.set(2,0,3);
   const receiver=new Mesh(new PlaneGeometry(2,2),mesh.material[2].clone());
   // Use an MMD surface to receive actual lighting/shadow evaluation.
-  receiver.material.map=receiver.material.matcap=receiver.material.gradientMap=null;receiver.material.color.setRGB(1,1,1);receiver.material.emissive.setRGB(0,0,0);receiver.material.specular.setRGB(0,0,0);receiver.material.opacity=1;receiver.material.visible=true;receiver.material.transparent=false;receiver.material.needsUpdate=true;receiver.receiveShadow=true;scene.add(receiver);
+  receiver.material.map=receiver.material.matcap=receiver.material.gradientMap=null;receiver.material.color.setRGB(1,1,1);receiver.material.ambient.setRGB(0,0,0);receiver.material.emissive.setRGB(0,0,0);receiver.material.specular.setRGB(0,0,0);receiver.material.opacity=1;receiver.material.visible=true;receiver.material.transparent=false;receiver.material.needsUpdate=true;receiver.receiveShadow=true;scene.add(receiver);
   const shadowSamples=[];
   for(const weight of [0,0.5,1,0]) {mesh.morphTargetInfluences.fill(0);mesh.morphTargetInfluences[1]=weight;helper.update(0);const p=await pixels();shadowSamples.push(Array.from(p.slice((64*128+64)*4,(64*128+64)*4+3)));}
   check(shadowSamples[2][0]>shadowSamples[0][0]+100,'zero-alpha caster shadow persists '+JSON.stringify(shadowSamples));
@@ -170,11 +176,11 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 	try {
 
 		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
-		const result = await runBrowser<{ errors: string[]; webgpu: boolean; backends: { backend: string; samples: number; rings: number[]; shadowSamples: number[][]; invalidWeightCases: number; invalidShadowCases: number }[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/`, profile, 'light', 100000 );
+		const result = await runBrowser<{ errors: string[]; webgpu: boolean; backends: { backend: string; samples: number; rings: number[]; shadowSamples: number[][]; invalidWeightCases: number; invalidShadowCases: number }[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/`, profile, 'light', 160000 );
 		assert.deepEqual( result.errors, [] ); assert.equal( result.backends[ 0 ]?.backend, 'webgl' );
 		if ( result.webgpu ) assert.equal( result.backends[ 1 ]?.backend, 'webgpu' );
 		else t.diagnostic( 'Native WebGPU adapter unavailable; mandatory WebGL2 passed.' );
-		for ( const b of result.backends ) { assert.equal( b.samples, 264 ); assert.equal( b.invalidWeightCases, 12 ); assert.equal( b.invalidShadowCases, 12 ); t.diagnostic( `${b.backend}: ${b.samples} independent surface RGBA assertions; ${b.invalidWeightCases} nonfinite weight/reset cases; ${b.invalidShadowCases} nonfinite shadow/reset cases; outline pixel counts ${b.rings}; shadows ${JSON.stringify( b.shadowSamples )}` ); }
+		for ( const b of result.backends ) { assert.equal( b.samples, 330 ); assert.equal( b.invalidWeightCases, 12 ); assert.equal( b.invalidShadowCases, 12 ); t.diagnostic( `${b.backend}: ${b.samples} independent surface RGBA assertions; ${b.invalidWeightCases} nonfinite weight/reset cases; ${b.invalidShadowCases} nonfinite shadow/reset cases; outline pixel counts ${b.rings}; shadows ${JSON.stringify( b.shadowSamples )}` ); }
 
 	} finally {
 

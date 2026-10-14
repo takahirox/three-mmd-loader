@@ -101,7 +101,7 @@ export class MMDMaterialMorphController {
 		material.opacity = state.diffuse[ 3 ];
 		material.specular.setRGB( state.specular[ 0 ], state.specular[ 1 ], state.specular[ 2 ], SRGBColorSpace );
 		material.shininess = state.shininess;
-		material.emissive.setRGB( state.ambient[ 0 ], state.ambient[ 1 ], state.ambient[ 2 ], SRGBColorSpace ).multiplyScalar( material.map ? 0.2 : 1 );
+		material.ambient.setRGB( state.ambient[ 0 ], state.ambient[ 1 ], state.ambient[ 2 ], SRGBColorSpace );
 		for ( const [ key, property ] of samplerChannels ) {
 
 			const factor = material[ property ];

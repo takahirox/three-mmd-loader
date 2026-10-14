@@ -1,14 +1,14 @@
 import { mmdAdditionalUV } from './MMDUV.js';
 import { hasSdef, setupMMDPosition } from '../skinning/MMDSdef.js';
-import { AddOperation, MultiplyOperation, Vector4 } from 'three';
-import type { Color, Combine, Texture } from 'three';
+import { AddOperation, Color, MultiplyOperation, Vector4 } from 'three';
+import type { Combine, Texture } from 'three';
 import { MeshPhongNodeMaterial, PhongLightingModel } from 'three/webgpu';
 import type { MeshPhongNodeMaterialParameters, Node, NodeBuilder, NodeMaterial } from 'three/webgpu';
-import type { LightingModelDirectInput } from 'three/src/nodes/core/LightingModel.js';
+import type { LightingModelDirectInput, LightingModelReflectedLight } from 'three/src/nodes/core/LightingModel.js';
 import {
 	BRDF_Lambert, F_Schlick, Fn, diffuseColor, float, materialColor, materialReference, reference,
 	materialEmissive, materialSpecularStrength, matcapUV, mix, normalView, positionViewDirection,
-	shininess, smoothstep, specularColor, vec2, vec3, vec4
+	property, shininess, smoothstep, specularColor, vec2, vec3, vec4
 } from 'three/tsl';
 
 const samplerFactor = ( name: string ) => materialReference( name, 'vec4' ) as unknown as Node<'vec4'>;
@@ -22,6 +22,8 @@ export interface MMDOutlineParameters {
 
 export interface MMDToonMaterialParameters extends MeshPhongNodeMaterialParameters {
 	diffuse?: Color;
+	/** MMD ambient in Three's linear working space; independent of emissive. */
+	ambient?: Color;
 	gradientMap?: Texture | null;
 	matcap?: Texture | null;
 	matcapCombine?: Combine;
@@ -30,10 +32,22 @@ export interface MMDToonMaterialParameters extends MeshPhongNodeMaterialParamete
 }
 
 // Adapted from r186 ToonLightingModel and PhongLightingModel. Keep Three's
-// indirect lighting, shadows, light maps and AO; only quantize direct irradiance.
+// indirect lighting, shadows, light maps and AO. Ambient and sphere composition
+// are MMD-specific; see docs/material-shading.md for the reference and extensions.
 // Casts below supply the vector types omitted by some r186 TSL declarations;
 // the underlying values are Three's nodes, with no custom shader source.
 class MMDLightingModel extends PhongLightingModel {
+
+	private ambientRamp = property( 'vec3' );
+	private directCount = 0;
+
+	start( builder: NodeBuilder ) {
+
+		this.directCount = 0;
+		this.ambientRamp.assign( vec3( 0 ) );
+		super.start( builder );
+
+	}
 
 	direct( { lightDirection, lightColor, reflectedLight }: LightingModelDirectInput, builder: NodeBuilder ) {
 
@@ -44,16 +58,32 @@ class MMDLightingModel extends PhongLightingModel {
 		const gradient = material.gradientMap
 			? ( materialReference( 'gradientMap', 'texture' ) as unknown as Node<'vec4'> ).context( { getUV: () => coord } ).rgb.mul( samplerFactor( 'mmdToonColor' ).rgb )
 			: mix( float( 0.7 ), float( 1 ), smoothstep( float( 0.7 ).sub( fw.x ), float( 0.7 ).add( fw.x ), coord.x ) );
+		this.ambientRamp.addAssign( gradient );
+		this.directCount ++;
 		const irradiance = gradient.mul( vec3( lightColor as Node<'vec3'> ) );
 		( reflectedLight.directDiffuse as Node<'vec3'> ).addAssign( irradiance.mul( BRDF_Lambert( { diffuseColor: diffuseColor.rgb } ) as unknown as Node<'vec3'> ) );
 
-		// Three's Blinn-Phong BRDF, using the same toon irradiance as diffuse.
+		// Specular is separate from the base texture, ambient and toon ramp.
 		const halfDir = direction.add( positionViewDirection ).normalize();
 		const dotNH = normalView.dot( halfDir ).clamp();
 		const dotVH = positionViewDirection.dot( halfDir ).clamp();
 		const fresnel = F_Schlick( { f0: specularColor, f90: float( 1 ), dotVH } ) as unknown as Node<'vec3'>;
 		const distribution = shininess.mul( 0.5 ).add( 1 ).mul( 1 / Math.PI ).mul( dotNH.pow( shininess ) );
-		( reflectedLight.directSpecular as Node<'vec3'> ).addAssign( irradiance.mul( fresnel ).mul( 0.25 ).mul( distribution ).mul( materialSpecularStrength ) );
+		( reflectedLight.directSpecular as Node<'vec3'> ).addAssign( vec3( lightColor as Node<'vec3'> ).mul( fresnel ).mul( 0.25 ).mul( distribution ).mul( materialSpecularStrength ) );
+
+	}
+
+	finish( builder: NodeBuilder ) {
+
+		const material = builder.material as MMDToonMaterial;
+		const { reflectedLight, outgoingLight } = builder.context as { reflectedLight: LightingModelReflectedLight; outgoingLight: Node<'vec3'> };
+		// MMD has one global directional light. Average ramps for Three's
+		// multiple-light extension so ambient is added exactly once.
+		const ramp = this.directCount ? this.ambientRamp.div( this.directCount ) : vec3( 1 );
+		const specular = vec3( reflectedLight.directSpecular as Node<'vec3'> ).add( vec3( reflectedLight.indirectSpecular as Node<'vec3'> ) );
+		const surface = outgoingLight.sub( specular ).add( material.setupMMDAmbient().mul( ramp ) );
+		outgoingLight.assign( material.setupMMDSphere( surface, ramp ).add( specular ) );
+		super.finish( builder );
 
 	}
 
@@ -65,6 +95,8 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 	static get type() { return 'MMDToonMaterial'; }
 
 	readonly isMMDToonMaterial = true;
+	/** Original MMD ambient, converted to the linear working space. */
+	ambient = new Color( 0, 0, 0 );
 	gradientMap: Texture | null = null;
 	matcap: Texture | null = null;
 	matcapCombine: Combine = AddOperation;
@@ -187,6 +219,7 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 	copy( source: this ): this {
 
 		super.copy( source );
+		this.ambient.copy( source.ambient );
 		this.gradientMap = source.gradientMap;
 		this.matcap = source.matcap;
 		this.matcapCombine = source.matcapCombine;
@@ -205,6 +238,23 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 
 	}
 
+	/** Texture-modulated MMD ambient; 0.5 follows babylon-mmd's documented MMD coefficient. */
+	setupMMDAmbient(): Node<'vec3'> {
+
+		let ambient = ( materialReference( 'ambient', 'color' ) as unknown as Node<'vec3'> ).mul( 0.5 );
+		if ( this.map ) ambient = ambient.mul( ( materialReference( 'map', 'texture' ) as unknown as Node<'vec4'> ).rgb ).mul( samplerFactor( 'mmdTextureColor' ).rgb );
+		if ( this.matcap && this.matcapMode === 'subtexture' ) ambient = ambient.mul( this.subtextureSample().rgb ).mul( samplerFactor( 'mmdSphereColor' ).rgb );
+		return ambient;
+
+	}
+
+	setupOutgoingLight() {
+
+		// Three skips the lighting model entirely when there are no scene lights.
+		return this.setupMMDSphere( vec3( super.setupOutgoingLight() as Node<'vec3'> ).add( this.setupMMDAmbient() ) );
+
+	}
+
 	setupLighting( builder: NodeBuilder ) {
 
 		const emissiveNode = this.emissiveNode;
@@ -213,22 +263,26 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 			this.emissiveNode = vec3( ( emissiveNode ?? materialEmissive ) as Node<'vec3'> ).mul( this.subtextureSample().rgb ).mul( samplerFactor( 'mmdSphereColor' ).rgb );
 
 		}
+		if ( this.matcap && this.matcapMode === 'sphere' && this.matcapCombine === MultiplyOperation ) {
+
+			// Preserve user emission's existing sphere-multiply behavior.
+			this.emissiveNode = this.setupMMDSphere( vec3( ( emissiveNode ?? materialEmissive ) as Node<'vec3'> ) );
+
+		}
 		try { return super.setupLighting( builder ); }
 		finally { this.emissiveNode = emissiveNode; }
 
 	}
 
-	setupOutput( builder: NodeBuilder, outputNode: Node ) {
-
-		let result: Node<'vec4'> = vec4( outputNode as Node<'vec4'> );
+	/** Sphere modes affect the surface before separate specular lighting. */
+	setupMMDSphere( surface: Node<'vec3'>, ramp: Node<'vec3'> = vec3( 1 ) ): Node<'vec3'> {
 		if ( this.matcap && this.matcapMode === 'sphere' ) {
 
 			const sphere = ( materialReference( 'matcap', 'texture' ) as unknown as Node<'vec4'> ).context( { getUV: () => matcapUV } ).rgb.mul( samplerFactor( 'mmdSphereColor' ).rgb );
-			const rgb = this.matcapCombine === MultiplyOperation ? result.rgb.mul( sphere ) : result.rgb.add( sphere );
-			result = vec4( rgb, result.a );
+			return this.matcapCombine === MultiplyOperation ? surface.mul( sphere ) : surface.add( sphere.mul( ramp ) );
 
 		}
-		return super.setupOutput( builder, result );
+		return surface;
 
 	}
 
