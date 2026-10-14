@@ -64,17 +64,18 @@ values for diagnostics. These are raw PMX values, without spatial flips.
 Diffuse RGBA, specular RGB, shininess, ambient RGB, edge RGBA/size and
 texture/sphere/toon RGBA all participate in the arithmetic. Surface colors and
 sampler factors are evaluated in PMX source sRGB, then converted to Three's
-linear working space. Ambient becomes emissive, retaining the loader's 0.2
-factor when a diffuse map is present. The existing outline convention retains
-raw edge RGB as working-space color and `edgeSize / 300` as hull thickness.
+linear working space. Ambient updates the dedicated `material.ambient` color;
+[the MMD shading path](material-shading.md) applies the documented `0.5`
+coefficient and color texture, leaving user emission controls intact. The existing
+outline convention retains raw edge RGB as working-space color and `edgeSize / 300` as hull thickness.
 The PMX edge-enabled flag still governs visibility, including when a morph
 raises an initially zero edge size.
 
 Per-material `mmdTextureColor`, `mmdSphereColor`, and `mmdToonColor` Vector4
-values are TSL uniforms. Base-map RGB/alpha affects diffuse; toon RGB tints
-direct diffuse and Phong specular irradiance; sphere RGB affects the existing
-add/multiply output operation for modes 1/2, or the [SubTexture layer](subtexture.md)
-for mode 3. Sampler alpha factors multiply surface opacity once. Missing
+values are TSL uniforms. Base-map RGB affects diffuse and ambient; alpha affects
+opacity. Toon RGB tints direct diffuse and ambient, while specular remains separate. Sphere RGB affects
+the add/multiply surface operation before specular for modes 1/2, or the
+[SubTexture layer](subtexture.md) for mode 3. Sampler alpha factors multiply surface opacity once. Missing
 samplers ignore their factors. Sphere modes 1/2 keep their existing texture
 alpha semantics; mode 3 multiplies sampled RGBA before specular lighting. No
 texture images, sampling settings or shared texture contents are changed by
@@ -127,7 +128,7 @@ textures, all channels, both arithmetic modes, `-1`, ordered interactions,
 duplicate elements/links, groups and invalid inputs. Independent explicit
 equations verify runtime values at zero, half, full and extrapolated weights,
 playback controls, feature toggles and helper transfers. Browser render-target
-RGBA assertions cover diffuse, emissive, specular, base-map, toon, sphere
+RGBA assertions cover diffuse, ambient, specular, base-map, toon, sphere
 add/multiply, alpha, groups, outline width/color/alpha, reset, zero-alpha depth
 and shadows on mandatory WebGL2 and native WebGPU when an adapter is available.
 Generated fixtures also exercise the private viewer and isolated JS/TS package

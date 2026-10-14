@@ -68,7 +68,7 @@ try {
   const uv0=geometry.attributes.uv;for(let i=0;i<uv0.count;i++)uv0.setXY(i,0.875,0.75);uv0.needsUpdate=true;m.map=map;m.needsUpdate=true;
   near(center(await pixels()),${JSON.stringify( referenceSubtextureColor( subtextureTexels[ 4 ], [ 0.8 * 200 / 255, 0.6 * 120 / 255, 0.4 * 20 / 255 ], 0.8 * 64 / 255 ) )},'shared image separate UV0/UV1');m.map=null;m.needsUpdate=true;
   // Ambient/emissive is modulated, whereas specular is added after the layer.
-  m.emissive.setRGB(0.1,0.2,0.3);near(center(await pixels()),${JSON.stringify( referenceSubtextureColor( subtextureTexels[ 4 ], [ 0.9, 0.8, 0.7 ] ) )},'SubTexture emissive');m.emissive.setRGB(0,0,0);
+  m.emissive.setRGB(0.1,0.2,0.3);near(center(await pixels()),${JSON.stringify( referenceSubtextureColor( subtextureTexels[ 4 ], [ 0.9, 0.8, 0.7 ] ) )},'SubTexture emissive');m.ambient.setRGB(0,0,0);m.emissive.setRGB(0,0,0);
   const specularLight=new DirectionalLight(0xffffff,Math.PI);specularLight.position.z=3;scene.add(specularLight);m.lights=true;m.color.setRGB(0,0,0);m.specular.setRGB(0.1,0.2,0.3);m.shininess=8;m.matcap=null;m.needsUpdate=true;
   const specular=center(await pixels());check(specular[2]>10,'specular probe dark');m.matcap=map;m.needsUpdate=true;near(center(await pixels()),specular,'SubTexture does not multiply specular');
   scene.remove(specularLight);m.lights=false;m.specular.setRGB(0,0,0);m.color.setRGB(0.8,0.6,0.4);m.needsUpdate=true;
@@ -98,7 +98,7 @@ try {
   check(mesh.material[3].matcap===mesh.material[1].matcap&&mesh.material[3].matcap===mesh.material[2].matcap,'shared loaded texture');
   check(mesh.material[3].matcap.flipY===false&&mesh.material[3].matcap.wrapS===RepeatWrapping,'loader sampler');
   mesh.position.x=1.8; // rotation moves the mode-3 triangle's x=1.8 to -1.8.
-  mesh.material.forEach((v,i)=>v.visible=i===3);const pm=mesh.material[3];pm.gradientMap=null;pm.lights=false;pm.color.setRGB(0.8,0.6,0.4);pm.emissive.setRGB(0,0,0);pm.opacity=0.8;pm.blending=NoBlending;pm.matcap.minFilter=pm.matcap.magFilter=NearestFilter;pm.matcap.colorSpace=LinearSRGBColorSpace;pm.matcap.needsUpdate=true;pm.needsUpdate=true;
+  mesh.material.forEach((v,i)=>v.visible=i===3);const pm=mesh.material[3];pm.gradientMap=null;pm.lights=false;pm.color.setRGB(0.8,0.6,0.4);pm.ambient.setRGB(0,0,0);pm.emissive.setRGB(0,0,0);pm.opacity=0.8;pm.blending=NoBlending;pm.matcap.minFilter=pm.matcap.magFilter=NearestFilter;pm.matcap.colorSpace=LinearSRGBColorSpace;pm.matcap.needsUpdate=true;pm.needsUpdate=true;
   let morphSamples=0;
   const reset=()=>mesh.morphTargetInfluences.fill(0);
   const expected=${JSON.stringify( [ 0, 0.5, 1, 0 ].map( w => referenceSubtextureColor( referenceSubtexture( w ) ) ) )};
@@ -117,21 +117,21 @@ try {
    const vmd=new Parser().parseVmd(await (await fetch('/motion-'+name+'.vmd')).arrayBuffer(),true);
    const clip=loader.animationBuilder.build(vmd,mesh),helper=new MMDAnimationHelper({pmxAnimation,sync:false});helper.add(mesh,{animation:clip,physics:false});
    const mixer=helper.objects.get(mesh).mixer,action=mixer.clipAction(clip);action.clampWhenFinished=true;action.setLoop(2200,1);
-   for(const [j,time] of [0,0.5,1,0].entries()){action.reset().play();mixer.setTime(time);helper.update(0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;near(center(await pixels()),expected[j][3]===0?[0,0,0,0]:expected[j],'VMD seek '+time+' mode '+pmxAnimation);morphSamples++;}
-   action.stop();helper.update(0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;near(center(await pixels()),expected[0],'VMD stop reset');helper.remove(mesh);reset();
+   for(const [j,time] of [0,0.5,1,0].entries()){action.reset().play();mixer.setTime(time);helper.update(0);pm.ambient.setRGB(0,0,0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;near(center(await pixels()),expected[j][3]===0?[0,0,0,0]:expected[j],'VMD seek '+time+' mode '+pmxAnimation);morphSamples++;}
+   action.stop();helper.update(0);pm.ambient.setRGB(0,0,0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;near(center(await pixels()),expected[0],'VMD stop reset');helper.remove(mesh);reset();
   }
   check(pm.version===version,'UV/VMD recompiled material');
-  const helper=new MMDAnimationHelper();helper.add(mesh,{physics:false});reset();mesh.morphTargetInfluences[3]=1;helper.update(0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;
+  const helper=new MMDAnimationHelper();helper.add(mesh,{physics:false});reset();mesh.morphTargetInfluences[3]=1;helper.update(0);pm.ambient.setRGB(0,0,0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;
   const linear=v=>v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;
-  near(center(await pixels()),[0.8*220*linear(0.5),0.6*160*linear(0.25),0.4*60*linear(0.75),0.8*255*0.5].map(Math.round),'material morph sampler');reset();helper.update(0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;
+  near(center(await pixels()),[0.8*220*linear(0.5),0.6*160*linear(0.25),0.4*60*linear(0.75),0.8*255*0.5].map(Math.round),'material morph sampler');reset();helper.update(0);pm.ambient.setRGB(0,0,0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;
   // Shadow opacity must sample the same additional UV1, including partial alpha.
   result.stage=backend+' shadows';pm.lights=true;pm.alphaTest=0.5;pm.needsUpdate=true;mesh.castShadow=true;mesh.position.set(2.25,0,0.7);
   const light=new DirectionalLight(0xffffff,Math.PI);light.position.set(2,0,3);light.castShadow=true;light.shadow.mapSize.set(128,128);Object.assign(light.shadow.camera,{left:-1,right:1,top:1,bottom:-1,near:0.1,far:10});scene.add(light);renderer.shadowMap.enabled=true;
   const receiver=new Mesh(new PlaneGeometry(2,2),new MMDToonMaterial({color:0xffffff}));receiver.material.specular.setRGB(0,0,0);receiver.receiveShadow=true;scene.add(receiver);
-  const shadows=[];for(const w of [0,0.5,1,0]){reset();mesh.morphTargetInfluences[0]=w;helper.update(0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;shadows.push(center(await pixels())[0]);}
+  const shadows=[];for(const w of [0,0.5,1,0]){reset();mesh.morphTargetInfluences[0]=w;helper.update(0);pm.ambient.setRGB(0,0,0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;shadows.push(center(await pixels())[0]);}
   check(shadows[1]>shadows[0]+100&&shadows[2]>shadows[0]+100,'SubTexture shadow alpha '+shadows);near([shadows[3]],[shadows[0]],'shadow reset');
   // Outlines retain PMX edge alpha (independent of texture alpha), without errors.
-  scene.remove(receiver);renderer.shadowMap.enabled=false;light.castShadow=false;mesh.castShadow=false;mesh.position.set(1.8,0,0);pm.alphaTest=0;pm.lights=false;pm.needsUpdate=true;reset();helper.update(0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;
+  scene.remove(receiver);renderer.shadowMap.enabled=false;light.castShadow=false;mesh.castShadow=false;mesh.position.set(1.8,0,0);pm.alphaTest=0;pm.lights=false;pm.needsUpdate=true;reset();helper.update(0);pm.ambient.setRGB(0,0,0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;
   scene.remove(mesh);const sphere=new Mesh(new SphereGeometry(0.45,16,12),pm.clone());sphere.material.userData.outlineParameters.thickness=0.04;
   const sphereUV=new Float32BufferAttribute(new Float32Array(sphere.geometry.attributes.position.count*4),4);for(let i=0;i<sphereUV.count;i++)sphereUV.setXYZW(i,0.125,0.75,0,0);sphere.geometry.setAttribute('mmdAdditionalUV1',sphereUV);scene.add(sphere);
   effect.enabled=false;const plain=await pixels();effect.enabled=true;const outlined=await pixels();check(outlined.some((v,i)=>v!==plain[i]),'outline produced no pixels');sphere.geometry.dispose();sphere.material.dispose();

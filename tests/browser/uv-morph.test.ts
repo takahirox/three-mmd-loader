@@ -40,7 +40,7 @@ try {
   const mesh=loader.meshBuilder.build(new Parser().parsePmx(new Uint8Array(${JSON.stringify( Array.from( new Uint8Array( sdefPmxBuffer( { uvMorphs: true } ) ) ) )}).buffer,true),'');
   mesh.frustumCulled=false;scene.add(mesh);mesh.skeleton.bones[0].rotation.y=0.3;mesh.skeleton.bones[1].rotation.z=-0.4;
   const helper=new MMDAnimationHelper();helper.add(mesh,{physics:false});
-  const m=mesh.material[0];m.blending=NoBlending;m.gradientMap=null;m.side=DoubleSide;m.specular.setRGB(0,0,0);m.emissive.setRGB(0,0,0);m.color.setRGB(1,1,1);
+  const m=mesh.material[0];m.blending=NoBlending;m.gradientMap=null;m.side=DoubleSide;m.specular.setRGB(0,0,0);m.ambient.setRGB(0,0,0);m.emissive.setRGB(0,0,0);m.color.setRGB(1,1,1);
   // Second triangle is the readback probe. Still evaluate SDEF/BDEF, normals,
   // vertex morphs and tangents; final positioning makes expected pixels stable.
   const clip=new Float32Array(18*3).fill(10);
