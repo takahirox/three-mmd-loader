@@ -265,6 +265,12 @@ try {
 		}
 		checks.viewport = canvas.parentElement === doc.body && doc.querySelectorAll( 'canvas' ).length === 1 && checkViewport();
 		checks.sceneColor = scene.background.getHex() === 0xffffff;
+		const lights = scene.children.filter( child => child.isLight );
+		const ambient = lights.find( child => child.isAmbientLight );
+		const directional = lights.find( child => child.isDirectionalLight );
+		checks.lightIntensities = lights.length === 2 && ambient.intensity === 2 && directional.intensity === 3;
+		checks.lightColors = ambient.color.getHex() === 0xffffff && directional.color.getHex() === 0xffffff;
+		checks.lightDirection = directional.position.toArray().join( ',' ) === '-1,2,1' && directional.target.position.toArray().join( ',' ) === '0,0,0';
 		let guiRect = gui.getBoundingClientRect();
 		checks.desktopGUI = guiRect.right === page.innerWidth - 15 && guiRect.top === 0;
 		await resizeFrame( frame, 360, 640, checkViewport );
