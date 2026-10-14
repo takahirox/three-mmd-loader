@@ -61,9 +61,10 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' | 'gene'
 		gui.domElement.setAttribute( 'aria-busy', 'true' );
 		const scene = new Scene();
 		scene.background = new Color( 0xffffff );
-		const ambient = new AmbientLight( 0xffffff );
+		// Gene keeps native defaults; the Miku examples use brighter art direction.
+		const ambient = new AmbientLight( 0xffffff, mode === 'gene' ? undefined : 2 );
 		scene.add( new PolarGridHelper( 30, 8 ), ambient );
-		const light = new DirectionalLight( 0xffffff );
+		const light = new DirectionalLight( 0xffffff, mode === 'gene' ? undefined : 3 );
 		light.position.set( - 1, 2, 1 );
 		scene.add( light );
 		const camera = new PerspectiveCamera( 45, innerWidth / innerHeight, 0.1, 2000 );

@@ -1,80 +1,82 @@
-# Default example lighting and gallery previews — Issue #63
+# Mixed example lighting and gallery previews — Issue #66
 
-The shared scene now constructs white AmbientLight and DirectionalLight with
-their native Three.js default intensity of 1 for animation, audio, pose, Worker
-Physics and Gene Light. Only the two intensity expressions changed in the scene;
-light direction/position, camera positions, materials, animation, outlines,
-tone mapping and MMD shading/color-space algorithms are unchanged.
+The shared scene restores ambient intensity 2 and directional intensity 3 for
+Model and animation, Worker Physics, Audio and camera, and Poses. Only
+`mode === 'gene'` uses native Three.js defaults (1/1). This is the maintainer's
+requested per-example art direction. White light colors, direction/position,
+cameras, materials, renderer settings, animation, IK and physics are preserved.
+No library shading or color management algorithms change.
 
-All five gallery cards have fresh 400×250 JPEGs captured from their actual
-example pages. Worker Physics has a separate image. The capture command verifies
-the pinned real Miku/MMD and Gene Light assets, rejects fixtures, checks the
-runtime lights and actual physics backend, and records scene/image hashes.
-See [the method and rights notices](../examples/README.md#gallery-thumbnail-capture)
-and [capture evidence](../examples/screenshots/manifest.json). Miku/Three.js
-asset and character rights remain separate from MIT; Gene's derivative preview
-retains CC BY 4.0 credit and the author's separate usage conditions.
+The four Miku 400×250 JPEGs are recaptured from the real example pages with the
+restored lighting, including a separate Worker Physics preview. The Gene JPEG
+from Issue #63 is retained byte for byte, with SHA-256
+`b0ad142b8a7c7e640893a1e07205e9508484fe28c11ffc2382e6c1780ca6da48`.
+The capture command verifies the pinned Miku and Gene assets, rejects fixtures,
+checks all five scenes' runtime lights and actual physics backends, and writes
+only the four Miku images. Gene's original capture provenance is preserved,
+with separate checks of the current runtime. The manifest records the current
+scene hash and each entry's mode, intensities, capture scene hash, date, browser,
+image hash, frame/pose and checks. Repeated captures preserve Gene and record
+Miku's replaced Issue #63 hashes.
 
-The previews were inspected locally for a rendered model, grid, and valid
-framing. This does not claim exact MikuMikuDance parity or a separately confirmed
-maintainer visual outcome. Subjective review is optional.
+See [capture method and rights notices](../examples/README.md#gallery-thumbnail-capture)
+and [capture evidence](../examples/screenshots/manifest.json). Miku character
+and MMD assets retain their individual terms, separately from MIT; Gene's
+preview retains CC BY 4.0 credit and the author's separate usage conditions.
+This record does not claim equivalence with MikuMikuDance or new maintainer
+visual approval. Optional subjective review is separate from pre-merge checks.
+The four new previews were inspected locally for the rendered Miku model,
+grid and expected framing.
 
 ## Pre-merge validation
 
-Run in the assigned worktree on 2026-10-14, Node.js 24.12.0 and Google Chrome
-155.0.8059.79 on macOS. Every final check below uses the changed checkout.
+Run in the assigned worktree on 2026-10-15, Node.js 24.12.0 and Google Chrome
+155.0.8059.79 on macOS (2026-10-15 Japan time / 2026-10-14 UTC).
 
 | Check | Result |
 | --- | --- |
-| `npm run examples:capture` | PASS, five real scenes; a repeat produced identical JPEGs on this environment |
+| `npm run examples:capture` | PASS, four real Miku captures and Gene runtime verification; repeat produced identical JPEG hashes and preserved Gene provenance |
 | `npm run typecheck` | PASS, package/example/tool projects and TypeScript source policy |
 | `npm test` | PASS, 324 tests, 0 skipped |
-| `npm run test:browser` | PASS, 25 tests, 0 skipped |
+| `npm run test:browser` | PASS, 25 tests, 0 skipped; includes all five gallery pages and Gene's native defaults |
 | `npm run build` | PASS |
-| `npm run build:examples` | PASS, real pinned asset downloads verified |
-| Artifact/thumbnail audit | PASS, all 600 deployment file SHA-256s verified; all five images and capture manifest match source bytes; 13 Gene files match the pinned allowlist; no private content |
-| `npm pack --dry-run --ignore-scripts --json` after the site build | PASS, 48 package files; no examples, screenshots, fonts, capture tooling or model assets |
-| `MMD_EXAMPLE_SITE=dist/examples npm run test:examples` | PASS, 2 tests, 0 skipped; real assets under the project path |
+| `npm run build:examples` | PASS, pinned real assets verified |
+| Artifact/thumbnail audit | PASS, all 600 deployment file hashes; all five image copies and capture manifest match; compiled scene and 13 pinned Gene assets verified; no private model paths |
+| `MMD_EXAMPLE_SITE=dist/examples npm run test:examples` | PASS, 2 tests, 0 skipped; real assets under the project path, including all five pages and gallery navigation |
 | `git diff --check` | PASS |
 
-The normal example browser run uses the existing generated Miku test assets
-and real licensed Gene Light. Thumbnail capture and the static-artifact browser
-run use the real pinned Miku and Gene assets, never fixture previews. The
-artifact run serves only `dist/examples/` under `/three-mmd-loader/`, with no
-fallback to source-checkout modules or assets.
+The source browser suite uses generated Miku test assets and the real licensed
+Gene model. Thumbnail capture and the built-artifact browser checks use the
+real pinned Miku and Gene assets. The latter serves only `dist/examples/` under
+`/three-mmd-loader/`, without falling back to source modules or assets.
 
-Runtime assertions inspect default intensity 1, white colors and unchanged
-light position/target in all five modes. Gallery checks decode all five JPEGs
-at 400×250 and exercise selection, mobile layout, hash links, Back/Forward,
-controls, readiness, rendering, animation and actual physics modes. The new
-thumbnail test checks image hashes, pinned source commits, capture state and
-current scene provenance; build tests verify exact copies of the new Worker
-image and capture manifest. Gene tests retain their runtime-error and missing
-asset checks. Thumbnail generation is now a dedicated command, replacing the
-older Gene-only test capture switch that adjusted the camera and disabled physics.
-
-An initial unit run failed when concurrent build hooks removed `dist/` during
-testing; the final runs were executed sequentially. An initial browser gallery
-run exceeded its 120-second source timeout. The navigation test now uses the
-same bounded 300-second budget for source and built paths, retaining every
-assertion; the successful source run took about 87 seconds. Other browser
-checks passed on the initial run and the complete final rerun.
+Runtime assertions inspect 2/3 lighting for all four Miku pages and 1/1 for
+Gene, white colors and unchanged light position/target. Gallery checks decode
+all five JPEGs at 400×250 and exercise selection, mobile layout, hashes,
+Back/Forward, controls, loading, rendering, animation and physics. Thumbnail
+assertions check pinned source commits, per-mode capture conditions, JPEG
+headers/dimensions, exact image hashes and Gene's fixed pre-change hash. They
+require all four Miku images to differ from their Issue #63 previews and the
+Worker capture to be distinct. Build checks verify exact copies of all five
+images and the capture manifest. Existing Gene loading/error checks remain.
 
 ## Required post-merge verification: PENDING
 
 No merge, push, workflow dispatch, publication, or public-site verification was
 performed during this node. These checks must be recorded after merging and
-must not block pre-merge approval or merging:
+are not pre-merge approval requirements:
 
-- **Merge-triggered Pages workflow: PENDING.** Record its successful workflow
-  URL and confirm it publishes the merged commit.
-- **Deployment commit/date: PENDING.** Read the public deployment manifest and
-  compare the deployed commit and thumbnail hashes to the merged artifact.
-- **Public gallery: PENDING.** Check
-  <https://takahirox.github.io/three-mmd-loader/examples/> serves all five
-  refreshed thumbnails, including the separate Worker and refreshed Gene images.
-- **Public example startup: PENDING.** Navigate to each of the five scenes and
-  check that assets load and no runtime errors occur; record the results.
+- **Merge-triggered Pages workflow URL/result: PENDING.** Confirm successful
+  completion and publication of the merged commit.
+- **Deployed commit/date: PENDING.** Read the public deployment manifest and
+  compare the commit and image hashes to the merged artifact.
+- **Public gallery: PENDING.** Verify
+  <https://takahirox.github.io/three-mmd-loader/examples/> serves the four
+  refreshed Miku previews (including the separate Worker image) and the
+  unchanged Gene preview with the fixed hash above.
+- **All five public example pages: PENDING.** Navigate to every scene and
+  record whether assets load without runtime errors.
 
-If publication fails, file a follow-up and report the actual failure instead
-of claiming success. Optional subjective review remains a separate follow-up.
+If publication fails, record the actual failure and follow up separately.
+Optional maintainer visual review remains PENDING until actually performed;
+it is not a pre-merge blocker.
