@@ -60,23 +60,30 @@ require all four Miku images to differ from their Issue #63 previews and the
 Worker capture to be distinct. Build checks verify exact copies of all five
 images and the capture manifest. Existing Gene loading/error checks remain.
 
-## Required post-merge verification: PENDING
+## Post-merge verification: publication failed; new-site checks PENDING
 
-No merge, push, workflow dispatch, publication, or public-site verification was
-performed during this node. These checks must be recorded after merging and
-are not pre-merge approval requirements:
+PR #67 merged at 2026-10-14T16:06:39Z with merge commit
+`9b0ef7d966beb374758f00bc5598f8293764d372`, preserving the reviewed head
+`3db055db4a162e222aee16a6b1b411b55f004f52` as its second parent. Issue #66
+was read and confirmed open immediately before the merge attempt.
 
-- **Merge-triggered Pages workflow URL/result: PENDING.** Confirm successful
-  completion and publication of the merged commit.
-- **Deployed commit/date: PENDING.** Read the public deployment manifest and
-  compare the commit and image hashes to the merged artifact.
-- **Public gallery: PENDING.** Verify
-  <https://takahirox.github.io/three-mmd-loader/examples/> serves the four
-  refreshed Miku previews (including the separate Worker image) and the
-  unchanged Gene preview with the fixed hash above.
-- **All five public example pages: PENDING.** Navigate to every scene and
-  record whether assets load without runtime errors.
+The merge-triggered [Pages workflow](https://github.com/takahirox/three-mmd-loader/actions/runs/38595252652)
+completed with **FAILURE** at 2026-10-14T16:09:19Z. Build, built-site browser
+validation and configuration checks passed. The backup step failed with
+`Public content mismatch: node_modules/three/examples/jsm/tsl/display/RetroPassNode.js (HTTP 503)`.
+The deployment and rollback steps were skipped; the new commit was not published.
 
-If publication fails, record the actual failure and follow up separately.
-Optional maintainer visual review remains PENDING until actually performed;
-it is not a pre-merge blocker.
+The public deployment manifest still identifies
+`d98d77fbd3e36bde670b9130578b895a3caaf912`, whose successful Pages deployment
+was recorded at 2026-10-14T11:45:16Z. All five public JPEG requests
+returned HTTP 200 and matched that deployment's manifest. The four Miku
+previews still have their previous hashes; Gene matches the unchanged pinned
+hash. Exact timestamps and expected/observed image hashes are recorded in
+[post-merge evidence](issue-66-post-merge-validation.json).
+
+Successful publication of the merged commit, its deployment date, verification
+of the four refreshed public previews, and runtime/asset checks of all five
+newly published example pages remain **PENDING**. Follow up on the backup HTTP
+503 separately and complete those checks after successful publication.
+Optional maintainer visual review remains **PENDING**; it is not a pre-merge
+blocker. No workflow retry or deployment configuration change was performed.

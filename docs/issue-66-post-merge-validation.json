@@ -1,0 +1,78 @@
+{
+  "checkedAt": "2026-10-14T16:10:10.894Z",
+  "mergeCommit": "9b0ef7d966beb374758f00bc5598f8293764d372",
+  "prHead": "3db055db4a162e222aee16a6b1b411b55f004f52",
+  "workflowUrl": "https://github.com/takahirox/three-mmd-loader/actions/runs/38595252652",
+  "workflowConclusion": "failure",
+  "failure": {
+    "step": "Verify and back up the current public site",
+    "message": "Public content mismatch: node_modules/three/examples/jsm/tsl/display/RetroPassNode.js (HTTP 503)",
+    "deploymentAttempted": false
+  },
+  "publicSite": {
+    "url": "https://takahirox.github.io/three-mmd-loader/",
+    "manifestStatus": 200,
+    "deployedCommit": "d98d77fbd3e36bde670b9130578b895a3caaf912",
+    "expectedCommitPublished": false,
+    "deploymentId": 7064379435,
+    "deployedAt": "2026-10-14T11:45:16Z",
+    "deploymentLogUrl": "https://github.com/takahirox/three-mmd-loader/actions/runs/38546354083/job/115834196762"
+  },
+  "screenshots": [
+    {
+      "path": "examples/screenshots/webgl_loader_mmd.jpg",
+      "status": 200,
+      "expectedSha256": "29677c3d3816cbf7ccde248e0dc8ef794463c4fb5a81fa8c444950c12bcf084c",
+      "actualSha256": "6acd677980a41dd35d5ffade7937dd35e57d0be98dcaecdec5dc2b69bc384ce8",
+      "matchesNewCapture": false,
+      "matchesCurrentlyDeployedManifest": true
+    },
+    {
+      "path": "examples/screenshots/webgl_loader_mmd_audio.jpg",
+      "status": 200,
+      "expectedSha256": "b090d442aeed0f3f77c709cda1173193ea9175b574365870198cab41dc97c3f7",
+      "actualSha256": "272395631a0018e41a0c0e8b131db99174007ed86d02f11159caf866c9c48d2c",
+      "matchesNewCapture": false,
+      "matchesCurrentlyDeployedManifest": true
+    },
+    {
+      "path": "examples/screenshots/webgl_loader_mmd_pose.jpg",
+      "status": 200,
+      "expectedSha256": "a98fa116780426a93f47ffd1b6b831c4efa1b0fd006c9ecfb6d710d6338ce315",
+      "actualSha256": "25b27f1face319f6d36ed356a8f7847ec874174bf76c8839d8382eb7287fdfda",
+      "matchesNewCapture": false,
+      "matchesCurrentlyDeployedManifest": true
+    },
+    {
+      "path": "examples/screenshots/webgl_loader_mmd_worker.jpg",
+      "status": 200,
+      "expectedSha256": "4b0b3107c5c62f7ab976afb5d68ba520c09fa68512a8bc67afb5366cce73168f",
+      "actualSha256": "ceb75de73236d773ad4140bba8fbc8cc634f1536a77883cdd6d3b501808b703f",
+      "matchesNewCapture": false,
+      "matchesCurrentlyDeployedManifest": true
+    },
+    {
+      "path": "examples/screenshots/webgl_loader_mmd_pmx_gene.jpg",
+      "status": 200,
+      "expectedSha256": "b0ad142b8a7c7e640893a1e07205e9508484fe28c11ffc2382e6c1780ca6da48",
+      "actualSha256": "b0ad142b8a7c7e640893a1e07205e9508484fe28c11ffc2382e6c1780ca6da48",
+      "matchesNewCapture": true,
+      "matchesCurrentlyDeployedManifest": true
+    }
+  ],
+  "newPublicationVerification": "PENDING",
+  "publicSceneRuntimeVerification": "PENDING",
+  "optionalMaintainerVisualReview": "PENDING",
+  "mergeTime": "2026-10-14T16:06:39Z",
+  "sourceIssue": {
+    "number": 66,
+    "stateImmediatelyBeforeMerge": "open"
+  },
+  "mergeParents": [
+    "d98d77fbd3e36bde670b9130578b895a3caaf912",
+    "3db055db4a162e222aee16a6b1b411b55f004f52"
+  ],
+  "workflowCreatedAt": "2026-10-14T16:06:43Z",
+  "workflowUpdatedAt": "2026-10-14T16:09:19Z",
+  "followUp": "Investigate the backup HTTP 503 separately; publish the merged commit and verify all five public scenes and preview hashes. No workflow retry or configuration change was performed."
+}
