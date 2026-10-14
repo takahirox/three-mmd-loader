@@ -112,7 +112,7 @@ try {
 			geneTitle: doc.querySelector( '[data-example="webgl_loader_mmd_pmx_gene"] .title' ).textContent === 'PMX — Gene (Light)',
 			workerTitle: doc.querySelector( '[data-example="webgl_loader_mmd_worker"] .title' ).textContent === 'Worker Physics',
 			category: doc.querySelector( '#content h2' ).textContent === 'webgl / loaders / mmd',
-			images: ids.every( ( id, i ) => { const image = cards[i].querySelector( 'img' ); return image.getAttribute( 'src' ) === './screenshots/' + id.replace( '_worker', '' ) + '.jpg' && image.complete && image.naturalWidth === 400 && image.naturalHeight === 250 && image.alt.length > 0; } ),
+			images: ids.every( ( id, i ) => { const image = cards[i].querySelector( 'img' ); return image.getAttribute( 'src' ) === './screenshots/' + id + '.jpg' && image.complete && image.naturalWidth === 400 && image.naturalHeight === 250 && image.alt.length > 0; } ),
 			previewAspect: cards.every( card => { const rect = card.querySelector( '.cover' ).getBoundingClientRect(); return Math.abs( rect.height / rect.width - 9 / 16 ) < 0.001; } ),
 			typography: css( doc.body ).fontFamily === '"Roboto Mono", monospace' && css( doc.body ).fontSize === '15px' && css( doc.body ).lineHeight === '25px' && doc.fonts.check( '15px "Roboto Mono"' ),
 			lightColors: css( doc.body ).backgroundColor === 'rgb(255, 255, 255)' && css( doc.body ).color === 'rgb(68, 68, 68)' && css( cards[0] ).backgroundColor === 'rgb(247, 247, 247)',
@@ -268,7 +268,7 @@ try {
 		const lights = scene.children.filter( child => child.isLight );
 		const ambient = lights.find( child => child.isAmbientLight );
 		const directional = lights.find( child => child.isDirectionalLight );
-		checks.lightIntensities = lights.length === 2 && ambient.intensity === 2 && directional.intensity === 3;
+		checks.lightIntensities = lights.length === 2 && ambient.intensity === 1 && directional.intensity === 1;
 		checks.lightColors = ambient.color.getHex() === 0xffffff && directional.color.getHex() === 0xffffff;
 		checks.lightDirection = directional.position.toArray().join( ',' ) === '-1,2,1' && directional.target.position.toArray().join( ',' ) === '0,0,0';
 		let guiRect = gui.getBoundingClientRect();
@@ -418,7 +418,7 @@ function wavBuffer() {
 
 }
 
-test( 'example pages match Three.js layout, resize, render, and preserve interactive controls', { timeout: process.env.MMD_EXAMPLE_SITE ? 360000 : 180000 }, async t => {
+test( 'example pages match Three.js layout, resize, render, and preserve interactive controls', { timeout: 360000 }, async t => {
 
 	if ( ! process.env.MMD_EXAMPLE_SITE ) await fetchGeneLightAssets();
 	const temporary = await mkdtemp( join( tmpdir(), 'three-mmd-examples-' ) );
@@ -493,10 +493,10 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 			assert.match( await index.text(), /webgl_loader_mmd_audio.html/ );
 
 		}
-		// The built site uses the full distributed model/motion/audio rather than
-		// synthetic fixtures. Repeated navigation and SwiftShader rendering can
-		// exceed 45 seconds on CI; give this four-page session a bounded five-minute budget.
-		const timeoutMs = siteRoot ? 300000 : 120000;
+		// Both paths repeatedly initialize the real Gene scene as well as all four
+		// Miku pages. Navigation and SwiftShader rendering can exceed two minutes;
+		// give the complete five-page session the same bounded five-minute budget.
+		const timeoutMs = 300000;
 		const started = performance.now();
 		const results = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test`, join( temporary, 'profile' ), 'light', timeoutMs ).catch( error => {
 

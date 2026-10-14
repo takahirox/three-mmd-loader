@@ -61,9 +61,9 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' | 'gene'
 		gui.domElement.setAttribute( 'aria-busy', 'true' );
 		const scene = new Scene();
 		scene.background = new Color( 0xffffff );
-		const ambient = mode === 'gene' ? new AmbientLight( 0xffffff ) : new AmbientLight( 0xffffff, 2 );
+		const ambient = new AmbientLight( 0xffffff );
 		scene.add( new PolarGridHelper( 30, 8 ), ambient );
-		const light = mode === 'gene' ? new DirectionalLight( 0xffffff ) : new DirectionalLight( 0xffffff, 3 );
+		const light = new DirectionalLight( 0xffffff );
 		light.position.set( - 1, 2, 1 );
 		scene.add( light );
 		const camera = new PerspectiveCamera( 45, innerWidth / innerHeight, 0.1, 2000 );
