@@ -1,0 +1,22 @@
+{
+  "repository": "takahirox/three-mmd-loader",
+  "issue": 59,
+  "pr": {
+    "number": 60,
+    "url": "https://github.com/takahirox/three-mmd-loader/pull/60",
+    "head_sha": "b6c4fdf4e7ad81074afd7d6d3c01c961dfa906c5"
+  },
+  "merged": true,
+  "merge_commit": "ff60f3efbe32a0f2b8cb44aeecb2a32af0884aec",
+  "closed": true,
+  "issue_state_before": "closed",
+  "issue_state_after": "closed",
+  "state_mutation": "none; already closed",
+  "comment": {
+    "id": 6161917013,
+    "url": "https://github.com/takahirox/three-mmd-loader/issues/59#issuecomment-6161917013",
+    "body": "Implemented in merged [PR #60](https://github.com/takahirox/three-mmd-loader/pull/60), merge commit `ff60f3efbe32a0f2b8cb44aeecb2a32af0884aec`. This issue is already closed as completed; its state was left unchanged.\n\nThe upstream merge verification reports that main CI passed. The merge-triggered [Pages workflow](https://github.com/takahirox/three-mmd-loader/actions/runs/38518617716) failed on 2026-10-14 at 05:51:34 UTC while verifying/backing up the existing public site, with HTTP 503 for `node_modules/three/examples/jsm/shaders/SepiaShader.js`. Publication was skipped and the previous public deployment was preserved.\n\nPost-merge verification of the merged commit on Pages remains **pending** as a separate follow-up: investigate or rerun the failed deployment, confirm the published commit, then check Gene Light and the existing examples for runtime/asset errors. The upstream check found all five examples loading successfully on the previous deployment (`c839b3144bbaba731fec105ab7ef9b1cefbe4049`, deployed 2026-10-14 at 04:40:40 UTC); that does not verify the merged shading change. Evidence is recorded in `gitweave-merge-verification.json`. Optional appearance comparison remains a follow-up, not a merge gate."
+  },
+  "postmerge_verification": "pending; merge-triggered Pages deployment failed before publication; see gitweave-merge-verification.json",
+  "verified_at": "2026-10-14T05:54:53.572Z"
+}
