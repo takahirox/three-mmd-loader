@@ -1,0 +1,145 @@
+{
+  "repository": "takahirox/three-mmd-loader",
+  "issue": 59,
+  "issue_state_immediately_before_merge": "open",
+  "pr": {
+    "number": 60,
+    "url": "https://github.com/takahirox/three-mmd-loader/pull/60",
+    "head_sha": "b6c4fdf4e7ad81074afd7d6d3c01c961dfa906c5"
+  },
+  "merged": true,
+  "retry": false,
+  "merge_commit": "ff60f3efbe32a0f2b8cb44aeecb2a32af0884aec",
+  "merge_method": "merge",
+  "merged_at": "2026-10-14T05:48:22Z",
+  "parents": [
+    "c839b3144bbaba731fec105ab7ef9b1cefbe4049",
+    "b6c4fdf4e7ad81074afd7d6d3c01c961dfa906c5"
+  ],
+  "premerge": {
+    "head_matches": true,
+    "mergeable": "MERGEABLE",
+    "merge_state": "CLEAN",
+    "github_checks": "passed",
+    "upstream_review": "approved",
+    "checks_or_reviews_bypassed": false
+  },
+  "postmerge": {
+    "pages_workflow": {
+      "id": 38518617716,
+      "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38518617716",
+      "commit": "ff60f3efbe32a0f2b8cb44aeecb2a32af0884aec",
+      "conclusion": "failure",
+      "build": "success",
+      "setup": "success",
+      "deploy": "failure",
+      "failure_step": "Verify and back up the current public site",
+      "failed_at": "2026-10-14T05:51:34Z",
+      "error": "Public content mismatch: node_modules/three/examples/jsm/shaders/SepiaShader.js (HTTP 503)",
+      "publication": "skipped; existing public site preserved",
+      "deployment_evidence_artifact_id": 11873076080
+    },
+    "merged_commit_public_verification": "pending: merged commit was not deployed",
+    "currently_published": {
+      "commit": "c839b3144bbaba731fec105ab7ef9b1cefbe4049",
+      "deployment_run": "https://github.com/takahirox/three-mmd-loader/actions/runs/38512374520",
+      "deployed_at": "2026-10-14T04:40:40Z",
+      "manifest_files": 598
+    },
+    "current_public_examples": {
+      "checked_at": "2026-10-14T05:53:17.550Z",
+      "results": [
+        {
+          "page": "webgl_loader_mmd_pmx_gene",
+          "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_pmx_gene.html?backend=webgl",
+          "backend": "WebGL2",
+          "runtimeErrors": [],
+          "consoleErrors": [],
+          "assetErrors": [],
+          "state": "ready",
+          "status": "sync — main-thread helper update: 2.60 ms (mean)",
+          "drawCalls": 22,
+          "canvas": true,
+          "success": true,
+          "auxiliaryRequestErrors": [
+            {
+              "url": "https://takahirox.github.io/favicon.ico",
+              "status": 404
+            }
+          ]
+        },
+        {
+          "page": "webgl_loader_mmd",
+          "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html?backend=webgl",
+          "backend": "WebGL2",
+          "runtimeErrors": [],
+          "consoleErrors": [],
+          "assetErrors": [],
+          "state": "ready",
+          "status": "sync — main-thread helper update: 0.94 ms (mean)",
+          "drawCalls": 25,
+          "canvas": true,
+          "success": true,
+          "auxiliaryRequestErrors": []
+        },
+        {
+          "page": "webgl_loader_mmd_audio",
+          "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_audio.html?backend=webgl",
+          "backend": "WebGL2",
+          "runtimeErrors": [],
+          "consoleErrors": [],
+          "assetErrors": [],
+          "state": "ready",
+          "status": "Ready — press Play to start.",
+          "drawCalls": 25,
+          "canvas": true,
+          "success": true,
+          "auxiliaryRequestErrors": []
+        },
+        {
+          "page": "webgl_loader_mmd_pose",
+          "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_pose.html?backend=webgl",
+          "backend": "WebGL2",
+          "runtimeErrors": [],
+          "consoleErrors": [],
+          "assetErrors": [],
+          "state": "ready",
+          "status": "Loading assets: 16/16",
+          "drawCalls": 25,
+          "canvas": true,
+          "success": true,
+          "auxiliaryRequestErrors": []
+        },
+        {
+          "page": "webgl_loader_mmd_worker",
+          "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html?backend=webgl",
+          "backend": "WebGL2",
+          "runtimeErrors": [],
+          "consoleErrors": [],
+          "assetErrors": [],
+          "state": "ready",
+          "status": "worker / transferable — main-thread helper update: 0.40 ms (mean)",
+          "drawCalls": 25,
+          "canvas": true,
+          "success": true,
+          "auxiliaryRequestErrors": []
+        }
+      ],
+      "success": true,
+      "scope": "Current previous deployment; five published pages checked with Chrome WebGL2. This does not verify the merged shading change on Pages.",
+      "note": "Browser automatically requested origin-root favicon.ico and received 404. Recorded separately from example assets; no example runtime, console, or asset errors."
+    },
+    "failed_shader_url_recheck": {
+      "status": 200,
+      "interpretation": "Consistent with transient HTTP failure; workflow was not rerun."
+    },
+    "main_tests": {
+      "conclusion": "success",
+      "headSha": "ff60f3efbe32a0f2b8cb44aeecb2a32af0884aec",
+      "status": "completed",
+      "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38518617700"
+    },
+    "follow_up": "Re-run or investigate the failed Pages deployment separately, then verify public manifest matches the merge commit and repeat published example runtime/asset checks. Optional appearance comparison remains outside the acceptance criteria."
+  },
+  "recorded_at": "2026-10-14T05:53:55.721Z"
+}
