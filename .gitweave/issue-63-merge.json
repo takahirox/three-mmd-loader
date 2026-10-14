@@ -1,0 +1,88 @@
+{
+  "repository": "takahirox/three-mmd-loader",
+  "source_issue": {
+    "number": 63,
+    "url": "https://github.com/takahirox/three-mmd-loader/issues/63",
+    "state_immediately_before_merge": "open"
+  },
+  "pr": {
+    "number": 64,
+    "url": "https://github.com/takahirox/three-mmd-loader/pull/64",
+    "head_sha": "5d00fc87f05e145e096dcb2c1e8e735ebc8d7f6f"
+  },
+  "merged": true,
+  "retry": false,
+  "merge_method": "merge",
+  "merge_commit": "d98d77fbd3e36bde670b9130578b895a3caaf912",
+  "merged_at": "2026-10-14T09:59:15Z",
+  "merge_parents": [
+    "5a2263cfe0eb883f0b5651e56659d1dc176e4f53",
+    "5d00fc87f05e145e096dcb2c1e8e735ebc8d7f6f"
+  ],
+  "github_policy": {
+    "merge_state_before_attempt": "CLEAN",
+    "head_matched": true,
+    "pr_checks": "passed",
+    "required_checks_or_reviews_bypassed": false
+  },
+  "post_merge_pages": {
+    "workflow_url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38546354083",
+    "workflow_commit": "d98d77fbd3e36bde670b9130578b895a3caaf912",
+    "workflow_conclusion": "failure",
+    "workflow_finished_at": "2026-10-14T10:02:25Z",
+    "build": "success",
+    "built_site_browser_validation": "success",
+    "setup": "success",
+    "failed_step": "Verify and back up the current public site",
+    "error": "Public content mismatch: examples/webgl_loader_mmd.js (HTTP 503)",
+    "deploy_step": "skipped",
+    "new_commit_published": false,
+    "new_commit_deployed_at": null,
+    "public_check": {
+      "checked_at": "2026-10-14T10:03:17Z",
+      "public_manifest_commit": "5a2263cfe0eb883f0b5651e56659d1dc176e4f53",
+      "expected_commit": "d98d77fbd3e36bde670b9130578b895a3caaf912",
+      "thumb_checks": [
+        {
+          "path": "examples/screenshots/webgl_loader_mmd.jpg",
+          "http_status": 200,
+          "sha256": "cafcefaf89c4f1aab27ccfe04814dbab9a0ce284ee3986aad7fd1775dd38e752",
+          "expected_sha256": "6acd677980a41dd35d5ffade7937dd35e57d0be98dcaecdec5dc2b69bc384ce8",
+          "matches_refreshed_thumbnail": false
+        },
+        {
+          "path": "examples/screenshots/webgl_loader_mmd_audio.jpg",
+          "http_status": 200,
+          "sha256": "a70899949825958739cf088fde4a465f6a0557a495666979535aebcbb2dcc7c3",
+          "expected_sha256": "272395631a0018e41a0c0e8b131db99174007ed86d02f11159caf866c9c48d2c",
+          "matches_refreshed_thumbnail": false
+        },
+        {
+          "path": "examples/screenshots/webgl_loader_mmd_pose.jpg",
+          "http_status": 200,
+          "sha256": "d5454b4f9e4122340f8efb16873125de283e728bb81c2cdfccb9d88f67b6c9c0",
+          "expected_sha256": "25b27f1face319f6d36ed356a8f7847ec874174bf76c8839d8382eb7287fdfda",
+          "matches_refreshed_thumbnail": false
+        },
+        {
+          "path": "examples/screenshots/webgl_loader_mmd_worker.jpg",
+          "error": "HTTP Error 404: Not Found",
+          "matches_refreshed_thumbnail": false
+        },
+        {
+          "path": "examples/screenshots/webgl_loader_mmd_pmx_gene.jpg",
+          "http_status": 200,
+          "sha256": "1ca9d8be3f974710ed186e6115a04e01305986ec5f9862001b4d2d57a9d2d790",
+          "expected_sha256": "b0ad142b8a7c7e640893a1e07205e9508484fe28c11ffc2382e6c1780ca6da48",
+          "matches_refreshed_thumbnail": false
+        }
+      ],
+      "updated_site_verification": "PENDING"
+    },
+    "updated_thumbnail_and_example_runtime_verification": "PENDING",
+    "follow_up": {
+      "number": 65,
+      "url": "https://github.com/takahirox/three-mmd-loader/issues/65"
+    }
+  }
+}
