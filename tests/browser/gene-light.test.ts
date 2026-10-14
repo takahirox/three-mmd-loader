@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve, sep } from 'node:path';
@@ -9,10 +9,9 @@ import { inspectGeneLight } from '../../scripts/inspect-gene-light.ts';
 import { createExamplesServer } from '../../scripts/serve-examples.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
-interface Result { checks: Record<string, boolean>; error?: string; preview?: string }
+interface Result { checks: Record<string, boolean>; error?: string }
 const harness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
 const checks = {}, errors = [];
-let preview;
 try {
  const frame = document.createElement('iframe'); frame.width=1024; frame.height=768;
  const loaded = new Promise(resolve => frame.onload=resolve);
@@ -89,11 +88,6 @@ try {
  morphFolder.close();
  checks.noIsolation=page.crossOriginIsolated===false;
  checks.noRuntimeErrors=errors.length===0;
- if (CAPTURE) {
-  helper.enable('physics',false);state.mixer.setTime(0);helper.update(0);
-  renderer.setSize(400,250);camera.aspect=400/250;camera.position.set(0,10,32);camera.lookAt(0,10,0);camera.updateProjectionMatrix();
-  effect.render(scene,camera);preview=canvas.toDataURL('image/jpeg',0.9);
- }
  renderer.debug.onShaderError();checks.failure=doc.body.dataset.state==='error' && gui.controllersRecursive().every(c=>c._disabled) && doc.getElementById('status').textContent.includes('npm run examples:assets');
  frame.remove();
  // Missing PMX or textures must fail before enabling controls.
@@ -105,7 +99,7 @@ try {
   checks['missing_'+missing]=rejected && f.contentDocument.body.dataset.state==='error' && f.contentDocument.getElementById('controls').getAttribute('aria-disabled')==='true';f.remove();
  }
 } catch(error) { document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks,error:error.stack||String(error)})); }
-if(document.getElementById('result').textContent==='pending')document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks,preview}));
+if(document.getElementById('result').textContent==='pending')document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks}));
 </script>`;
 
 test( 'licensed pinned Gene Light renders and exercises its actual PMX features without cross-origin isolation', { timeout: 180000, skip: process.env.MMD_EXAMPLE_FIXTURES === '1' ? 'Synthetic artifact only; real pinned Gene is checked by test:browser and the Pages build.' : false }, async t => {
@@ -121,7 +115,7 @@ test( 'licensed pinned Gene Light renders and exercises its actual PMX features 
 
 		if ( request.url === '/test' ) {
 
-			response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness.replaceAll( '/examples/', prefix + '/examples/' ).replace( 'CAPTURE', process.env.GENE_CAPTURE_PREVIEW === '1' ? 'true' : 'false' ) );
+			response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness.replaceAll( '/examples/', prefix + '/examples/' ) );
 
 		} else if ( request.headers.referer?.includes( 'missing=model' ) && request.url?.endsWith( '/Gene_light.pmx' ) ||
 			request.headers.referer?.includes( 'missing=texture' ) && request.url?.endsWith( '/light/face.png' ) ) {
@@ -158,7 +152,6 @@ test( 'licensed pinned Gene Light renders and exercises its actual PMX features 
 		}
 		const result = await runBrowser<Result>( base + '/test', join( temporary, 'profile' ), 'light', 150000 );
 		assert.equal( result.error, undefined, result.error );
-		if ( result.preview ) await writeFile( new URL( '../../examples/screenshots/webgl_loader_mmd_pmx_gene.jpg', import.meta.url ), Buffer.from( result.preview.split( ',' )[ 1 ], 'base64' ) );
 		t.diagnostic( JSON.stringify( result.checks ) );
 		for ( const [ name, passed ] of Object.entries( result.checks ) ) assert.equal( passed, true, name );
 

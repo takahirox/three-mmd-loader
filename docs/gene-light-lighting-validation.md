@@ -1,5 +1,9 @@
 # Gene Light scene lighting validation — Issue #61
 
+Historical validation for Issue #61. Issue #63 subsequently generalizes default
+intensity 1 to all modes and refreshes all previews; see
+[the current validation record](default-lighting-validation.md).
+
 Checked on 2026-10-14 before merge, using Node.js 24.12.0 and Google Chrome
 155.0.8059.79 on macOS.
 

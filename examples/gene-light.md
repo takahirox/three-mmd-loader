@@ -107,14 +107,18 @@ standard mobile GUI.
 
 `examples/screenshots/webgl_loader_mmd_pmx_gene.jpg` is a locally rendered
 400×250 preview of this exact permitted scene. It retains the model credit
-above and in the gallery's linked terms. To regenerate after building:
+above and in the gallery's linked terms. Issue #63 refreshes it with native
+default light intensities, the existing scene camera, and active physics at two
+seconds of the generated animation. To regenerate all gallery previews:
 
 ```sh
-GENE_CAPTURE_PREVIEW=1 node --import tsx --test tests/browser/gene-light.test.ts
+npm run examples:capture
 ```
 
-This changes the camera/framing for the preview and captures the rendered
-canvas; it does not use an unrelated image or modify the downloaded assets.
+This captures the rendered canvas at 400×250 without changing camera positions
+or model assets. The [capture method and derivative-work notices](./README.md#gallery-thumbnail-capture)
+and [manifest](./screenshots/manifest.json) record exact provenance. The former
+`GENE_CAPTURE_PREVIEW` test switch is superseded by this capture command.
 
 ## Verification status
 

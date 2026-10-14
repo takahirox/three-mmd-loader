@@ -75,6 +75,7 @@
     "test:browser": "node --import tsx --test --test-concurrency=1 tests/browser/*.test.ts",
     "dev": "node --import tsx scripts/serve-examples.ts",
     "examples:assets": "node --import tsx scripts/fetch-example-assets.ts",
+    "examples:capture": "npm run build && npm run examples:assets && node --import tsx scripts/capture-example-thumbnails.ts",
     "build:examples": "npm run examples:assets && node --import tsx scripts/build-examples.ts",
     "setup:pages": "node --import tsx scripts/setup-pages.ts --configure",
     "test:examples": "node --import tsx --test --test-concurrency=1 tests/browser/examples.test.ts tests/browser/gene-light.test.ts",

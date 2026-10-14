@@ -75,6 +75,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			'examples/screenshots/webgl_loader_mmd.jpg',
 			'examples/screenshots/webgl_loader_mmd_audio.jpg',
 			'examples/screenshots/webgl_loader_mmd_pose.jpg',
+			'examples/screenshots/webgl_loader_mmd_worker.jpg', 'examples/screenshots/manifest.json',
 			'examples/fonts/RobotoMono-Regular.woff2', 'examples/fonts/RobotoMono-Medium.woff2',
 			'examples/fonts/LICENSE.txt',
 			'examples/webgl_loader_mmd.html', 'examples/webgl_loader_mmd_audio.html',

@@ -31,11 +31,13 @@ how to choose a demo and the mobile list opens initially.
 light/dark colors from the Issue #14 references: Three.js `examples/index.html`
 (blob `7b53cc789e644957e4b3bc8f9ca21b9ca81e5f06`) and `files/main.css`
 (blob `eab4263a7a7570bb433cab3048d5735d4782f673`). It is separate from the demo
-stylesheets. The three original Miku previews in `screenshots/` are the matching
-official r171 MMD example screenshots (the Worker card reuses the model/animation
-preview), retrieved from the same pinned Three.js
-commit as the models below. They depict the credited Miku character and retain
-the applicable character/asset terms; they do not relicense the models. The
+stylesheets. The four Miku previews in `screenshots/` replace the original
+official r171 screenshots with local captures of this checkout's real
+model/animation, audio/camera, pose, and Worker scenes under default lighting.
+Their model, texture, motion, camera, and pose sources are pinned to the same
+Three.js commit as the assets below. They depict the credited Miku character
+and retain the applicable character/asset terms; they are not MIT licensed
+and do not relicense the models. The
 Roboto Mono fonts in `fonts/` also come from that pinned commit and include
 their Apache 2.0 license. All browser assets are local and copied to the static
 build, so previews and typography need no external requests.
@@ -95,8 +97,8 @@ The [provenance and inspection record](./gene-light.md) documents the pre-merge
 rights review, exact asset selection, and measured lightweight PMX features.
 Use the animation/IK/grant/physics/debug toggles and open **Morph weights** for
 vertex, group, UV, and material sliders. The asset has no SDEF or bone morphs.
-The new preview is a rendering of this permitted scene, with credit above;
-it is separate from the three official Miku previews.
+The refreshed preview is a rendering of this permitted scene, with credit above;
+it is separate from the four Miku previews and retains CC BY 4.0 attribution.
 
 `npm run examples:assets` acquires and integrity-checks the public allowlist;
 `npm run build:examples` rechecks every Gene model/texture/notice file. The
@@ -143,6 +145,66 @@ any scene URL to exercise WebGL2 explicitly. Loading requires WebGPU or WebGL2;
 audio playback also needs browser audio support.
 
 ## Assets and credits
+
+### Gallery thumbnail capture
+
+All five gallery cards use local **400×250 JPEG** captures from their real
+example pages with white `AmbientLight` and `DirectionalLight` at native
+Three.js intensities (both 1). Issue #63 replaces all previous previews,
+including Gene's earlier custom framing, and adds a separate Worker image.
+Camera positions, lighting direction, materials, outlines, and renderer tone
+mapping remain those of the examples. This is a preview refresh, not a claim
+of exact MikuMikuDance parity or a separately confirmed visual outcome.
+
+From the repository root with dependencies and Chrome installed:
+
+```sh
+npm run examples:capture
+```
+
+Set `CHROME_BIN` if Chrome is outside the platform's usual install path. The
+command compiles the checkout, obtains the pinned real assets using
+`examples:assets`, and runs `scripts/capture-example-thumbnails.ts` against a
+temporary loopback server. It verifies every Miku Git blob and every Gene
+hash before loading; `MMD_EXAMPLE_FIXTURES=1` is rejected. No fixture or private
+model is used. Nothing is downloaded from a different source on failure.
+
+The browser uses WebGL2 through Chrome SwiftShader, a 400×250 viewport, pixel
+ratio 1, and JPEG quality 0.9. It stops the live render loop, resets the motion
+and physics, then samples two seconds at 1/60-second steps with IK, physics,
+and outlines enabled. Worker steps are awaited and sync fallback fails capture.
+Audio/camera uses its authored VMD camera and dance at two seconds, before the
+music's 5.33-second delay; Poses selects KEITEL's **Pose 1** with IK enabled.
+Gene uses its locally authored demonstration animation at two seconds.
+Only the canvas is encoded, so controls and text are outside the image.
+All captures must pass readiness, model, light, camera, rendering, backend,
+and runtime-error checks before any image is replaced.
+
+[`screenshots/manifest.json`](./screenshots/manifest.json) records the capture
+date, browser, asset source commits, scene source hash, frame/pose state,
+checks, image SHA-256s, and original replaced image hashes (retained on
+recapture). The method reproduces the scene state; JPEG bytes can vary with
+browser/platform versions. Automated
+tests verify all five gallery references, image hashes, current scene
+provenance, and decoded 400×250 dimensions in the browser. The static build
+copies the images and manifest; the npm package excludes example assets.
+
+Miku images derive from the credited Three.js r171 MMD assets below: model
+and eye texture from MMD / Yu Higuchi, character © Crypton Future Media;
+WAVEFILE motion by hino; the audio card's camera by doramata, customized by
+Takahiro; and Pose 1 by KEITEL. The audio example also uses LamazeP's music,
+which is not embedded in the JPEG. These captures replace upstream-derived
+previews and preserve the character guidelines and individual asset terms,
+separately from the repository's MIT code license. Gene's refreshed rendering
+is a derivative presentation of the unchanged CC BY 4.0 Gene Light model and
+textures, with the credit and separate usage conditions above. Neither image
+set asserts author endorsement or grants additional character/asset rights.
+
+Issue #63's required post-merge workflow and public gallery verification is
+**PENDING**; see [the validation record](https://github.com/takahirox/three-mmd-loader/blob/main/docs/default-lighting-validation.md).
+It is not a pre-merge gate.
+
+### Miku asset sources
 
 The Miku PMD/VMD/audio/pose assets described in this section are **not covered by this repository's MIT license** and are
 not committed or included in the npm package. Consult the upstream
