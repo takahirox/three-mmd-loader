@@ -1,0 +1,30 @@
+{
+  "repository": "takahirox/three-mmd-loader",
+  "issue": {
+    "number": 63,
+    "url": "https://github.com/takahirox/three-mmd-loader/issues/63",
+    "closed": true,
+    "state_reason": "completed",
+    "already_closed": true,
+    "state_changed_by_this_node": false
+  },
+  "pr": {
+    "number": 64,
+    "url": "https://github.com/takahirox/three-mmd-loader/pull/64",
+    "head_sha": "5d00fc87f05e145e096dcb2c1e8e735ebc8d7f6f"
+  },
+  "merged": true,
+  "merge_commit": "d98d77fbd3e36bde670b9130578b895a3caaf912",
+  "outcome_comment": {
+    "id": 6165872896,
+    "url": "https://github.com/takahirox/three-mmd-loader/issues/63#issuecomment-6165872896",
+    "body": "PR #64 (https://github.com/takahirox/three-mmd-loader/pull/64) was merged as `d98d77fbd3e36bde670b9130578b895a3caaf912`. Issue #63 is already closed as completed; its state was preserved.\n\nPost-merge Pages publication failed in the [merge-triggered workflow](https://github.com/takahirox/three-mmd-loader/actions/runs/38546354083): the current-site backup verification received HTTP 503 for `examples/webgl_loader_mmd.js`, so deployment was skipped. The upstream merge node recorded that the public site still served the prior commit. Publication of the merged commit, refreshed thumbnails for all five cards, and public example loading/runtime verification remain **PENDING**. Follow-up #65 (https://github.com/takahirox/three-mmd-loader/issues/65) tracks publication recovery and those checks."
+  },
+  "post_merge_pages": {
+    "source": ".gitweave/issue-63-merge.json",
+    "workflow_url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38546354083",
+    "recorded_conclusion": "failure",
+    "publication_and_updated_site_verification": "PENDING",
+    "follow_up": "https://github.com/takahirox/three-mmd-loader/issues/65"
+  }
+}
