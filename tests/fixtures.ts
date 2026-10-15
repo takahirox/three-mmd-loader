@@ -99,7 +99,7 @@ export function materialPmxBuffer( { allAdd = false }: { allAdd?: boolean } = {}
 
 const vertices = [ [ 0, 0, 1 ], [ 1, 0, 1 ], [ 0, 1, 1 ] ];
 
-export function pmdBuffer() {
+export function pmdBuffer( { twoBones = false }: { twoBones?: boolean } = {} ) {
 
 	const w = new Writer();
 	w.text( 'Pmd', 3 ).f32( 1 ).text( 'triangle', 20 ).text( '', 256 );
@@ -113,8 +113,9 @@ export function pmdBuffer() {
 	w.u32( 1 ); // material
 	w.f32( 0.8, 0.6, 0.4, 1, 30, 0.1, 0.1, 0.1, 0.2, 0.2, 0.2 );
 	w.u8( 255 ).u8( 1 ).u32( 3 ).text( '', 20 );
-	w.u16( 1 ); // bone
+	w.u16( twoBones ? 2 : 1 ); // bones
 	w.text( 'root', 20 ).u16( 65535 ).u16( 0 ).u8( 0 ).u16( 0 ).f32( 0, 0, 0 );
+	if ( twoBones ) w.text( 'probe', 20 ).u16( 0 ).u16( 0 ).u8( 0 ).u16( 0 ).f32( 0, 0, 0 );
 	w.u16( 0 ).u16( 0 ); // IK, morphs
 	w.u8( 0 ).u8( 0 ).u32( 0 ).u8( 0 ); // display frames, English header
 	for ( let i = 0; i < 10; i ++ ) w.text( '', 100 ); // toon texture names
@@ -144,7 +145,37 @@ export function dampingPhysicsBuffer( format: 'pmd' | 'pmx' ) {
 
 }
 
-export function pmxBuffer( { additionalUvMorphs = false }: { additionalUvMorphs?: boolean } = {} ) {
+/** Two overlapping spheres: kinematic anchor and dynamic probe in distinct groups.
+ * The joint permits X separation while locking Y/Z, independently of contacts. */
+export function linkedCollisionBuffer( format: 'pmd' | 'pmx', { linked = true, masks = [ 1 << 7, 1 << 2 ] }: { linked?: boolean; masks?: number[] } = {} ) {
+
+	const base = format === 'pmd' ? pmdBuffer( { twoBones: true } ) : pmxBuffer( { twoBones: true } ), w = new Writer();
+	w.bytes.push( ...new Uint8Array( base, 0, base.byteLength - 8 ) );
+	w.u32( 2 );
+	for ( let i = 0; i < 2; i ++ ) {
+
+		if ( format === 'pmd' ) w.text( `sphere${i}`, 20 ).u16( i );
+		else w.text( `sphere${i}` ).text( '' ).u8( i );
+		w.u8( i === 0 ? 2 : 7 ).u16( masks[ i ] ).u8( 0 );
+		w.f32( 0.5, 0.5, 0.5, i * 0.75, 0, 0, 0, 0, 0 );
+		w.f32( 1, 0, 0, 0, 0.5 ).u8( i );
+
+	}
+	w.u32( linked ? 1 : 0 );
+	if ( linked ) {
+
+		if ( format === 'pmd' ) w.text( 'joint', 20 ).u32( 0 ).u32( 1 );
+		else w.text( 'joint' ).text( '' ).u8( 0 ).u8( 0 ).u8( 1 );
+		w.f32( 0, 0, 0, 0, 0, 0 ); // joint position/rotation
+		w.f32( -2, 0, 0, 2, 0, 0 ); // free X within bounds; locked Y/Z
+		w.f32( 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ); // locked rotation, no springs
+
+	}
+	return w.buffer();
+
+}
+
+export function pmxBuffer( { additionalUvMorphs = false, twoBones = false }: { additionalUvMorphs?: boolean; twoBones?: boolean } = {} ) {
 
 	const w = new Writer();
 	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
@@ -171,9 +202,10 @@ export function pmxBuffer( { additionalUvMorphs = false }: { additionalUvMorphs?
 	w.u8( 0x11 ).f32( 0, 0, 0, 1, 1 ); // double sided, outline
 	w.u8( 255 ).u8( 255 ).u8( 0 ).u8( 1 ).u8( 0 ); // no map/matcap, shared toon
 	w.text( '' ).u32( 3 );
-	w.u32( 1 ); // bone
+	w.u32( twoBones ? 2 : 1 ); // bones
 	w.text( 'root' ).text( '' ).f32( 0, 0, 0 ).u8( 255 ).u32( 0 ).u16( 0 );
 	w.f32( 0, 1, 0 ); // tail offset
+	if ( twoBones ) w.text( 'probe' ).text( '' ).f32( 0, 0, 0 ).u8( 0 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
 	if ( additionalUvMorphs ) {
 
 		w.u32( 5 ); // four additional UV morphs followed by a vertex morph
@@ -373,7 +405,9 @@ export function sdefPmxBuffer( { boneMorphs = false, groupMorphs = false, textur
 		w.u32( physicsLayerBodies.length );
 		for ( const [ i, b ] of physicsLayerBodies.entries() ) {
 
-			w.text( `body${i}` ).text( '' ).u8( b.bone ).u8( 0 ).u16( 0xffff ).u8( 0 );
+			// Keep this phase/sync oracle's joint probe independent of anchor
+			// contact via explicit masks; linkedCollisionBuffer tests that policy.
+			w.text( `body${i}` ).text( '' ).u8( b.bone ).u8( i === 3 ? 1 : 0 ).u16( i === 0 ? 0xfffd : 0xffff ).u8( 0 );
 			w.f32( b.radius, b.radius, b.radius, ...physicsLayerBones[ b.bone ].position, 0, 0, 0, b.mode === 0 ? 0 : 1, 0, 0, 0, 0.5 ).u8( b.mode );
 
 		}

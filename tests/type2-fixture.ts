@@ -19,7 +19,12 @@ export function type2Fixture( phase = 'pre', contact = false ) {
 	data.rigidBodies[ 2 ].position = [ -0.65, 0, 2 ]; // isolated from contact type 2
 	if ( ! contact ) data.rigidBodies[ 2 ].position[ 2 ] = 0;
 	data.constraints[ 0 ].rigidBodyIndex2 = 1;
-	if ( contact ) data.constraints = [];
+	if ( contact ) {
+
+		data.constraints = [];
+		data.rigidBodies[ 0 ].groupTarget = 0xffff; // contact variant permits the probe's group
+
+	}
 	data.metadata.rigidBodyCount = 3; data.metadata.constraintCount = data.constraints.length;
 	const loader = new MMDLoader(); loader.meshBuilder.materialBuilder.textureLoader.load = () => new Texture();
 	return loader.meshBuilder.build( data, '' );

@@ -6,10 +6,18 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { writeGeneratedExampleAssets } from '../../scripts/generated-example-assets.ts';
 import { createExamplesServer } from '../../scripts/serve-examples.ts';
-import { physicsLayersPmxBuffer } from '../fixtures.ts';
+import { linkedCollisionBuffer, physicsLayersPmxBuffer } from '../fixtures.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
 const fixture = Array.from( new Uint8Array( physicsLayersPmxBuffer() ) );
+const collisionFixtures = ( [ 'pmd', 'pmx' ] as const ).flatMap( format => [
+	{ linked: true, masks: [ 128, 4 ], contact: true },
+	{ linked: true, masks: [ 4, 4 ], contact: false },
+	{ linked: true, masks: [ 128, 128 ], contact: false },
+	{ linked: false, masks: [ 128, 4 ], contact: true },
+	{ linked: true, masks: [ 0, 0 ], contact: false },
+	{ linked: false, masks: [ 0, 0 ], contact: false }
+].map( options => ( { format, ...options, bytes: Array.from( new Uint8Array( linkedCollisionBuffer( format, options ) ) ) } ) ) );
 const harness = `<!doctype html><pre id="result">pending</pre>
 <script>addEventListener('error',event=>document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:event.message})));addEventListener('unhandledrejection',event=>document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(event.reason)})));</script>
 <script src="/node_modules/ammojs-typed/ammo/ammo.js"></script>
@@ -42,6 +50,39 @@ async function complete(p, sequence) {
 }
 try {
  globalThis.Ammo = await Ammo();
+ // Exercise the actual bundled Worker with binary PMD/PMX metadata. Two
+ // separated models share its world, using each real transport below.
+ const collisionHelper=new MMDAnimationHelper({sync:false});collisionHelper.sharedPhysics=true;
+ const collisionModels=[];
+ try {
+  for(const [index,fixture] of ${JSON.stringify( collisionFixtures )}.entries()) {
+   for(let i=0;i<2;i++) {
+    const loader=new MMDLoader();loader.meshBuilder.materialBuilder.textureLoader.load=()=>new Texture();
+    const parser=new Parser(),buffer=new Uint8Array(fixture.bytes).buffer;
+    const data=fixture.format==='pmd'?parser.parsePmd(buffer,true):parser.parsePmx(buffer,true);
+    const mesh=loader.meshBuilder.build(data,'');mesh.position.z=(index*2+i)*20;
+    collisionHelper.add(mesh,{physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()});
+    collisionModels.push({mesh,fixture,index,i,p:collisionHelper.objects.get(mesh).physics});
+   }
+  }
+  await Promise.all(collisionModels.map(({p})=>p.ready));
+  const first=collisionModels[0].p;
+  for(const {p,index,i} of collisionModels) {
+   check('collisionWorker'+index+'model'+i,p.physicsMode==='worker' && p.transport===(crossOriginIsolated?'shared':'transferable'));
+   check('collisionSharedWorld'+index+'model'+i,p.workerAdapter.group===first.workerAdapter.group);
+  }
+  for(let frame=1;frame<=12;frame++) {
+   for(const {mesh} of collisionModels)mesh.skeleton.bones[0].position.y=frame/650;
+   collisionHelper.update(1/65);await complete(first,frame);collisionHelper.update(0);
+  }
+  for(const {p,fixture,index,i} of collisionModels) {
+   const probe=p.bodyResults[1].position;
+   check('collisionPolicy'+index+'model'+i,fixture.contact?probe[0]>0.95:Math.abs(probe[0]-0.75)<1e-5);
+   if(fixture.linked)check('collisionJointSolves'+index+'model'+i,Math.abs(probe[1]-12/650)<0.004);
+   else if(!fixture.contact)check('collisionFreeControl'+index+'model'+i,Math.abs(probe[1])<1e-5);
+   check('collisionFinite'+index+'model'+i,p.bodyResults.every(r=>r.position.concat(r.quaternion).every(Number.isFinite)));
+  }
+ } finally {for(const {mesh} of collisionModels)collisionHelper.remove(mesh);}
  const helper = new MMDAnimationHelper(), sync = new MMDAnimationHelper(); helper.sharedPhysics=true;
  const first=model(), second=model(), reference=model(); second.position.z=20;
  const options={physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()};

@@ -1548,7 +1548,8 @@ class Constraint {
 
 		}
 
-		this.world.addConstraint( constraint, true );
+		// Keep linked-body contact subject to the model's collision groups/masks.
+		this.world.addConstraint( constraint, false );
 		this.constraint = constraint;
 
 		manager.freeTransform( form );
