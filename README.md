@@ -220,6 +220,11 @@ transforms. Post kinematic inputs are explicitly deferred to the next step;
 dynamic post effects deform the skeleton without teleporting mode-1 bodies.
 Private models remain optional, ignored and excluded from published artifacts.
 
+Physics forwards positive elapsed seconds to Bullet, which accumulates short
+frames using the default `1/65` fixed step. Zero, negative and non-finite deltas
+do not advance Bullet. See the [timekeeping experiment and validation](docs/physics-timestep-validation.md)
+for the removed legacy minimum and its possible effect on motion/settling.
+
 Opt-in real-model setup: `npm run models:setup -- gene`, then `npm run dev:sdef`
 and choose Gene in **Installed models**. Safe manual acquisition import:
 `npm run models:import -- /path/to/model.zip --category sdef`. See

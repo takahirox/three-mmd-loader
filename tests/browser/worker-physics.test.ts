@@ -52,18 +52,21 @@ try {
  check('workerInitialized',p.physicsMode==='worker' && p.world===null && p.bodies.length===0);
  check('transport',p.transport === (crossOriginIsolated ? 'shared' : 'transferable'));
  check('sharedWorld',p.workerAdapter.group===q.workerAdapter.group);
+ const initialType2=JSON.stringify(sync.objects.get(reference).physics.bodyResults[3]);
  const savedAmmo=globalThis.Ammo; globalThis.Ammo=undefined;
  for(let i=1;i<=8;i++) {
   first.skeleton.bones[3].position.x=2+i/10; reference.skeleton.bones[3].position.x=2+i/10;
   // Worker stepping must not touch main-thread Ammo.
-  helper.update(1/60);
+  const delta=1/[144,120,60,30][(i-1)%4];
+  helper.update(delta);
   for(let spin=0;spin<30;spin++) helper.update(0);
   await complete(p,i); helper.update(0);
-  globalThis.Ammo=savedAmmo;sync.update(1/60);globalThis.Ammo=undefined;
+  globalThis.Ammo=savedAmmo;sync.update(delta);globalThis.Ammo=undefined;
   check('coherent'+i,p.workerStatus.completedSequence===q.workerStatus.completedSequence);
   check('planarPostIK'+i,Math.abs(first.skeleton.bones[1].quaternion.x)<1e-6 && Math.abs(first.skeleton.bones[1].quaternion.y)<1e-6);
   check('dynamicPostIK'+i,near(first.skeleton.bones[1].quaternion.toArray(),reference.skeleton.bones[1].quaternion.toArray()));
   const raw=sync.objects.get(reference).physics.bodyResults;
+  if(i===1) check('fractionalFrameDoesNotIntegrate',JSON.stringify(raw[3])===initialType2);
   check('type2RawBullet'+i,p.bodyResults.every((r,j)=>near(r.position,raw[j].position)&&near(r.quaternion,raw[j].quaternion)));
   check('type2SkeletalPosition'+i,Math.abs(first.skeleton.bones[3].position.x-(2+i/10))<1e-4);
  }

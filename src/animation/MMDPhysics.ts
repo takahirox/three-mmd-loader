@@ -503,18 +503,10 @@ class MMDPhysics {
 
 	_stepSimulation( delta: number ) {
 
-		// Pose evaluation at zero time must never advance contacts or constraints.
-		if ( ! Number.isFinite( delta ) || ( delta <= 0 && ( this.mesh as MMDMesh ).geometry.userData.MMD?.format === 'pmx' ) ) return;
+		// Pose evaluation at zero/invalid time must never advance Bullet, for PMD or PMX.
+		if ( ! Number.isFinite( delta ) || delta <= 0 ) return;
 		const unitStep = this.unitStep;
-		let stepTime = delta;
-		let maxStepNum = ( ( delta / unitStep ) | 0 ) + 1;
-
-		if ( stepTime < unitStep ) {
-
-			stepTime = unitStep;
-			maxStepNum = 1;
-
-		}
+		let maxStepNum = Math.floor( delta / unitStep ) + 1;
 
 		if ( maxStepNum > this.maxStepNum ) {
 
@@ -522,7 +514,9 @@ class MMDPhysics {
 
 		}
 
-		this.world!.stepSimulation( stepTime, maxStepNum, unitStep );
+		// Bullet accumulates fractional time internally. The legacy minimum of
+		// unitStep (introduced for stability) made short frames advance too fast.
+		this.world!.stepSimulation( delta, maxStepNum, unitStep );
 
 	}
 
