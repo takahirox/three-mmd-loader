@@ -225,6 +225,13 @@ frames using the default `1/65` fixed step. Zero, negative and non-finite deltas
 do not advance Bullet. See the [timekeeping experiment and validation](docs/physics-timestep-validation.md)
 for the removed legacy minimum and its possible effect on motion/settling.
 
+PMD and PMX rigid bodies enable Bullet's additional damping during construction
+in sync, shared sync and Worker physics. Model-defined linear/angular damping
+is retained, and Bullet's additional factors and thresholds stay at their
+defaults. This experiment targets low-speed jitter; it does not establish a fix
+for violent instability or exact native MikuMikuDance behavior. See the
+[additional damping validation](docs/physics-damping-validation.md).
+
 Opt-in real-model setup: `npm run models:setup -- gene`, then `npm run dev:sdef`
 and choose Gene in **Installed models**. Safe manual acquisition import:
 `npm run models:import -- /path/to/model.zip --category sdef`. See

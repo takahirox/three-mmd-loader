@@ -20,6 +20,7 @@ export interface AmmoMotionState {
 	setWorldTransform( transform: AmmoTransform ): void;
 }
 export interface AmmoBodyInfo {
+	set_m_additionalDamping( enabled: boolean ): void;
 	set_m_friction( friction: number ): void;
 	set_m_restitution( restitution: number ): void;
 }

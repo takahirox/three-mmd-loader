@@ -1267,6 +1267,7 @@ class RigidBody {
 		const state = manager.own( new Ammo.btDefaultMotionState( form ) );
 
 		const info = manager.own( new Ammo.btRigidBodyConstructionInfo( weight, state, shape, localInertia ) );
+		info.set_m_additionalDamping( true );
 		info.set_m_friction( params.friction );
 		info.set_m_restitution( params.restitution );
 

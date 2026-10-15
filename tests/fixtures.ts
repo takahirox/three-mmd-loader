@@ -123,6 +123,27 @@ export function pmdBuffer() {
 
 }
 
+/** Binary PMD/PMX bodies with all three modes/shapes and distinct model damping. */
+export function dampingPhysicsBuffer( format: 'pmd' | 'pmx' ) {
+
+	const base = format === 'pmd' ? pmdBuffer() : pmxBuffer(), w = new Writer();
+	// Replace the empty rigid-body/constraint sections of the minimal model.
+	w.bytes.push( ...new Uint8Array( base, 0, base.byteLength - 8 ) );
+	w.u32( 3 );
+	for ( let type = 0; type < 3; type ++ ) {
+
+		if ( format === 'pmd' ) w.text( `body${type}`, 20 ).u16( 0 );
+		else w.text( `body${type}` ).text( '' ).u8( 0 );
+		w.u8( type ).u16( 0xffff ).u8( type );
+		w.f32( 0.1, 0.2, 0.3, type * 2, 0, 0, 0, 0, 0 );
+		w.f32( 1, 0.1 + type * 0.1, 0.35 + type * 0.1, 0.2, 0.6 ).u8( type );
+
+	}
+	w.u32( 0 );
+	return w.buffer();
+
+}
+
 export function pmxBuffer( { additionalUvMorphs = false }: { additionalUvMorphs?: boolean } = {} ) {
 
 	const w = new Writer();
