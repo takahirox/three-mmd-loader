@@ -108,19 +108,28 @@ not subjective visual stability.
 
 ## Required post-merge verification
 
-These publication checks remain **PENDING**, to be performed after merge.
-They do not block pre-merge approval or merging.
+PR #73 merged with a merge commit, `0876a28de0ac9a02aba69251e1adafd760e0f580`,
+at 2026-10-15 05:37:18 UTC. Issue #72 was read immediately before the merge
+and confirmed open; GitHub accepted the expected PR head. The
+[post-merge Tests workflow](https://github.com/takahirox/three-mmd-loader/actions/runs/38687772606)
+passed.
 
 | Evidence | Status |
 | --- | --- |
-| Merge-triggered GitHub Pages workflow run URL and successful result | PENDING |
+| Merge-triggered [GitHub Pages workflow](https://github.com/takahirox/three-mmd-loader/actions/runs/38687772616) | FAILED before deployment: gallery browser test timed out after 300 seconds; last reported stage `history Forward` |
 | Published actual merge SHA and deployment date | PENDING |
 | Public PMD model/animation example loads without asset/runtime errors | PENDING |
 | Public Worker Physics example loads without asset/runtime errors | PENDING |
 | Public Gene Light PMX example loads without asset/runtime errors | PENDING |
 
-After merge, record the workflow URL, deployed SHA/date and each outcome here
-or in Issue #72. Confirm the merge-triggered [Pages workflow](https://github.com/takahirox/three-mmd-loader/actions/workflows/examples-pages.yml)
-publishes the actual merge commit at <https://takahirox.github.io/three-mmd-loader/>.
-Handle deployment failures as a separate follow-up. Public content checks
-must not be described as a completed visual review.
+The Pages run targeted the actual merge commit. Its separate Gene Light
+built-site test passed, but the failed gallery test caused setup and deployment
+to be skipped. At 2026-10-15 05:43:45 UTC, the public deployment manifest still
+reported the previous commit, `93c515405d623433cb8d1fdebabc54eaba9a9063`.
+Checks against that older deployment would not verify this merge.
+
+Handle the Pages test timeout as a separate deployment follow-up. After
+successful publication, verify the actual merge SHA/date and all three public
+examples at <https://takahirox.github.io/three-mmd-loader/>. These checks remain
+**PENDING**; no manual visual review has been performed. Machine-readable
+merge and deployment evidence is in [issue-72.json](deployment-evidence/issue-72.json).

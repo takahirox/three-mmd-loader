@@ -1,0 +1,50 @@
+{
+  "issue": "https://github.com/takahirox/three-mmd-loader/issues/72",
+  "pr": {
+    "number": 73,
+    "url": "https://github.com/takahirox/three-mmd-loader/pull/73",
+    "head_sha": "c1e6590ef99dc0b0a00f1db015d8b89d8c51303a"
+  },
+  "merged": true,
+  "merge_commit": "0876a28de0ac9a02aba69251e1adafd760e0f580",
+  "merged_at": "2026-10-15T05:37:18Z",
+  "merge_method": "merge",
+  "source_issue_state_immediately_before_merge": "open",
+  "post_merge_tests": {
+    "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38687772606",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "pages_workflow": {
+    "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38687772616",
+    "event": "push",
+    "head_sha": "0876a28de0ac9a02aba69251e1adafd760e0f580",
+    "status": "completed",
+    "conclusion": "failure",
+    "created_at": "2026-10-15T05:37:20Z",
+    "updated_at": "2026-10-15T05:43:15Z",
+    "failed_job": "build",
+    "failed_step": "Validate the built site under the project path",
+    "failure": "Gallery browser test timed out after 300 seconds.",
+    "last_reported_stage": "history Forward",
+    "gene_light_built_site_test": "passed",
+    "setup": "skipped",
+    "deploy": "skipped"
+  },
+  "public_manifest": {
+    "url": "https://takahirox.github.io/three-mmd-loader/deployment-manifest.json",
+    "checked_at": "2026-10-15T05:43:45.937Z",
+    "http_status": 200,
+    "published_commit": "93c515405d623433cb8d1fdebabc54eaba9a9063",
+    "matches_merge_commit": false
+  },
+  "required_public_verification": {
+    "actual_merge_sha_and_deployment_date": "PENDING",
+    "pmd_example": "PENDING",
+    "worker_physics_example": "PENDING",
+    "gene_light_pmx_example": "PENDING",
+    "reason": "The merge-triggered workflow failed before deployment. Public checks against the old deployment cannot verify this merge."
+  },
+  "follow_up": "Handle the Pages gallery browser timeout separately; after successful publication, verify the actual merge SHA/date and public PMD, Worker Physics and Gene Light PMX examples.",
+  "manual_visual_review": "Not performed; optional maintainer follow-up."
+}
