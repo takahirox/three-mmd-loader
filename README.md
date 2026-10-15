@@ -280,7 +280,15 @@ transferable ArrayBuffers. COOP/COEP headers are optional. There is one request
 in flight per world. Main-thread frames never wait, spin or call `Atomics.wait`.
 While busy, the rendered pose reuses the last complete result; unsent skeletal
 poses are skipped and elapsed time is coalesced up to 0.25 seconds. Bullet's
-existing `maxStepNum` still limits catch-up. About one frame of visual latency
+`maxStepNum` (default **10**, overridable through `helper.add(mesh, { maxStepNum })`)
+still limits catch-up at the unchanged `unitStep = 1/65` seconds. A 100ms update
+can integrate six or seven substeps instead of the previous cap of three,
+increasing CPU work on slow frames. Longer stalls, including a full 0.25s
+Worker batch, can still discard simulation time. Substeps use the supplied
+kinematic pose; they do not reconstruct intermediate animation poses. This is
+a bounded timekeeping experiment, not a demonstrated cure for physics
+oscillation or proof of native MMD parity. See the
+[validation record](docs/physics-substeps-validation.md). About one frame of visual latency
 is typical, but a busy Worker can take longer.
 
 Raw results are projected between the existing before/after-physics phases.

@@ -9,10 +9,11 @@ import { MMDLoader } from '../src/loaders/MMDLoader.js';
 import type { AmmoAPI } from '@takahirox/three-mmd';
 import { PhysicsWorkerRuntime } from '../src/animation/PhysicsWorkerRuntime.js';
 import { inputLength, outputLength, selectPhysicsTransport } from '../src/animation/PhysicsWorkerProtocol.js';
-import type { PhysicsRequest, PhysicsResponse } from '../src/animation/PhysicsWorkerProtocol.js';
+import type { PhysicsResponse } from '../src/animation/PhysicsWorkerProtocol.js';
 import { WorkerPhysicsAdapter, WorkerPhysicsWorld } from '../src/animation/WorkerPhysicsAdapter.js';
 import { physicsLayersPmxBuffer, pmdBuffer } from './fixtures.ts';
 import { type2Fixture } from './type2-fixture.ts';
+import { ManualWorker } from './manual-physics-worker.ts';
 
 const host = globalThis as typeof globalThis & { Ammo: AmmoAPI };
 before( async () => { host.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )(); } );
@@ -30,38 +31,6 @@ function near( actual: ArrayLike<number>, expected: ArrayLike<number>, tolerance
 	assert.equal( actual.length, expected.length );
 	Array.from( actual ).forEach( ( v, i ) => assert.ok( Math.abs( v - expected[ i ] ) < tolerance, `${i}: ${v} != ${expected[ i ]}` ) );
 
-}
-// Real shared simulation, deterministic scheduler, and actual structured-clone
-// transfers. Tests decide exactly when requests/results become visible.
-class ManualWorker {
-	onmessage: Worker['onmessage'] = null;
-	onerror: Worker['onerror'] = null;
-	onmessageerror: Worker['onmessageerror'] = null;
-	requests: PhysicsRequest[] = [];
-	responses: PhysicsResponse[] = [];
-	terminated = false;
-	frames = 0;
-	private runtime = new PhysicsWorkerRuntime( ( response, transfer = [] ) => {
-
-		this.responses.push( structuredClone( response, { transfer } ) );
-
-	} );
-	postMessage( message: PhysicsRequest, transfer: Transferable[] = [] ) { this.requests.push( structuredClone( message, { transfer } ) ); }
-	terminate() { this.terminated = true; }
-	process() {
-
-		const message = this.requests.shift(); assert.ok( message );
-		if ( message.type !== 'init' ) { if ( message.type === 'frame' ) this.frames ++; this.runtime.handle( message ); }
-
-	}
-	deliver( response = this.responses.shift() ) {
-
-		assert.ok( response ); this.onmessage?.call( this as unknown as Worker, { data: response } as MessageEvent );
-
-	}
-	start() { while ( this.requests.length ) this.process(); while ( this.responses.length ) this.deliver(); }
-	finish() { this.process(); this.deliver(); }
-	options() { return { ammoURL: 'https://example.test/ammo.js', createWorker: () => this as unknown as Worker }; }
 }
 function add( worker: ManualWorker, shared = false ) {
 
@@ -282,7 +251,7 @@ for ( const fps of [ 30, 60, 120, 144 ] ) for ( const phase of [ 'pre', 'post', 
 			near( data.subarray( inputLength( adapter.model ) ), physics.bodyResults.flatMap( r => [ ...r.position, ...r.quaternion ] ), 5e-4 );
 			// Inspect the Worker-owned native bodies as well as published output;
 			// this catches identical raw results followed by an unreported teleport.
-			if ( delta > 0 ) assert.deepEqual( step.mock.calls.at( -1 )!.arguments, [ delta, Math.min( Math.floor( 65 / fps ) + 1, 3 ), 1 / 65 ] );
+			if ( delta > 0 ) assert.deepEqual( step.mock.calls.at( -1 )!.arguments, [ delta, Math.min( Math.floor( 65 / fps ) + 1, 10 ), 1 / 65 ] );
 			assert.equal( step.mock.callCount(), sequence - Math.floor( sequence / 7 ) );
 			const workerPhysics = runtime[ 'models' ].get( 1 )!.physics;
 			for ( const [ i, body ] of workerPhysics.bodies.entries() ) {

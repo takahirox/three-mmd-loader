@@ -9,8 +9,9 @@ elapsed time. Removing that floor is a focused, reversible timekeeping
 experiment, not a proven cure for the reported oscillation. Motion and settling
 characteristics may differ, especially at high refresh rates.
 
-The default `unitStep = 1/65`, default `maxStepNum = 3`, parameter overrides and
-existing `floor(delta / unitStep) + 1` budget capped at `maxStepNum` remain.
+Issue #68 retained `unitStep = 1/65`, the then-default `maxStepNum = 3`,
+parameter overrides and the existing `floor(delta / unitStep) + 1` budget
+capped at `maxStepNum`.
 `Math.floor` replaces signed 32-bit truncation so large finite deltas cannot
 wrap the substep budget to zero or negative. Long stalls still lose simulation
 time when the required substeps exceed the cap; catch-up policy is a separate
@@ -23,6 +24,10 @@ physical step at zero/negative time, while retaining its legacy bone/body pose
 synchronization (including type-2 alignment). Thus PMD pose synchronization can
 still write a transform without advancing the simulation clock. The same
 stepping function serves standalone sync, shared sync and Worker-owned worlds.
+
+Issue #74 subsequently raises the default cap to 10; see the
+[current substep validation](physics-substeps-validation.md). This record
+describes the earlier fractional-time experiment.
 
 ## Automated evidence
 

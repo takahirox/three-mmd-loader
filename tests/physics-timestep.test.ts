@@ -19,10 +19,10 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) test( `Bullet receives elapsed
 	const step = t.mock.method( physics.world!, 'stepSimulation', () => 0 );
 	try {
 
-		assert.equal( physics.unitStep, unitStep ); assert.equal( physics.maxStepNum, 3 );
+		assert.equal( physics.unitStep, unitStep ); assert.equal( physics.maxStepNum, 10 );
 		for ( const [ delta, maxSteps ] of [
 			[ 1 / 144, 1 ], [ 1 / 120, 1 ], [ unitStep, 2 ], [ 1 / 60, 2 ], [ 1 / 30, 3 ],
-			[ 0.25, 3 ], [ ( 2 ** 31 ) * unitStep, 3 ], [ Number.MAX_VALUE, 3 ]
+			[ 0.1, 7 ], [ 0.25, 10 ], [ ( 2 ** 31 ) * unitStep, 10 ], [ Number.MAX_VALUE, 10 ]
 		] ) {
 
 			physics.update( delta );
@@ -74,7 +74,7 @@ for ( const fps of [ 30, 60, 120, 144 ] ) test( `${fps} FPS forwards one second 
 		for ( let frame = 0; frame < fps; frame ++ ) {
 
 			elapsed += 1 / fps; physics.update( 1 / fps );
-			assert.deepEqual( step.mock.calls.at( -1 )!.arguments, [ 1 / fps, Math.min( Math.floor( 65 / fps ) + 1, 3 ), unitStep ] );
+			assert.deepEqual( step.mock.calls.at( -1 )!.arguments, [ 1 / fps, Math.min( Math.floor( 65 / fps ) + 1, 10 ), unitStep ] );
 			assert.ok( simulated <= elapsed + 1e-12 );
 			assert.ok( elapsed - simulated < unitStep + 1e-12 );
 
@@ -111,7 +111,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) test( `shared ${format} world 
 
 } );
 
-for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const fps of [ 30, 60, 120, 144 ] ) test( `real Ammo ${format} accumulates fractional time at ${fps} FPS`, t => {
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const fps of [ 10, 20, 30, 60, 120, 144 ] ) test( `real Ammo ${format} accumulates fractional time at ${fps} FPS`, t => {
 
 	// Keep a moving kinematic/constrained pair and an isolated mode-1 probe.
 	const mesh = type2Fixture(), meta = mesh.geometry.userData.MMD; meta.format = format;
@@ -130,7 +130,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const fps of [ 30, 60, 1
 			mesh.skeleton.bones[ 0 ].position.x = -frame / fps / 10; mesh.updateMatrixWorld( true );
 			elapsed += 1 / fps; physics.update( 1 / fps );
 			const call = step.mock.calls.at( -1 )!;
-			assert.deepEqual( call.arguments, [ 1 / fps, Math.min( Math.floor( 65 / fps ) + 1, 3 ), unitStep ] );
+			assert.deepEqual( call.arguments, [ 1 / fps, Math.min( Math.floor( 65 / fps ) + 1, 10 ), unitStep ] );
 			simulated += call.result! * unitStep;
 			if ( call.result === 0 ) fractionalFrames ++;
 			const z = probe.getCenterOfMassTransform().getOrigin().z();

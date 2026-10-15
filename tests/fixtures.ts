@@ -146,19 +146,22 @@ export function dampingPhysicsBuffer( format: 'pmd' | 'pmx' ) {
 }
 
 /** Two overlapping spheres: kinematic anchor and dynamic probe in distinct groups.
- * The joint permits X separation while locking Y/Z, independently of contacts. */
-export function linkedCollisionBuffer( format: 'pmd' | 'pmx', { linked = true, masks = [ 1 << 7, 1 << 2 ] }: { linked?: boolean; masks?: number[] } = {} ) {
+ * The joint permits X separation while locking Y/Z, independently of contacts.
+ * timeProbe adds a third unbound dynamic body for elapsed-integration tests. */
+export function linkedCollisionBuffer( format: 'pmd' | 'pmx', { linked = true, masks = [ 1 << 7, 1 << 2 ], timeProbe = false }: { linked?: boolean; masks?: number[]; timeProbe?: boolean } = {} ) {
 
 	const base = format === 'pmd' ? pmdBuffer( { twoBones: true } ) : pmxBuffer( { twoBones: true } ), w = new Writer();
 	w.bytes.push( ...new Uint8Array( base, 0, base.byteLength - 8 ) );
-	w.u32( 2 );
-	for ( let i = 0; i < 2; i ++ ) {
+	w.u32( timeProbe ? 3 : 2 );
+	for ( let i = 0; i < ( timeProbe ? 3 : 2 ); i ++ ) {
 
-		if ( format === 'pmd' ) w.text( `sphere${i}`, 20 ).u16( i );
-		else w.text( `sphere${i}` ).text( '' ).u8( i );
-		w.u8( i === 0 ? 2 : 7 ).u16( masks[ i ] ).u8( 0 );
-		w.f32( 0.5, 0.5, 0.5, i * 0.75, 0, 0, 0, 0, 0 );
-		w.f32( 1, 0, 0, 0, 0.5 ).u8( i );
+		// Optional unbound, undamped, collision-free dynamic clock probe.
+		const bone = i === 2 ? -1 : i;
+		if ( format === 'pmd' ) w.text( `sphere${i}`, 20 ).u16( bone );
+		else w.text( `sphere${i}` ).text( '' ).u8( bone );
+		w.u8( i === 0 ? 2 : 7 ).u16( masks[ i ] ?? 0 ).u8( 0 );
+		w.f32( 0.5, 0.5, 0.5, i * 0.75, 0, i === 2 ? 10 : 0, 0, 0, 0 );
+		w.f32( 1, 0, 0, 0, 0.5 ).u8( i === 0 ? 0 : 1 );
 
 	}
 	w.u32( linked ? 1 : 0 );
