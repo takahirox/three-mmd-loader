@@ -232,6 +232,11 @@ defaults. This experiment targets low-speed jitter; it does not establish a fix
 for violent instability or exact native MikuMikuDance behavior. See the
 [additional damping validation](docs/physics-damping-validation.md).
 
+Joint-connected bodies can collide when both model collision masks permit it.
+This differs from legacy Three.js and can increase vibration when overlapping
+bodies' contact separation competes with joint limits. See the
+[linked-body collision experiment and validation](docs/physics-linked-collision-validation.md).
+
 Opt-in real-model setup: `npm run models:setup -- gene`, then `npm run dev:sdef`
 and choose Gene in **Installed models**. Safe manual acquisition import:
 `npm run models:import -- /path/to/model.zip --category sdef`. See
