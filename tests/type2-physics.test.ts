@@ -141,7 +141,16 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const contact of [
 
 		}
 		assert.ok( maxDifference > 1, `native trajectory discrepancy ${maxDifference}` );
-		if ( ! contact ) { assert.ok( maxLegacyError > 1 ); assert.ok( maxCorrectedError < 0.006 ); }
+		if ( ! contact ) {
+
+			assert.ok( maxLegacyError > 1 );
+			// Additional damping resists this slow kinematic drive: the measured
+			// native joint lag rises from 0.00167 to 0.00718 model units. Keep a
+			// tight absolute bound and the separation from legacy teleport damage.
+			assert.ok( maxCorrectedError < 0.008, `joint anchor error ${maxCorrectedError}` );
+			assert.ok( maxCorrectedError < maxLegacyError / 100 );
+
+		}
 		if ( phase === 'pre' ) assert.ok( firstJump > 1 ); else near( [ firstJump ], [ 0 ], 1e-7 );
 		t.diagnostic( JSON.stringify( { firstJump, maxDifference, ...( contact ? {} : { maxLegacyError, maxCorrectedError } ) } ) );
 
