@@ -136,7 +136,7 @@ class MMDAnimationHelper {
 	 * @param {THREE.AnimationClip|Array<THREE.AnimationClip>} params.animation - Only for THREE.SkinnedMesh and THREE.Camera. Default is undefined.
 	 * @param {boolean} params.physics - Only for THREE.SkinnedMesh. Default is true.
 	 * @param {Integer} params.warmup - Only for THREE.SkinnedMesh and physics is true. Default is 60.
-	 * @param {Number} params.unitStep - Only for THREE.SkinnedMesh and physics is true. Default is 1 / 65.
+	 * @param {Number} params.unitStep - Only for THREE.SkinnedMesh and physics is true. Default is 1 / 60.
 	 * @param {Integer} params.maxStepNum - Maximum fixed substeps per update. Only for THREE.SkinnedMesh and physics is true. Default is 10.
 	 * @param {Vector3} params.gravity - Only for THREE.SkinnedMesh and physics is true. Default ( 0, - 9.8 * 10, 0 ).
 	 * @param {Number} params.delayTime - Only for THREE.Audio. Default is 0.0.

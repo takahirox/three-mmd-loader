@@ -27,6 +27,9 @@ import { Texture, Vector3 } from 'three';
 import { Parser } from 'mmd-parser';
 import { MMDAnimationHelper, MMDLoader } from '/src/index.js';
 const checks = {};
+const legacyStep = new URLSearchParams(location.search).get('legacyStep') === 'true';
+const unitStep = legacyStep ? 1/65 : 1/60;
+const stepParams = legacyStep ? {unitStep} : {};
 const wait = () => new Promise(resolve => setTimeout(resolve, 5));
 function check(name, value) { if (!value) throw new Error(name); checks[name] = true; }
 function near(a,b) {return a.length===b.length && a.every((v,i)=>Math.abs(v-b[i])<1e-4);}
@@ -61,7 +64,7 @@ try {
     const parser=new Parser(),buffer=new Uint8Array(fixture.bytes).buffer;
     const data=fixture.format==='pmd'?parser.parsePmd(buffer,true):parser.parsePmx(buffer,true);
     const mesh=loader.meshBuilder.build(data,'');mesh.position.z=(index*2+i)*20;
-    collisionHelper.add(mesh,{physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()});
+    collisionHelper.add(mesh,{...stepParams,physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()});
     collisionModels.push({mesh,fixture,index,i,p:collisionHelper.objects.get(mesh).physics});
    }
   }
@@ -70,6 +73,7 @@ try {
   for(const {p,index,i} of collisionModels) {
    check('collisionWorker'+index+'model'+i,p.physicsMode==='worker' && p.transport===(crossOriginIsolated?'shared':'transferable'));
    check('collisionSharedWorld'+index+'model'+i,p.workerAdapter.group===first.workerAdapter.group);
+   check('collisionTimestep'+index+'model'+i,p.unitStep===unitStep && p.workerAdapter.model.unitStep===unitStep && p.maxStepNum===10);
   }
   for(let frame=1;frame<=12;frame++) {
    for(const {mesh} of collisionModels)mesh.skeleton.bones[0].position.y=frame/650;
@@ -85,14 +89,15 @@ try {
  } finally {for(const {mesh} of collisionModels)collisionHelper.remove(mesh);}
  const helper = new MMDAnimationHelper(), sync = new MMDAnimationHelper(); helper.sharedPhysics=true;
  const first=model(), second=model(), reference=model(); second.position.z=20;
- const options={physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()};
+ const options={...stepParams,physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()};
  helper.add(first,options); helper.add(second,options);
- sync.add(reference,{warmup:0,animationWarmup:false,gravity:new Vector3()});
+ sync.add(reference,{...stepParams,warmup:0,animationWarmup:false,gravity:new Vector3()});
  const p=helper.objects.get(first).physics, q=helper.objects.get(second).physics;
  await Promise.all([p.ready,q.ready]);
  check('workerInitialized',p.physicsMode==='worker' && p.world===null && p.bodies.length===0);
  check('transport',p.transport === (crossOriginIsolated ? 'shared' : 'transferable'));
  check('sharedWorld',p.workerAdapter.group===q.workerAdapter.group);
+ check('selectedTimestep',p.unitStep===unitStep && p.workerAdapter.model.unitStep===unitStep && sync.objects.get(reference).physics.unitStep===unitStep);
  const initialType2=JSON.stringify(sync.objects.get(reference).physics.bodyResults[3]);
  const savedAmmo=globalThis.Ammo; globalThis.Ammo=undefined;
  for(let i=1;i<=8;i++) {
@@ -125,7 +130,7 @@ try {
 } catch(error) {document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error),checks}));}
 </script>`;
 
-for ( const isolated of [ false, true ] ) for ( const limited of [ false, true ] ) test( `real bundled classic Worker / Ammo integration, isolation=${isolated}, limited=${limited}`, { timeout: 60000 }, async t => {
+for ( const isolated of [ false, true ] ) for ( const limited of [ false, true ] ) for ( const legacyStep of [ false, true ] ) test( `real bundled classic Worker / Ammo integration, isolation=${isolated}, limited=${limited}, legacyStep=${legacyStep}`, { timeout: 60000 }, async t => {
 
 	const profile = await mkdtemp( join( tmpdir(), 'mmd-worker-browser-' ) );
 	const files = createExamplesServer();
@@ -140,7 +145,7 @@ for ( const isolated of [ false, true ] ) for ( const limited of [ false, true ]
 	try {
 
 		const address = server.address(); assert.ok( address && typeof address !== 'string' );
-		const result = await runBrowser<{ error?: string; checks: Record<string, boolean>; isolated: boolean }>( `http://127.0.0.1:${address.port}/worker-test?limited=${limited}`, profile );
+		const result = await runBrowser<{ error?: string; checks: Record<string, boolean>; isolated: boolean }>( `http://127.0.0.1:${address.port}/worker-test?limited=${limited}&legacyStep=${legacyStep}`, profile );
 		assert.equal( result.error, undefined, JSON.stringify( result ) );
 		assert.ok( Object.values( result.checks ).every( Boolean ) );
 		if ( isolated && ! result.isolated ) t.diagnostic( 'Browser isolation unavailable: transferable integration passed; atomic publication covered in deterministic tests.' );

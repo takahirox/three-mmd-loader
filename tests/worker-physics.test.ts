@@ -251,7 +251,7 @@ for ( const fps of [ 30, 60, 120, 144 ] ) for ( const phase of [ 'pre', 'post', 
 			near( data.subarray( inputLength( adapter.model ) ), physics.bodyResults.flatMap( r => [ ...r.position, ...r.quaternion ] ), 5e-4 );
 			// Inspect the Worker-owned native bodies as well as published output;
 			// this catches identical raw results followed by an unreported teleport.
-			if ( delta > 0 ) assert.deepEqual( step.mock.calls.at( -1 )!.arguments, [ delta, Math.min( Math.floor( 65 / fps ) + 1, 10 ), 1 / 65 ] );
+			if ( delta > 0 ) assert.deepEqual( step.mock.calls.at( -1 )!.arguments, [ delta, Math.min( Math.floor( delta / physics.unitStep ) + 1, 10 ), physics.unitStep ] );
 			assert.equal( step.mock.callCount(), sequence - Math.floor( sequence / 7 ) );
 			const workerPhysics = runtime[ 'models' ].get( 1 )!.physics;
 			for ( const [ i, body ] of workerPhysics.bodies.entries() ) {

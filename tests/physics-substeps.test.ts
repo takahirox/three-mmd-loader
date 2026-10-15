@@ -11,7 +11,6 @@ import { ManualWorker } from './manual-physics-worker.ts';
 
 const host = globalThis as typeof globalThis & { Ammo: AmmoAPI };
 before( async () => { host.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )(); } );
-const h = 1 / 65;
 const tapes = [
 	...[ 10, 20, 30, 60, 120, 144 ].map( fps => ( { name: `${fps} FPS`, deltas: Array.from( { length: fps }, () => 1 / fps ), long: false } ) ),
 	{ name: '100ms one-off stall', deltas: [ 1 / 120, 0.1, ...Array<number>( 12 ).fill( 1 / 120 ) ], long: false },
@@ -35,8 +34,9 @@ function near( actual: number[], expected: number[], tolerance = 5e-4 ) {
 
 }
 
-for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'standalone', 'shared', 'worker' ] ) for ( const cap of [ undefined, 3 ] ) for ( const tape of tapes ) test( `native substeps ${format} ${path} cap=${cap ?? 'default'} ${tape.name}`, t => {
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'standalone', 'shared', 'worker' ] ) for ( const override of [ undefined, 1 / 65 ] ) for ( const cap of [ undefined, 3 ] ) for ( const tape of tapes ) test( `native substeps ${format} ${path} step=${override ?? 'default'} cap=${cap ?? 'default'} ${tape.name}`, t => {
 
+	const h = override ?? 1 / 60;
 	// Parsed binary fixtures: moving kinematic anchor, constrained dynamic body,
 	// and a separate unbound dynamic probe accelerating at 10 units/s² along Z.
 	const helper = new MMDAnimationHelper( { sync: false } ); helper.sharedPhysics = path !== 'standalone';
@@ -44,7 +44,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'standal
 	const worker = new ManualWorker(), count = path === 'standalone' ? 1 : 2;
 	const meshes = Array.from( { length: count }, () => model( format ) );
 	const refs = Array.from( { length: count }, () => model( format ) );
-	const params = { maxStepNum: cap, warmup: 0, animationWarmup: false, gravity: new Vector3( 0, 0, 10 ) };
+	const params = { unitStep: override, maxStepNum: cap, warmup: 0, animationWarmup: false, gravity: new Vector3( 0, 0, 10 ) };
 	for ( let i = 0; i < count; i ++ ) {
 
 		meshes[ i ].position.z = refs[ i ].position.z = i * 20;
@@ -84,7 +84,9 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'standal
 			integrated += completed; elapsed += delta; dropped += call.result! - completed;
 			if ( completed === 0 ) zeroSteps ++;
 			assert.ok( completed <= ( cap ?? 10 ) );
-			if ( delta === 0.1 ) assert.ok( cap === 3 ? completed === 3 : completed === 6 || completed === 7 );
+			// Ammo float rounding can retain nearly a full 1/60 step at the 100ms boundary.
+			// Cumulative time and the native trajectory below still detect lost steps.
+			if ( delta === 0.1 ) assert.ok( cap === 3 ? completed === 3 : completed >= ( override === undefined ? 5 : 6 ) && completed <= 7 );
 			if ( delta === 0.25 ) assert.equal( completed, cap ?? 10 );
 			assert.deepEqual( call.arguments, [ delta, Math.min( Math.floor( delta / h ) + 1, cap ?? 10 ), h ] );
 			assert.ok( integrated * h <= elapsed + 2e-6, 'native simulation must not run ahead of elapsed time' );
@@ -111,7 +113,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'standal
 
 		}
 		if ( tape.name === '120 FPS' || tape.name === '144 FPS' ) assert.ok( zeroSteps > 0 );
-		if ( tape.long || ( cap === 3 && ( tape.name === '10 FPS' || tape.name === '20 FPS' || tape.name.includes( '100ms' ) ) ) ) assert.ok( dropped > 0, 'bounded cap still discards excessive time' );
+		if ( tape.long || ( cap === 3 && ( tape.name === '10 FPS' || ( tape.name === '20 FPS' && override !== undefined ) || tape.name.includes( '100ms' ) ) ) ) assert.ok( dropped > 0, 'bounded cap still discards excessive time' );
 		else assert.equal( dropped, 0 );
 		if ( tape.long ) assert.ok( elapsed - integrated * h > 5 * h, 'discarded long-stall time is not recovered later' );
 
@@ -127,8 +129,9 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'standal
 
 } );
 
-for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const cap of [ undefined, 3 ] ) for ( const batch of [ 0.1, 0.25 ] ) test( `native Worker batching ${format} cap=${cap ?? 'default'} batch=${batch}`, t => {
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const override of [ undefined, 1 / 65 ] ) for ( const cap of [ undefined, 3 ] ) for ( const batch of [ 0.1, 0.25 ] ) test( `native Worker batching ${format} step=${override ?? 'default'} cap=${cap ?? 'default'} batch=${batch}`, t => {
 
+	const h = override ?? 1 / 60;
 	const worlds: AmmoWorld[] = [];
 	t.mock.method( host.Ammo, 'btDiscreteDynamicsWorld', class extends host.Ammo.btDiscreteDynamicsWorld {
 
@@ -137,7 +140,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const cap of [ undefined
 	} );
 	const worker = new ManualWorker(), helper = new MMDAnimationHelper( { sync: false } ); helper.sharedPhysics = true;
 	const meshes = [ model( format ), model( format ) ]; meshes[ 1 ].position.z = 20;
-	for ( const mesh of meshes ) helper.add( mesh, { physicsMode: 'worker', workerPhysics: worker.options(), maxStepNum: cap, warmup: 0, animationWarmup: false, gravity: new Vector3( 0, 0, 10 ) } );
+	for ( const mesh of meshes ) helper.add( mesh, { physicsMode: 'worker', workerPhysics: worker.options(), unitStep: override, maxStepNum: cap, warmup: 0, animationWarmup: false, gravity: new Vector3( 0, 0, 10 ) } );
 	worker.start(); assert.equal( worlds.length, 1 );
 	const physics = meshes.map( m => helper.objects.get( m )!.physics! );
 	const initialZ = physics.map( p => p.bodyResults[ 2 ].position[ 2 ] );

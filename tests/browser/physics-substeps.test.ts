@@ -22,8 +22,8 @@ function near(a,b) {return a.length===b.length && a.every((v,i)=>Math.abs(v-b[i]
 const wait=()=>new Promise(resolve=>setTimeout(resolve,2));
 try {
  globalThis.Ammo=await Ammo();
- for(const fixture of ${JSON.stringify( fixtures )}) for(const cap of [undefined,3]) {
-  const key=fixture.format+' cap='+cap, h=1/65, held=[];
+ for(const fixture of ${JSON.stringify( fixtures )}) for(const override of [undefined,1/65]) for(const cap of [undefined,3]) {
+  const key=fixture.format+' step='+override+' cap='+cap, h=override??1/60, held=[];
   // Real bundled Worker and real transfers/SAB, with only main-thread result
   // delivery held so batching is deterministic on fast and slow machines.
   let proxy;
@@ -43,7 +43,7 @@ try {
   }
   const helper=new MMDAnimationHelper({sync:false}),sync=new MMDAnimationHelper({sync:false});helper.sharedPhysics=sync.sharedPhysics=true;
   const models=[model(0),model(1)],refs=[model(0),model(1)];
-  const params={maxStepNum:cap,warmup:0,animationWarmup:false,gravity:new Vector3(0,0,10)};
+  const params={unitStep:override,maxStepNum:cap,warmup:0,animationWarmup:false,gravity:new Vector3(0,0,10)};
   for(let i=0;i<2;i++) {
    helper.add(models[i],{...params,physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href,createWorker}});
    sync.add(refs[i],params);
@@ -53,7 +53,7 @@ try {
    await Promise.all(physics.map(p=>p.ready));
    check(key+' transport',physics.every(p=>p.physicsMode==='worker' && p.transport===(crossOriginIsolated?'shared':'transferable')));
    check(key+' shared world',physics[0].workerAdapter.group===physics[1].workerAdapter.group);
-   check(key+' cap',physics.every(p=>p.maxStepNum===(cap??10)));
+   check(key+' cap and timestep',physics.every(p=>p.maxStepNum===(cap??10) && p.unitStep===h && p.workerAdapter.model.unitStep===h));
    const initialZ=physics.map(p=>p.bodyResults[2].position[2]);
    let steps=0,elapsed=0,sequence=0,currentY=0;
    for(const driver of [helper,sync])driver.onBeforePhysics=mesh=>{mesh.skeleton.bones[0].position.y=currentY;mesh.updateMatrixWorld(true);};

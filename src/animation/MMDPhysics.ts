@@ -94,7 +94,7 @@ class MMDPhysics {
 	 * @param {Array<Object>} rigidBodyParams
 	 * @param {Array<Object>} (optional) constraintParams
 	 * @param {Object} params - (optional)
-	 * @param {Number} params.unitStep - Default is 1 / 65.
+	 * @param {Number} params.unitStep - Default is 1 / 60.
 	 * @param {Integer} params.maxStepNum - Maximum fixed substeps per update. Default is 10.
 	 * @param {Vector3} params.gravity - Default is ( 0, - 9.8 * 10, 0 )
 	 */
@@ -115,12 +115,12 @@ class MMDPhysics {
 		this.mesh = mesh;
 
 		/*
-		 * I don't know why but 1/60 unitStep easily breaks models
-		 * so I set it 1/65 so far.
-		 * Don't set too small unitStep because
-		 * the smaller unitStep can make the performance worse.
+		 * Try 1/60 again as an isolated fixed-timestep experiment (#75).
+		 * The historical 1/65 stability rationale has no established reproduction.
+		 * A longer step may reduce work but can degrade joint stability; this is
+		 * not a confirmed fix for intermittent instability. Callers can override it.
 		 */
-		this.unitStep = ( params.unitStep !== undefined ) ? params.unitStep : 1 / 65;
+		this.unitStep = ( params.unitStep !== undefined ) ? params.unitStep : 1 / 60;
 		this.maxStepNum = ( params.maxStepNum !== undefined ) ? params.maxStepNum : 10;
 		this.gravity = new Vector3( 0, - 9.8 * 10, 0 );
 
