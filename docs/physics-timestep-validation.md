@@ -10,7 +10,7 @@ experiment, not a proven cure for the reported oscillation. Motion and settling
 characteristics may differ, especially at high refresh rates.
 
 Issue #75 changes only the default fixed interval from `unitStep = 1/65` to
-`1/60` seconds. Explicit overrides (including `1/65`), the default
+`1/60` seconds. Explicit overrides (including `1/65`), the then-default
 `maxStepNum = 3`, and the existing `floor(delta / unitStep) + 1` budget capped at
 `maxStepNum` remain. The historical claim that `1/60` broke models more easily
 has no established reproduction or demonstrated applicability to the current
@@ -29,6 +29,10 @@ synchronization (including type-2 alignment). Thus PMD pose synchronization can
 still write a transform without advancing the simulation clock. The same
 stepping function serves standalone sync, shared sync and Worker-owned worlds.
 
+Issue #74 subsequently raises the default cap to 10; see the
+[current substep validation](physics-substeps-validation.md) for combined-head
+evidence. The Issue #75 results below describe its earlier three-step baseline.
+
 ## Automated evidence
 
 `tests/physics-timestep.test.ts` records the actual `world.stepSimulation`
@@ -43,12 +47,13 @@ masks. Its native displacement independently measures actual simulated time.
 A quarter-step prefix completes no substep and is retained across invalid
 updates. Each following one-second cadence completes 60 or 65 steps, with lag
 below one fixed step (`2e-6` seconds tolerance) and native displacement error
-below `3e-5` model units. A 250 ms stall executes exactly three substeps. Tiny
-and full-step updates afterward verify fractional retention without replaying
+below `3e-5` model units. The combined Issue #74 head uses a ten-step cap for
+these same cases; a 250 ms stall executes exactly ten substeps. Tiny and
+full-step updates afterward verify fractional retention without replaying
 discarded stall time. Bullet returns the requested count before clamping, so
 that return value alone cannot establish the executed work; native motion is
 checked on every update. Shared paths check both probes and one world call per
-frame. Worker add messages must contain the selected interval and unchanged cap.
+frame. Worker add messages must contain the selected interval and the current cap.
 The deterministic Worker scheduler uses structured-clone ownership transfers
 and the production runtime with actual Ammo; it does not create an OS thread.
 
@@ -90,8 +95,8 @@ This is five fewer integrations per simulated second, about 7.7% fewer fixed
 steps, while each step is about 8.3% longer. Substep count is a CPU-work proxy,
 not a measured wall-clock or FPS improvement: solver/contact complexity,
 rendering, Worker messaging and per-frame synchronization still contribute.
-The unchanged three-step cap integrates at most 50 ms per call at `1/60`, versus
-about 46.154 ms at `1/65`; stalls still discard excess whole steps. A longer
+At the Issue #75 baseline, the three-step cap integrated at most 50 ms per
+call at `1/60`, versus about 46.154 ms at `1/65`; stalls still discard excess whole steps. A longer
 fixed interval could degrade joint stability despite the slightly lower work.
 These tests do not establish visual/physical parity with MikuMikuDance or fix
 the intermittent violent oscillation.

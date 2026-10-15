@@ -73,7 +73,7 @@ try {
   for(const {p,index,i} of collisionModels) {
    check('collisionWorker'+index+'model'+i,p.physicsMode==='worker' && p.transport===(crossOriginIsolated?'shared':'transferable'));
    check('collisionSharedWorld'+index+'model'+i,p.workerAdapter.group===first.workerAdapter.group);
-   check('collisionTimestep'+index+'model'+i,p.unitStep===unitStep && p.workerAdapter.model.unitStep===unitStep && p.maxStepNum===3);
+   check('collisionTimestep'+index+'model'+i,p.unitStep===unitStep && p.workerAdapter.model.unitStep===unitStep && p.maxStepNum===10);
   }
   for(let frame=1;frame<=12;frame++) {
    for(const {mesh} of collisionModels)mesh.skeleton.bones[0].position.y=frame/650;

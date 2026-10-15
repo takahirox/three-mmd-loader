@@ -95,7 +95,7 @@ class MMDPhysics {
 	 * @param {Array<Object>} (optional) constraintParams
 	 * @param {Object} params - (optional)
 	 * @param {Number} params.unitStep - Default is 1 / 60.
-	 * @param {Integer} params.maxStepNum - Default is 3.
+	 * @param {Integer} params.maxStepNum - Maximum fixed substeps per update. Default is 10.
 	 * @param {Vector3} params.gravity - Default is ( 0, - 9.8 * 10, 0 )
 	 */
 	constructor( mesh: SkinnedMesh, rigidBodyParams: RigidBodyParameters[], constraintParams: ConstraintParameters[] = [], params: MMDPhysicsParameters = {}, workerWorld?: WorkerPhysicsWorld ) {
@@ -121,7 +121,7 @@ class MMDPhysics {
 		 * not a confirmed fix for intermittent instability. Callers can override it.
 		 */
 		this.unitStep = ( params.unitStep !== undefined ) ? params.unitStep : 1 / 60;
-		this.maxStepNum = ( params.maxStepNum !== undefined ) ? params.maxStepNum : 3;
+		this.maxStepNum = ( params.maxStepNum !== undefined ) ? params.maxStepNum : 10;
 		this.gravity = new Vector3( 0, - 9.8 * 10, 0 );
 
 		if ( params.gravity !== undefined ) this.gravity.copy( params.gravity );

@@ -89,7 +89,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'sync', 
 		for ( const mesh of meshes ) {
 
 			const physics = standalone ?? helper.objects.get( mesh )!.physics!;
-			assert.equal( physics.unitStep, fixedStep ); assert.equal( physics.maxStepNum, 3 );
+			assert.equal( physics.unitStep, fixedStep ); assert.equal( physics.maxStepNum, 10 );
 			assert.equal( physics.physicsMode, path === 'worker' ? 'worker' : 'sync' );
 			if ( path === 'shared sync' ) assert.equal( physics.world, worlds[ 0 ] );
 
@@ -98,7 +98,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'sync', 
 
 			const adds = worker.sent.filter( message => message.type === 'add' );
 			assert.equal( adds.length, meshes.length );
-			for ( const message of adds ) { assert.equal( message.model.unitStep, fixedStep ); assert.equal( message.model.maxStepNum, 3 ); }
+			for ( const message of adds ) { assert.equal( message.model.unitStep, fixedStep ); assert.equal( message.model.maxStepNum, 10 ); }
 			// Consume the initial reset snapshot before installing the probe drive.
 			helper.update( 0 ); worker.flush();
 
@@ -118,12 +118,12 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'sync', 
 			if ( delta > 0 && Number.isFinite( delta ) ) {
 
 				assert.equal( step.mock.callCount(), count + 1, 'one Bullet call per positive frame, even with shared models' );
-				const call = step.mock.calls.at( -1 )!, budget = Math.min( Math.floor( delta / fixedStep ) + 1, 3 );
+				const call = step.mock.calls.at( -1 )!, budget = Math.min( Math.floor( delta / fixedStep ) + 1, 10 );
 				assert.deepEqual( call.arguments, [ delta, budget, fixedStep ] );
 				// Bullet returns requested steps BEFORE clamping. Probe motion below
 				// independently verifies the number of steps actually executed.
 				const executed = Math.min( call.result!, budget );
-				assert.ok( executed >= 0 && executed <= 3 );
+				assert.ok( executed >= 0 && executed <= 10 );
 				simulated += executed * fixedStep;
 				if ( executed === 0 ) zeroStepFrames ++;
 
@@ -150,12 +150,12 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'sync', 
 		if ( fps > 65 ) assert.ok( zeroStepFrames > 1, 'high-refresh frames sometimes execute no substep' );
 		const beforeStall = simulated;
 		advance( 0.25 );
-		assert.ok( step.mock.calls.at( -1 )!.result! > 3, 'stall requests more steps than the budget' );
-		assert.ok( Math.abs( simulated - beforeStall - 3 * fixedStep ) < 1e-12, 'native work is capped at three substeps' );
+		assert.ok( step.mock.calls.at( -1 )!.result! > 10, 'stall requests more steps than the budget' );
+		assert.ok( Math.abs( simulated - beforeStall - 10 * fixedStep ) < 1e-12, 'native work is capped at ten substeps' );
 		advance( fixedStep / 8 );
-		assert.equal( simulated, beforeStall + 3 * fixedStep, 'discarded stall time does not become a catch-up backlog' );
+		assert.equal( simulated, beforeStall + 10 * fixedStep, 'discarded stall time does not become a catch-up backlog' );
 		advance( fixedStep );
-		assert.ok( Math.abs( simulated - beforeStall - 4 * fixedStep ) < 1e-12, 'fractional accumulation continues after the stall' );
+		assert.ok( Math.abs( simulated - beforeStall - 11 * fixedStep ) < 1e-12, 'fractional accumulation continues after the stall' );
 		for ( const delta of invalidDeltas ) advance( delta );
 
 	} finally {
@@ -174,10 +174,10 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) test( `Bullet receives elapsed
 	const step = t.mock.method( physics.world!, 'stepSimulation', () => 0 );
 	try {
 
-		assert.equal( physics.unitStep, unitStep ); assert.equal( physics.maxStepNum, 3 );
+		assert.equal( physics.unitStep, unitStep ); assert.equal( physics.maxStepNum, 10 );
 		for ( const [ delta, maxSteps ] of [
 			[ 1 / 144, 1 ], [ 1 / 120, 1 ], [ unitStep, 2 ], [ 1 / 60, 2 ], [ 1 / 30, 3 ],
-			[ 0.25, 3 ], [ ( 2 ** 31 ) * unitStep, 3 ], [ Number.MAX_VALUE, 3 ]
+			[ 0.1, 7 ], [ 0.25, 10 ], [ ( 2 ** 31 ) * unitStep, 10 ], [ Number.MAX_VALUE, 10 ]
 		] ) {
 
 			physics.update( delta );
@@ -234,7 +234,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) test( `shared ${format} world 
 
 } );
 
-for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const fps of [ 30, 60, 120, 144 ] ) test( `real Ammo ${format} accumulates fractional time at ${fps} FPS`, t => {
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const fps of [ 10, 20, 30, 60, 120, 144 ] ) test( `real Ammo ${format} accumulates fractional time at ${fps} FPS`, t => {
 
 	// Keep a moving kinematic/constrained pair and an isolated mode-1 probe.
 	const mesh = type2Fixture(), meta = mesh.geometry.userData.MMD; meta.format = format;
@@ -253,7 +253,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const fps of [ 30, 60, 1
 			mesh.skeleton.bones[ 0 ].position.x = -frame / fps / 10; mesh.updateMatrixWorld( true );
 			elapsed += 1 / fps; physics.update( 1 / fps );
 			const call = step.mock.calls.at( -1 )!;
-			assert.deepEqual( call.arguments, [ 1 / fps, Math.min( Math.floor( ( 1 / fps ) / unitStep ) + 1, 3 ), unitStep ] );
+			assert.deepEqual( call.arguments, [ 1 / fps, Math.min( Math.floor( ( 1 / fps ) / unitStep ) + 1, 10 ), unitStep ] );
 			simulated += call.result! * unitStep;
 			if ( call.result === 0 ) fractionalFrames ++;
 			const z = probe.getCenterOfMassTransform().getOrigin().z();
