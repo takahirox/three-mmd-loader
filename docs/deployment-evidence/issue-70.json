@@ -1,0 +1,126 @@
+{
+  "issue": "https://github.com/takahirox/three-mmd-loader/issues/70",
+  "pr": {
+    "number": 71,
+    "url": "https://github.com/takahirox/three-mmd-loader/pull/71",
+    "head_sha": "ee6ec109456ffa955245e2493b9f26b22888beec"
+  },
+  "source_issue_state_immediately_before_merge": "OPEN",
+  "merged_at": "2026-10-15T04:26:33Z",
+  "merge_commit": "93c515405d623433cb8d1fdebabc54eaba9a9063",
+  "merge_parents": [
+    "37884324e72d8cc5c0928b5e8904e1e315e631f7",
+    "ee6ec109456ffa955245e2493b9f26b22888beec"
+  ],
+  "workflow": {
+    "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38681476618",
+    "event": "push",
+    "head_sha": "93c515405d623433cb8d1fdebabc54eaba9a9063",
+    "conclusion": "success"
+  },
+  "tests_workflow": {
+    "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38681476608",
+    "conclusion": "success"
+  },
+  "publication": {
+    "deployment_id": 7083882475,
+    "status": "success",
+    "published_at": "2026-10-15T04:29:49Z",
+    "public_url": "https://takahirox.github.io/three-mmd-loader/",
+    "commit": "93c515405d623433cb8d1fdebabc54eaba9a9063",
+    "verification_at": "2026-10-15T04:29:43.566Z",
+    "content_checks_passed": 603,
+    "content_checks_failed": 0,
+    "manifest_before_and_after_browser_checks": "93c515405d623433cb8d1fdebabc54eaba9a9063",
+    "manifest_files": 600
+  },
+  "browser": {
+    "checkedAt": "2026-10-15T04:31:02.234Z",
+    "browser": "Headless Google Chrome / SwiftShader WebGL",
+    "results": [
+      {
+        "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html?backend=webgl",
+        "state": "ready",
+        "status": "sync \u2014 main-thread helper update: 3.70 ms (mean)",
+        "skinnedMesh": true,
+        "bones": 140,
+        "vertices": 12354,
+        "rigidBodies": 45,
+        "animationTracks": 311,
+        "physicsMode": "sync",
+        "requestedPhysicsMode": "sync",
+        "canvasWidth": 756,
+        "canvasHeight": 469,
+        "runtimeErrors": [],
+        "failedRequests": [],
+        "httpErrors": [
+          {
+            "url": "https://takahirox.github.io/favicon.ico",
+            "status": 404
+          }
+        ],
+        "responseCount": 39,
+        "exampleHttpErrors": [],
+        "accepted": true
+      },
+      {
+        "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html?backend=webgl",
+        "state": "ready",
+        "status": "worker / transferable \u2014 main-thread helper update: 1.10 ms (mean)",
+        "skinnedMesh": true,
+        "bones": 140,
+        "vertices": 12354,
+        "rigidBodies": 45,
+        "animationTracks": 311,
+        "physicsMode": "worker",
+        "requestedPhysicsMode": "worker",
+        "transport": "transferable",
+        "workerInitialized": true,
+        "canvasWidth": 756,
+        "canvasHeight": 469,
+        "runtimeErrors": [],
+        "failedRequests": [],
+        "httpErrors": [
+          {
+            "url": "https://takahirox.github.io/favicon.ico",
+            "status": 404
+          }
+        ],
+        "responseCount": 39,
+        "exampleHttpErrors": [],
+        "accepted": true
+      },
+      {
+        "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_pmx_gene.html?backend=webgl",
+        "state": "ready",
+        "status": "sync \u2014 main-thread helper update: 2.70 ms (mean)",
+        "skinnedMesh": true,
+        "bones": 224,
+        "vertices": 28646,
+        "rigidBodies": 87,
+        "animationTracks": 5,
+        "physicsMode": "sync",
+        "requestedPhysicsMode": "sync",
+        "canvasWidth": 756,
+        "canvasHeight": 469,
+        "runtimeErrors": [],
+        "failedRequests": [],
+        "httpErrors": [
+          {
+            "url": "https://takahirox.github.io/favicon.ico",
+            "status": 404
+          }
+        ],
+        "responseCount": 45,
+        "exampleHttpErrors": [],
+        "accepted": true
+      }
+    ]
+  },
+  "initial_strict_probe": {
+    "exit_code": 1,
+    "reason": "All three examples loaded successfully; only the unrelated origin-root favicon request returned HTTP 404. Example acceptance excludes that favicon and passes all three pages."
+  },
+  "assessment": "Publication and all three public example loading checks passed. No example asset HTTP errors, failed requests or page runtime exceptions were observed. Worker physics initialized with transferable transport.",
+  "limitations": "WebGL loading checks do not establish visual stability, exact native MMD equivalence or improvement of intermittent instability. Optional maintainer real-model motion assessment remains unperformed."
+}
