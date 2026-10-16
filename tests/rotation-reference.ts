@@ -13,7 +13,7 @@ export const rotationCases = [
 ];
 
 // Independent row-major scalar matrix oracle. No Euler or quaternion Euler
-// conversion is used: form original-coordinate Ry * Rx * Rz, then S R S.
+// conversion is used. The joint oracle consumes already converted parser angles.
 function multiply( a: number[], b: number[] ) {
 
 	return Array.from( { length: 9 }, ( _, i ) => {
@@ -24,17 +24,33 @@ function multiply( a: number[], b: number[] ) {
 	} );
 
 }
-export function reflectedRotation( angles: number[], order = 'YXZ' ) {
+function scalarRotation( angles: number[], order: 'YXZ' | 'XYZ' ) {
 
-	const [ x, y, z ] = angles.map( Math.fround ); // binary fixture precision
+	const [ x, y, z ] = angles;
 	const cx = Math.cos( x ), sx = Math.sin( x ), cy = Math.cos( y ), sy = Math.sin( y ), cz = Math.cos( z ), sz = Math.sin( z );
 	const rx = [ 1, 0, 0, 0, cx, -sx, 0, sx, cx ];
 	const ry = [ cy, 0, sy, 0, 1, 0, -sy, 0, cy ];
 	const rz = [ cz, -sz, 0, sz, cz, 0, 0, 0, 1 ];
-	const s = [ 1, 0, 0, 0, 1, 0, 0, 0, -1 ];
-	const original = order === 'YXZ' ? multiply( multiply( ry, rx ), rz ) : multiply( multiply( rx, ry ), rz );
-	const r = multiply( multiply( s, original ), s );
+	return order === 'YXZ' ? multiply( multiply( ry, rx ), rz ) : multiply( multiply( rx, ry ), rz );
+
+}
+function matrixFromRows( r: number[] ) {
+
 	return new Matrix4().set( r[ 0 ], r[ 1 ], r[ 2 ], 0, r[ 3 ], r[ 4 ], r[ 5 ], 0, r[ 6 ], r[ 7 ], r[ 8 ], 0, 0, 0, 0, 1 );
+
+}
+export function rightHandedRotation( angles: number[], order: 'YXZ' | 'XYZ' = 'YXZ' ) {
+
+	return matrixFromRows( scalarRotation( angles, order ) );
+
+}
+// Keep the original body oracle: round binary angles, compose in the original
+// coordinate system, then reflect with S R S. This independently checks the
+// parser's X/Y sign conversion against the joint oracle above.
+export function reflectedRotation( angles: number[], order: 'YXZ' | 'XYZ' = 'YXZ' ) {
+
+	const s = [ 1, 0, 0, 0, 1, 0, 0, 0, -1 ];
+	return matrixFromRows( multiply( multiply( s, scalarRotation( angles.map( Math.fround ), order ) ), s ) );
 
 }
 export function resultMatrix( pose: { position: number[]; quaternion: number[] } ) {

@@ -76,9 +76,9 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'standal
 				if ( ! p.workerAdapter ) near( ammoMatrix( p.bodies[ i ].boneOffsetForm ), offset( fixture.angles, meta.rigidBodies[ i ].position ) );
 
 			}
-			// Check both local native frames against the unchanged multi-axis XYZ
-			// joint world transform. A pooled-Euler order leak fails this check.
-			const joint = reflectedRotation( [ 0.31, -0.47, 0.62 ], 'XYZ' ).setPosition( Math.fround( 0.4 ), Math.fround( 0.3 ), -Math.fround( -0.2 ) );
+			// Check both local native frames against the explicit multi-axis YXZ
+			// joint world transform, independently of the body-offset convention.
+			const joint = reflectedRotation( [ 0.31, -0.47, 0.62 ] ).setPosition( Math.fround( 0.4 ), Math.fround( 0.3 ), -Math.fround( -0.2 ) );
 			for ( let i = 0; i < 2; i ++ ) near( frames[ m ][ i ], expected[ i ].clone().invert().multiply( joint ) );
 			const difference = Math.max( ...reflectedRotation( fixture.angles ).elements.map( ( v, i ) => Math.abs( v - reflectedRotation( fixture.angles, 'XYZ' ).elements[ i ] ) ) );
 			assert.equal( difference > 1e-4, fixture.differs );

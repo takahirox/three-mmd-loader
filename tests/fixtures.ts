@@ -542,9 +542,9 @@ export function subtexturePngBuffer() {
 
 }
 
-/** Original left-handed PMD/PMX payloads for the rigid-body Euler experiment.
+/** Original left-handed PMD/PMX payloads for the body/joint Euler experiments.
  * PMD stores bone-relative positions; PMX stores model-space positions. */
-export function rotationPhysicsBuffer( format: 'pmd' | 'pmx', angles: number[], type = 1, constrained = true ) {
+export function rotationPhysicsBuffer( format: 'pmd' | 'pmx', angles: number[], type = 1, constrained = true, jointAngles = [ 0.31, -0.47, 0.62 ] ) {
 
 	const probePosition = [ 0.6, 0.4, 0.2 ];
 	const base = format === 'pmd' ? pmdBuffer( { twoBones: true, probePosition } ) : pmxBuffer( { twoBones: true, probePosition } );
@@ -566,7 +566,7 @@ export function rotationPhysicsBuffer( format: 'pmd' | 'pmx', angles: number[], 
 
 		if ( format === 'pmd' ) w.text( 'mixed-joint', 20 ).u32( 0 ).u32( 1 );
 		else w.text( 'mixed-joint' ).text( '' ).u8( 0 ).u8( 0 ).u8( 1 );
-		w.f32( 0.4, 0.3, -0.2, 0.31, -0.47, 0.62 );
+		w.f32( 0.4, 0.3, -0.2, ...jointAngles );
 		w.f32( 0, 0, 0, 0, 0, 0 ); // locked translation and rotation
 		w.f32( 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ); // no springs
 
