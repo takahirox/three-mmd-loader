@@ -236,7 +236,9 @@ export class WorkerPhysicsAdapter {
 			rest: bones.flatMap( b => [ ...b.position.toArray(), ...b.quaternion.toArray() ] ),
 			bodies, constraints, gravity: owner.gravity.toArray(), unitStep: owner.unitStep, maxStepNum: owner.maxStepNum
 		};
-		this.offsets = bodies.map( body => new Matrix4().compose( new Vector3().fromArray( body.position ), new Quaternion().setFromEuler( new Euler( ...body.rotation ) ), new Vector3( 1, 1, 1 ) ) );
+		// Match native rigid-body offsets (#78) for reset, deferred input and
+		// body-to-bone projection. Joint frames retain their separate XYZ order.
+		this.offsets = bodies.map( body => new Matrix4().compose( new Vector3().fromArray( body.position ), new Quaternion().setFromEuler( new Euler( ...body.rotation, 'YXZ' ) ), new Vector3( 1, 1, 1 ) ) );
 		this.deferred = bodies.map( body => {
 
 			const visited = new Set<number>(); let index = body.boneIndex;
