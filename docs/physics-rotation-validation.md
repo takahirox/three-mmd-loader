@@ -1,13 +1,18 @@
 # Rigid-body YXZ offset experiment — Issue #78
 
+This records the #78 checkpoint. Issue #80 subsequently changes joint frames to
+YXZ and extends these tests; see [joint-frame validation](physics-joint-rotation-validation.md)
+for the current convention and results. The #78 measurements below are historical.
+
 Rigid-body offsets now explicitly compose the already right-handed parser Euler
 values in **YXZ** order in both `RigidBody._init()` and
 `WorkerPhysicsAdapter`. The Worker runtime uses the same native `MMDPhysics`
 implementation. Its stored offset matrix serves initialization, reset, deferred
 pose input and body-to-bone projection, so those operations share one convention.
 
-Joint world frames remain explicitly **XYZ**. The shared native helper accepts
-an order, defaults to XYZ, and sets it on every use of a pooled Euler. This
+At the #78 checkpoint, joint world frames remained explicitly **XYZ**. The shared
+native helper accepts an order, defaults to XYZ, and sets it on every use of a
+pooled Euler. This
 prevents a previous rigid-body allocation from leaking YXZ into joint creation.
 Rigid-body comparisons with other implementations do not settle the joint
 convention; that remains a separate investigation.

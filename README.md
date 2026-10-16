@@ -237,6 +237,12 @@ This differs from legacy Three.js and can increase vibration when overlapping
 bodies' contact separation competes with joint limits. See the
 [linked-body collision experiment and validation](docs/physics-linked-collision-validation.md).
 
+Joint frames and rigid-body offsets compose parsed right-handed Euler angles
+in YXZ order in Sync and Worker physics. The joint convention is a reversible
+compatibility experiment; exact native MMD parity and improved long-running
+stability remain unproven. See the
+[joint-frame rationale and validation](docs/physics-joint-rotation-validation.md).
+
 Opt-in real-model setup: `npm run models:setup -- gene`, then `npm run dev:sdef`
 and choose Gene in **Installed models**. Safe manual acquisition import:
 `npm run models:import -- /path/to/model.zip --category sdef`. See

@@ -1474,7 +1474,7 @@ class Constraint {
 		const form = manager.allocTransform();
 		manager.setIdentity( form );
 		manager.setOriginFromArray3( form, params.position );
-		manager.setBasisFromArray3( form, params.rotation, 'XYZ' );
+		manager.setBasisFromArray3( form, params.rotation, 'YXZ' );
 
 		const formA = manager.allocTransform();
 		const formB = manager.allocTransform();
