@@ -770,11 +770,12 @@ class ResourceManager {
 
 	}
 
-	setBasisFromArray3( t: AmmoTransform, a: number[] ) {
+	setBasisFromArray3( t: AmmoTransform, a: number[], order: Euler['order'] = 'XYZ' ) {
 
 		var thQ = this.allocThreeQuaternion();
 		var thE = this.allocThreeEuler();
-		thE.set( a[ 0 ], a[ 1 ], a[ 2 ] );
+		// Always select the order: pooled Eulers may have served another caller.
+		thE.set( a[ 0 ], a[ 1 ], a[ 2 ], order );
 		this.setBasisFromThreeQuaternion( t, thQ.setFromEuler( thE ) );
 
 		this.freeThreeEuler( thE );
@@ -1256,7 +1257,9 @@ class RigidBody {
 		const boneOffsetForm = manager.allocTransform();
 		manager.setIdentity( boneOffsetForm );
 		manager.setOriginFromArray3( boneOffsetForm, params.position );
-		manager.setBasisFromArray3( boneOffsetForm, params.rotation );
+		// Isolated rigid-body compatibility experiment (#78). Parser values are
+		// already right-handed; the joint convention is investigated separately.
+		manager.setBasisFromArray3( boneOffsetForm, params.rotation, 'YXZ' );
 
 		const vector = manager.allocThreeVector3();
 		const boneForm = manager.allocTransform();
@@ -1471,7 +1474,7 @@ class Constraint {
 		const form = manager.allocTransform();
 		manager.setIdentity( form );
 		manager.setOriginFromArray3( form, params.position );
-		manager.setBasisFromArray3( form, params.rotation );
+		manager.setBasisFromArray3( form, params.rotation, 'XYZ' );
 
 		const formA = manager.allocTransform();
 		const formB = manager.allocTransform();

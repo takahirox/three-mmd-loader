@@ -99,7 +99,7 @@ export function materialPmxBuffer( { allAdd = false }: { allAdd?: boolean } = {}
 
 const vertices = [ [ 0, 0, 1 ], [ 1, 0, 1 ], [ 0, 1, 1 ] ];
 
-export function pmdBuffer( { twoBones = false }: { twoBones?: boolean } = {} ) {
+export function pmdBuffer( { twoBones = false, probePosition = [ 0, 0, 0 ] }: { twoBones?: boolean; probePosition?: number[] } = {} ) {
 
 	const w = new Writer();
 	w.text( 'Pmd', 3 ).f32( 1 ).text( 'triangle', 20 ).text( '', 256 );
@@ -115,7 +115,7 @@ export function pmdBuffer( { twoBones = false }: { twoBones?: boolean } = {} ) {
 	w.u8( 255 ).u8( 1 ).u32( 3 ).text( '', 20 );
 	w.u16( twoBones ? 2 : 1 ); // bones
 	w.text( 'root', 20 ).u16( 65535 ).u16( 0 ).u8( 0 ).u16( 0 ).f32( 0, 0, 0 );
-	if ( twoBones ) w.text( 'probe', 20 ).u16( 0 ).u16( 0 ).u8( 0 ).u16( 0 ).f32( 0, 0, 0 );
+	if ( twoBones ) w.text( 'probe', 20 ).u16( 0 ).u16( 0 ).u8( 0 ).u16( 0 ).f32( ...probePosition );
 	w.u16( 0 ).u16( 0 ); // IK, morphs
 	w.u8( 0 ).u8( 0 ).u32( 0 ).u8( 0 ); // display frames, English header
 	for ( let i = 0; i < 10; i ++ ) w.text( '', 100 ); // toon texture names
@@ -178,7 +178,7 @@ export function linkedCollisionBuffer( format: 'pmd' | 'pmx', { linked = true, m
 
 }
 
-export function pmxBuffer( { additionalUvMorphs = false, twoBones = false }: { additionalUvMorphs?: boolean; twoBones?: boolean } = {} ) {
+export function pmxBuffer( { additionalUvMorphs = false, twoBones = false, probePosition = [ 0, 0, 0 ] }: { additionalUvMorphs?: boolean; twoBones?: boolean; probePosition?: number[] } = {} ) {
 
 	const w = new Writer();
 	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
@@ -208,7 +208,7 @@ export function pmxBuffer( { additionalUvMorphs = false, twoBones = false }: { a
 	w.u32( twoBones ? 2 : 1 ); // bones
 	w.text( 'root' ).text( '' ).f32( 0, 0, 0 ).u8( 255 ).u32( 0 ).u16( 0 );
 	w.f32( 0, 1, 0 ); // tail offset
-	if ( twoBones ) w.text( 'probe' ).text( '' ).f32( 0, 0, 0 ).u8( 0 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
+	if ( twoBones ) w.text( 'probe' ).text( '' ).f32( ...probePosition ).u8( 0 ).u32( 0 ).u16( 0 ).f32( 0, 1, 0 );
 	if ( additionalUvMorphs ) {
 
 		w.u32( 5 ); // four additional UV morphs followed by a vertex morph
@@ -539,5 +539,38 @@ export function subtexturePngBuffer() {
 	const header = Buffer.alloc( 13 ); header.writeUInt32BE( 4 ); header.writeUInt32BE( 2, 4 ); header[ 8 ] = 8; header[ 9 ] = 6;
 	const rows = Buffer.from( [ 0, ...subtextureTexels.slice( 0, 4 ).flat(), 0, ...subtextureTexels.slice( 4 ).flat() ] );
 	return Buffer.concat( [ Buffer.from( [ 137, 80, 78, 71, 13, 10, 26, 10 ] ), chunk( 'IHDR', header ), chunk( 'IDAT', deflateSync( rows ) ), chunk( 'IEND', Buffer.alloc( 0 ) ) ] );
+
+}
+
+/** Original left-handed PMD/PMX payloads for the rigid-body Euler experiment.
+ * PMD stores bone-relative positions; PMX stores model-space positions. */
+export function rotationPhysicsBuffer( format: 'pmd' | 'pmx', angles: number[], type = 1, constrained = true ) {
+
+	const probePosition = [ 0.6, 0.4, 0.2 ];
+	const base = format === 'pmd' ? pmdBuffer( { twoBones: true, probePosition } ) : pmxBuffer( { twoBones: true, probePosition } );
+	const w = new Writer(); w.bytes.push( ...new Uint8Array( base, 0, base.byteLength - 8 ) );
+	w.u32( 2 );
+	for ( let i = 0; i < 2; i ++ ) {
+
+		if ( format === 'pmd' ) w.text( `rotation${i}`, 20 ).u16( i );
+		else w.text( `rotation${i}` ).text( '' ).u8( i );
+		const offset = i === 0 ? [ 0.2, -0.15, 0.25 ] : [ 1, 0.5, -0.75 ];
+		const position = offset.map( ( v, axis ) => v + ( format === 'pmx' && i === 1 ? probePosition[ axis ] : 0 ) );
+		w.u8( i ).u16( 0 ).u8( 1 ); // no contacts; asymmetric boxes
+		w.f32( 0.1, 0.2, 0.3, ...position, ...angles );
+		w.f32( 1, 0, 0, 0, 0.5 ).u8( i === 0 ? 0 : type );
+
+	}
+	w.u32( constrained ? 1 : 0 );
+	if ( constrained ) {
+
+		if ( format === 'pmd' ) w.text( 'mixed-joint', 20 ).u32( 0 ).u32( 1 );
+		else w.text( 'mixed-joint' ).text( '' ).u8( 0 ).u8( 0 ).u8( 1 );
+		w.f32( 0.4, 0.3, -0.2, 0.31, -0.47, 0.62 );
+		w.f32( 0, 0, 0, 0, 0, 0 ); // locked translation and rotation
+		w.f32( 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ); // no springs
+
+	}
+	return w.buffer();
 
 }
