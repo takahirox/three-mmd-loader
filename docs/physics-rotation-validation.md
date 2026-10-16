@@ -112,17 +112,41 @@ corrected and both transport cases then passed. No final checks are skipped.
 
 ## Required post-merge verification
 
-**PENDING until merge**, and not a pre-merge approval/merge blocker:
+PR #79 merged with a merge commit on 2026-10-16 at 12:54:57 UTC:
+`c8556de7518098bcc7737f2d2b9a1df579698ed5`. Issue #78 was read as OPEN immediately
+before merging, and GitHub enforced the expected PR head
+`dad116849dfb02da8e9e446c30b969e7eeb94f10`.
 
-- Record the merge-triggered [Deploy browser examples workflow](https://github.com/takahirox/three-mmd-loader/actions/workflows/examples-pages.yml)
-  URL, **latest run attempt**, final outcome, deployed actual merge SHA and date.
-- Verify the public Pages content corresponds to that merge SHA; record this
-  separately from browser rendering/physics evidence.
-- Open the public PMD, Worker Physics and Gene Light PMX examples in a browser;
-  record successful loads and absence of asset/runtime errors for each.
-- For transient 503s/timeouts, inspect subsequent retry attempts and results;
-  an earlier successful attempt is insufficient evidence for the latest attempt.
+The merge-triggered [Deploy browser examples run](https://github.com/takahirox/three-mmd-loader/actions/runs/38903913423)
+completed successfully on its latest attempt, **1**, at 12:58:37 UTC. Deployment
+7119523926 reports that merge SHA and a successful public deployment. All **603**
+public content checks passed on verification attempt 1, including the deployment
+manifest and hashes of every published file. This is content verification,
+separate from browser execution.
 
-No public deployment or public runtime result has been marked passed here.
-Optional maintainer subjective visual evaluation is also pending; it is not a
-merge blocker and automated tests do not substitute for it.
+The public [PMD](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html),
+[Worker Physics](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html),
+and [Gene Light PMX](https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_pmx_gene.html)
+pages each reached their actual module's ready state in headless Chrome using
+software WebGPU. Each rendered with nonzero draw calls, finite bone poses, and
+no example asset HTTP failures, network failures, console errors or runtime
+exceptions in the controlled check. Advancing the actual helper 30 times at
+1/60 and rendering the scene changed each model's bone pose. Worker Physics
+retained its Worker backend and advanced completion sequence from 50 to 89.
+The public site is not cross-origin isolated, so this checks transferable
+transport; public SharedArrayBuffer execution was not tested.
+
+Natural animation-loop advancement was **not established** in headless Chrome.
+An initial observation-only pass loaded and rendered all three pages without
+runtime errors but failed extra assertions about advancing frame counters and
+poses. The controlled pass stopped the animation loop before advancing the
+helper; its extra frame-counter-growth assertion also failed, while controlled
+bone movement and rendering succeeded. These counters are not used to claim
+automatic animation passed. The initial pass also observed an unrelated site
+favicon HTTP 404; no example assets failed. There were no observed 503s/timeouts
+in the final deployment verification or controlled browser check.
+
+Detailed URLs, timestamps, observations, checks and limitations are recorded in
+[the checkpoint evidence](./physics-rotation-postmerge-verification.json).
+Optional maintainer subjective visual evaluation remains pending; these checks
+do not establish exact MMD parity, better stability or oscillation resolution.

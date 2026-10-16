@@ -1,0 +1,576 @@
+{
+  "checked_at": "2026-10-16T13:01:40.921520+00:00",
+  "repository": "takahirox/three-mmd-loader",
+  "issue": 78,
+  "pr": 79,
+  "issue_state_immediately_before_merge": "OPEN",
+  "expected_pr_head": "dad116849dfb02da8e9e446c30b969e7eeb94f10",
+  "merge_commit": "c8556de7518098bcc7737f2d2b9a1df579698ed5",
+  "merge_method": "merge",
+  "merge_parents": [
+    "1b308313ab088572f46856c8761504fa863dfba1",
+    "dad116849dfb02da8e9e446c30b969e7eeb94f10"
+  ],
+  "merged_at": "2026-10-16T12:54:57Z",
+  "workflow": {
+    "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/38903913423",
+    "latest_attempt": 1,
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "completed_at": "2026-10-16T12:58:37Z"
+  },
+  "deployment": {
+    "id": 7119523926,
+    "state": "success",
+    "sha": "c8556de7518098bcc7737f2d2b9a1df579698ed5",
+    "successful_at": "2026-10-16T12:58:37Z",
+    "page_url": "https://takahirox.github.io/three-mmd-loader/"
+  },
+  "public_content": {
+    "success": true,
+    "mode": "verify",
+    "page_url": "https://takahirox.github.io/three-mmd-loader/",
+    "deployment_url": "https://takahirox.github.io/three-mmd-loader/",
+    "expected_commit": "c8556de7518098bcc7737f2d2b9a1df579698ed5",
+    "run_id": "38903913423",
+    "checked_at": "2026-10-16T12:58:22.779Z",
+    "deployment_outcome": "success",
+    "commit": "c8556de7518098bcc7737f2d2b9a1df579698ed5",
+    "attempts": 1
+  },
+  "public_content_counts": {
+    "total": 603,
+    "passed": 603,
+    "failed": 0
+  },
+  "public_content_evidence": "pages-deployment-evidence/deployment.json artifact on the workflow run",
+  "public_browser": {
+    "success": true,
+    "browser": "Headless Google Chrome; software WebGPU adapter (SwiftShader)",
+    "method": "Wait for actual public module ready; stop animation loop, advance helper 30 times at 1/60 with Worker delivery intervals, then render actual scene. Favicon 404 is recorded separately from example asset errors.",
+    "pages": [
+      {
+        "success": true,
+        "checks": {
+          "ready": true,
+          "draw_calls": true,
+          "finite_bones": true,
+          "controlled_pose_advanced": true,
+          "requested_backend_active": true,
+          "no_runtime_exceptions": true,
+          "no_asset_http_failures": true,
+          "no_network_failures": true,
+          "no_console_errors": true
+        },
+        "observations": {
+          "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html",
+          "checked_at": "2026-10-16T13:00:06.993Z",
+          "state": "ready",
+          "title": "MMD — Model and animation",
+          "status": "sync — main-thread helper update: 1.60 ms (mean)",
+          "backend": "webgpu",
+          "drawCalls": 50,
+          "finiteBones": true,
+          "bonePoseChanged": true,
+          "requestedPhysicsMode": "sync",
+          "physicsMode": "sync",
+          "crossOriginIsolated": false,
+          "runtimeErrors": [],
+          "incidentalResponses": [
+            {
+              "url": "https://takahirox.github.io/favicon.ico",
+              "status": 404
+            }
+          ],
+          "console": [],
+          "networkErrors": [],
+          "failedResponses": [],
+          "responseCount": 39,
+          "assetResponses": [
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/ammojs-typed/ammo/ammo.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/scene.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/gene-showcase.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDAnimationHelper.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/effects/MMDOutlineEffect.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/examples/jsm/controls/OrbitControls.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/loaders/MMDLoader.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/examples/jsm/libs/lil-gui.module.min.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/PMXPoseLayers.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDUVMorphController.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDMaterialMorphController.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDBoneMorphController.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/examples/jsm/loaders/TGALoader.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.webgpu.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/skinning/MMDSdef.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.tsl.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDPhysics.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.core.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/CCDIKSolver.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/GrantSolver.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/materials/MMDToonMaterial.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDMorphWeights.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/materials/MMDUV.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.module.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/WorkerPhysicsAdapter.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/PhysicsWorkerProtocol.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/mmd/miku/miku_v2.pmd",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/mmd/vmds/wavefile_v2.vmd",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/mmd/miku/eyeM2.bmp",
+              "status": 200
+            }
+          ]
+        }
+      },
+      {
+        "success": true,
+        "checks": {
+          "ready": true,
+          "draw_calls": true,
+          "finite_bones": true,
+          "controlled_pose_advanced": true,
+          "requested_backend_active": true,
+          "no_runtime_exceptions": true,
+          "no_asset_http_failures": true,
+          "no_network_failures": true,
+          "no_console_errors": true,
+          "worker_completed_sequence_advanced": true
+        },
+        "observations": {
+          "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html",
+          "checked_at": "2026-10-16T13:00:23.545Z",
+          "state": "ready",
+          "title": "MMD — Worker Physics",
+          "status": "worker / transferable — main-thread helper update: 0.90 ms (mean)",
+          "backend": "webgpu",
+          "drawCalls": 50,
+          "finiteBones": true,
+          "bonePoseChanged": true,
+          "requestedPhysicsMode": "worker",
+          "physicsMode": "worker",
+          "transport": "transferable",
+          "workerStartSequence": 50,
+          "workerStatus": {
+            "initialized": true,
+            "warmupRemaining": 0,
+            "inFlight": false,
+            "completedSequence": 89
+          },
+          "crossOriginIsolated": false,
+          "runtimeErrors": [],
+          "incidentalResponses": [],
+          "console": [],
+          "networkErrors": [],
+          "failedResponses": [],
+          "responseCount": 38,
+          "assetResponses": [
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/ammojs-typed/ammo/ammo.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/scene.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/examples/jsm/controls/OrbitControls.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.module.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/effects/MMDOutlineEffect.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDAnimationHelper.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/gene-showcase.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/examples/jsm/libs/lil-gui.module.min.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/loaders/MMDLoader.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.webgpu.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/materials/MMDToonMaterial.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.tsl.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/skinning/MMDSdef.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/PMXPoseLayers.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/GrantSolver.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDUVMorphController.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDMaterialMorphController.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/CCDIKSolver.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDBoneMorphController.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDPhysics.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.core.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/examples/jsm/loaders/TGALoader.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDMorphWeights.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/materials/MMDUV.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/WorkerPhysicsAdapter.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/PhysicsWorkerProtocol.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/mmd/miku/miku_v2.pmd",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/mmd/miku/eyeM2.bmp",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/mmd/vmds/wavefile_v2.vmd",
+              "status": 200
+            }
+          ]
+        }
+      },
+      {
+        "success": true,
+        "checks": {
+          "ready": true,
+          "draw_calls": true,
+          "finite_bones": true,
+          "controlled_pose_advanced": true,
+          "requested_backend_active": true,
+          "no_runtime_exceptions": true,
+          "no_asset_http_failures": true,
+          "no_network_failures": true,
+          "no_console_errors": true
+        },
+        "observations": {
+          "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_pmx_gene.html",
+          "checked_at": "2026-10-16T13:01:03.138Z",
+          "state": "ready",
+          "title": "PMX — Gene (Light)",
+          "status": "sync — main-thread helper update: 4.40 ms (mean)",
+          "backend": "webgpu",
+          "drawCalls": 44,
+          "finiteBones": true,
+          "bonePoseChanged": true,
+          "requestedPhysicsMode": "sync",
+          "physicsMode": "sync",
+          "crossOriginIsolated": false,
+          "runtimeErrors": [],
+          "incidentalResponses": [],
+          "console": [],
+          "networkErrors": [],
+          "failedResponses": [],
+          "responseCount": 44,
+          "assetResponses": [
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_pmx_gene.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/ammojs-typed/ammo/ammo.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/scene.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/gene-showcase.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/examples/jsm/controls/OrbitControls.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/effects/MMDOutlineEffect.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDAnimationHelper.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/loaders/MMDLoader.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/examples/jsm/libs/lil-gui.module.min.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.tsl.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/materials/MMDToonMaterial.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/PMXPoseLayers.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.webgpu.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/skinning/MMDSdef.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDUVMorphController.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDMaterialMorphController.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDPhysics.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDBoneMorphController.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/examples/jsm/loaders/TGALoader.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/GrantSolver.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/MMDMorphWeights.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/CCDIKSolver.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.module.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/materials/MMDUV.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.core.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/WorkerPhysicsAdapter.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/src/animation/PhysicsWorkerProtocol.js",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/Gene_light.pmx",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/arm.png",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/hair2.png",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/bottoms.png",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/extra.png",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/pale.png",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/eye2.png",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/eye.png",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/iraira.png",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/face.png",
+              "status": 200
+            },
+            {
+              "url": "https://takahirox.github.io/three-mmd-loader/examples/assets/gene-light/light/top.png",
+              "status": 200
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "limitations": [
+    "Natural animation-loop advancement was not established in headless Chrome. An initial observation-only pass reached ready/rendered state for all three pages without runtime errors but reported unchanged frame counters and poses; its stricter automatic-advancement assertions failed.",
+    "The controlled pass explicitly stopped the animation loop, advanced helper.update(1/60) 30 times with Worker delivery intervals, and rendered the actual public scene. Bone poses changed on all three pages and Worker completion sequence advanced from 50 to 89. Its extra frame-counter-growth assertion also failed because the renderer counter remained unchanged with the loop stopped; that assertion is not used as evidence for controlled rendering.",
+    "The first browser pass observed an unrelated https://takahirox.github.io/favicon.ico HTTP 404. No example asset requests failed; the controlled pass recorded no HTTP failures.",
+    "Public Pages is not cross-origin isolated; public Worker transport was transferable. SharedArrayBuffer transport coverage comes from the upstream local browser tests, not this public check.",
+    "These checks do not establish subjective model appearance, exact MMD parity, stability improvements or oscillation resolution. Optional maintainer motion review remains pending."
+  ]
+}
