@@ -264,7 +264,22 @@ examples/assets/mmd/
 Preserve the downloaded notices. These assets have individual usage conditions;
 the upstream summary also links to the character guidelines. The examples use
 the already installed `ammojs-typed` development dependency for physics; its
-runtime is not bundled into the standalone MMD package.
+runtime is not bundled into the standalone MMD package. The public site copies
+**both** `ammo/ammo.wasm.js` and `ammo/ammo.wasm.wasm` from pinned
+`ammojs-typed@1.1.0`, plus its `LICENSE.md`. Pages and the local server serve
+the binary on the same origin, including under `/three-mmd-loader/`.
+`ammo-runtime.ts` awaits explicit WASM instantiation before creating physics,
+checks that Ammo uses that instance's exports, and reports HTTP, compile or
+10-second timeout failures. Worker factory binary URLs resolve relative to
+the supplied glue URL. A Worker failure falls back to the initialized main-thread
+WASM runtime; a main-thread initialization failure displays an error and stops
+setup. There is no asm.js fallback in the Examples.
+
+This is an implementation/performance experiment, not a claim of stability,
+visual fidelity or universal speed improvements. Existing gallery JPEGs retain
+their original asm.js capture provenance and do not demonstrate WASM parity.
+See [consumer initialization and CSP](https://github.com/takahirox/three-mmd-loader/blob/main/README.md#optional-worker-physics) and
+[validation evidence](https://github.com/takahirox/three-mmd-loader/blob/main/docs/ammo-wasm-validation.md).
 
 ## Deployment
 

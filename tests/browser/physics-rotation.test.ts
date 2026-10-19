@@ -15,9 +15,10 @@ const fixtures = ( [ 'pmd', 'pmx' ] as const ).flatMap( format => [ 1, 2 ].flatM
 	bytes: Array.from( new Uint8Array( rotationPhysicsBuffer( format, fixture.angles, type, true, fixture.angles ) ) )
 } ) ) ) );
 const harness = `<!doctype html><pre id="result">pending</pre>
-<script src="/node_modules/ammojs-typed/ammo/ammo.js"></script>
+<script src="/node_modules/ammojs-typed/ammo/ammo.wasm.js"></script>
 <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/tsl":"/node_modules/three/build/three.tsl.js","three/webgpu":"/node_modules/three/build/three.webgpu.js","three/addons/":"/node_modules/three/examples/jsm/","mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs"}}</script>
 <script type="module">
+import { initializeAmmoWasm } from "/examples/ammo-runtime.js";
 import { Parser } from 'mmd-parser';
 import { Matrix4, Quaternion, Texture, Vector3 } from 'three';
 import { MMDLoader } from '/src/index.js';
@@ -32,7 +33,7 @@ function nativeMatrix(form) {
 }
 const wait=()=>new Promise(resolve=>setTimeout(resolve,2));
 try {
- globalThis.Ammo=await Ammo();
+ globalThis.Ammo=await initializeAmmoWasm();
  for(const fixture of ${JSON.stringify( fixtures )}) for(const count of [1,2]) {
   key=fixture.format+' type='+fixture.type+' '+fixture.name+' models='+count;
   const refs=[],workers=[],meshes=[],held=[];let proxy;
@@ -73,7 +74,7 @@ try {
   function add(list,i,worker) {
    const mesh=model(i),meta=mesh.geometry.userData.MMD;
    list.push(new MMDPhysics(mesh,meta.rigidBodies,meta.constraints,{gravity:new Vector3(2,-5,3),world:worker?undefined:list[0]?.world,
-    physicsMode:worker?'worker':'sync',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href,createWorker}},worker?list[0]?.workerAdapter.group:undefined));
+    physicsMode:worker?'worker':'sync',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.wasm.js',location.href).href,createWorker}},worker?list[0]?.workerAdapter.group:undefined));
   }
   async function finish() {
    const deadline=performance.now()+8000;while(!held.length) {if(performance.now()>deadline)throw new Error(key+' result timeout');await wait();}

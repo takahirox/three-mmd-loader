@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { initializeAmmo } from './ammo-runtime.ts';
 import { test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import type { Vpd } from 'mmd-parser';
@@ -172,7 +172,7 @@ for ( const pmxAnimation of [ false, true ] ) {
 	test( `real Ammo pre/post grants and kinematic/dynamic targets, shared and individual physics, pmx=${pmxAnimation}`, async () => {
 
 		const ammoGlobal = globalThis as typeof globalThis & { Ammo?: AmmoAPI };
-		ammoGlobal.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )();
+		ammoGlobal.Ammo = await initializeAmmo<AmmoAPI>();
 		try {
 
 			for ( const shared of [ false, true ] ) {
@@ -226,7 +226,7 @@ for ( const pmxAnimation of [ false, true ] ) {
 test( 'after-physics kinematic grant is deferred to the next simulation step', async () => {
 
 	const ammoGlobal = globalThis as typeof globalThis & { Ammo?: AmmoAPI };
-	ammoGlobal.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )();
+	ammoGlobal.Ammo = await initializeAmmo<AmmoAPI>();
 	try {
 
 		const { data, loader } = setup();

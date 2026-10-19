@@ -252,6 +252,8 @@ try {
 		context.renderer.setAnimationLoop( null );
 		const { mesh, helper, camera, effect, renderer, scene } = context;
 		const checks = checkInfo( page, doc );
+		checks.wasmRuntime = suffix === '_pose' || doc.body.dataset.ammoBackend === 'wasm';
+		checks.workerRemainsWorker = suffix !== '_worker' || helper.objects.get( mesh ).physics.physicsMode === 'worker';
 		const control = name => [...doc.querySelectorAll( '#controls .controller' )].find( c => c.querySelector( '.name' ).textContent === name ).querySelector( 'input, select, button' );
 		const info = doc.getElementById( 'info' );
 		const gui = doc.getElementById( 'controls' );
@@ -468,7 +470,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 				const file = resolve( siteRoot, path.slice( prefix.length + 1 ) );
 				if ( ! file.startsWith( siteRoot + sep ) ) throw new Error( 'Outside site' );
 				const content = await readFile( file );
-				const types: Record<string, string> = { '.mjs': 'text/javascript', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.bmp': 'image/bmp', '.mp3': 'audio/mpeg', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
+				const types: Record<string, string> = { '.wasm': 'application/wasm', '.mjs': 'text/javascript', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.bmp': 'image/bmp', '.mp3': 'audio/mpeg', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
 				response.writeHead( 200, { 'Content-Type': types[ extname( file ) ] || 'application/octet-stream' } ).end( content );
 
 			} catch {

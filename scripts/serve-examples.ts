@@ -11,7 +11,7 @@ const types: Record<string, string> = {
 	'.txt': 'text/plain', '.md': 'text/plain; charset=utf-8',
 	'.bmp': 'image/bmp', '.png': 'image/png', '.jpg': 'image/jpeg',
 	'.tga': 'application/octet-stream', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
-	'.woff2': 'font/woff2'
+	'.woff2': 'font/woff2', '.wasm': 'application/wasm'
 };
 
 // Serve only example files and their dependencies, including when used by tests.

@@ -3,7 +3,7 @@ import type { ConstraintParameters, MMDBone, RigidBodyParameters } from '../type
 export type PhysicsMode = 'sync' | 'worker';
 export type PhysicsTransport = 'shared' | 'transferable';
 export interface WorkerPhysicsOptions {
-	/** URL of a classic Ammo script exposing the Ammo initialization factory. */
+	/** Classic Ammo factory/API script URL. Factory locateFile paths resolve beside this script (including WASM binaries). */
 	ammoURL: string;
 	/** Override the bundled classic Worker (for CSP, hosting, or testing). */
 	createWorker?: () => Worker;

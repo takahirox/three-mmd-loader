@@ -59,7 +59,8 @@ export async function buildExamples( {
 		'node_modules/three/build/three.core.js',
 		'node_modules/three/examples/jsm',
 		'node_modules/three/LICENSE',
-		'node_modules/ammojs-typed/ammo/ammo.js',
+		'node_modules/ammojs-typed/ammo/ammo.wasm.js',
+		'node_modules/ammojs-typed/ammo/ammo.wasm.wasm',
 		'node_modules/ammojs-typed/LICENSE.md'
 	] ) {
 

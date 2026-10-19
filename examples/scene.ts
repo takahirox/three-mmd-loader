@@ -2,7 +2,7 @@ import { addGeneControls, createGeneAnimation } from './gene-showcase.js';
 import type { AnimationClip } from 'three';
 import type { Vpd } from 'mmd-parser';
 import type { MMDMesh } from '../dist/types.js';
-import type { AmmoAPI } from '../dist/ammo.js';
+import { ammoURL, initializeAmmoWasm } from './ammo-runtime.js';
 
 import {
 	AmbientLight, Audio, AudioListener, AudioLoader, Color, DirectionalLight,
@@ -97,8 +97,7 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' | 'gene'
 		// The package expects an initialized Ammo runtime on globalThis.
 		if ( mode !== 'pose' ) {
 
-			const runtime = globalThis as typeof globalThis & { Ammo: AmmoAPI | ( () => Promise<AmmoAPI> ) };
-			if ( typeof runtime.Ammo === 'function' ) runtime.Ammo = await runtime.Ammo();
+			Object.assign( globalThis, { Ammo: await initializeAmmoWasm() } );
 
 		}
 		const manager = new LoadingManager();
@@ -146,7 +145,7 @@ export async function initExample( mode: 'animation' | 'audio' | 'pose' | 'gene'
 				animation: mmd.animation, physics: true,
 				physicsMode: mode === 'animation' ? requestedPhysicsMode : 'sync',
 				workerPhysics: {
-					ammoURL: new URL( '../node_modules/ammojs-typed/ammo/ammo.js', location.href ).href,
+					ammoURL,
 					onFallback: reason => { fallbackReason = reason; }
 				}
 			} );

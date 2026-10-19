@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { initializeAmmo } from './ammo-runtime.ts';
 import { before, test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import { Matrix4, Quaternion, Texture, Vector3 } from 'three';
@@ -11,7 +11,7 @@ import { ManualWorker } from './manual-physics-worker.ts';
 import { ammoMatrix, rightHandedRotation, rotationCases } from './rotation-reference.ts';
 
 const host = globalThis as typeof globalThis & { Ammo: AmmoAPI };
-before( async () => { host.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )(); } );
+before( async () => { host.Ammo = await initializeAmmo<AmmoAPI>(); } );
 function model( format: 'pmd' | 'pmx', jointAngles: number[], bodyAngles = [ -0.27, 0.38, -0.56 ] ) {
 
 	const parser = new Parser(), bytes = rotationPhysicsBuffer( format, bodyAngles, 1, true, jointAngles );

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { initializeAmmo } from './ammo-runtime.ts';
 import { test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import type { Pmx, Vpd } from 'mmd-parser';
@@ -365,7 +365,7 @@ for ( const pmxAnimation of [ false, true ] ) {
 test( 'real Ammo consumes morphed kinematic transforms, dynamic bones override morph output, including shared physics', async () => {
 
 	const ammoGlobal = globalThis as typeof globalThis & { Ammo?: AmmoAPI };
-	ammoGlobal.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )();
+	ammoGlobal.Ammo = await initializeAmmo<AmmoAPI>();
 	try {
 
 		for ( const pmxAnimation of [ false, true ] ) for ( const shared of [ false, true ] ) for ( const animationWarmup of [ false, true ] ) for ( const group of [ false, true ] ) {

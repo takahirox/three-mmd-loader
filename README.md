@@ -70,17 +70,29 @@ Synchronous physics requires an initialized [Ammo.js](https://github.com/kripken
 runtime exposed as `globalThis.Ammo` before creating `MMDPhysics` or adding a
 mesh with physics enabled (the helper's default). Ammo is supplied by the
 application and is not bundled with this package. For example, using the
-`ammojs-typed` distribution used by the tests:
+`ammojs-typed@1.1.0` WebAssembly distribution used by the Examples and tests:
 
 ```js
-import AmmoFactory from 'ammojs-typed';
+import AmmoFactory from 'ammojs-typed/wasm';
 
-globalThis.Ammo = await AmmoFactory();
+// Copy ammo/ammo.wasm.wasm to this served directory. Await before physics.
+const ammoBaseURL = new URL( './vendor/ammo/', document.baseURI );
+globalThis.Ammo = await AmmoFactory( {
+  locateFile: path => new URL( path, ammoBaseURL ).href
+} );
 helper.add( anotherMesh );
 ```
 
 Install that optional distribution separately (`npm install ammojs-typed`), or
-initialize your own compatible Ammo.js build. Pass `{ physics: false }` when
+initialize your own compatible Ammo.js build, including asm.js. The library does
+not select or download an Ammo backend. WebAssembly requires browser support
+and a separately served binary; use `application/wasm`, preferably on the same
+origin. Failed HTTP/compilation, CSP restrictions, and slow initialization need
+an application setup error handler. The bundled Examples use an explicit
+10-second initialization deadline and verify the instantiated WASM exports;
+they never silently substitute asm.js. This is an engine implementation
+experiment, with no guarantee of better speed, stability, or MMD fidelity.
+Pass `{ physics: false }` when
 adding a mesh to use animation without Ammo. Model texture decoding and
 rendering require a browser environment. The `mmd-parser` dependency
 supports PMX UTF-16LE text and SDEF skinning type `3` with right-handed
@@ -262,7 +274,7 @@ helper.add( mesh, {
   physics: true,
   physicsMode: 'worker',
   workerPhysics: {
-    ammoURL: new URL( './ammo.js', document.baseURI ).href,
+    ammoURL: new URL( './vendor/ammo/ammo.wasm.js', document.baseURI ).href,
     onFallback: reason => console.warn( reason )
   }
 } );
@@ -272,11 +284,20 @@ helper.update( delta );
 ```
 
 `ammoURL` must serve a compatible **classic** Ammo script exposing an `Ammo`
-factory or initialized API. Each Worker initializes its own Ammo. The packaged
+factory or initialized API. Each Worker initializes its own Ammo. For the pinned
+WASM build, copy **both** `ammo/ammo.wasm.js` and `ammo/ammo.wasm.wasm`
+into the same served directory. The Worker resolves factory `locateFile` paths
+relative to `ammoURL`, independent of the page and Worker bundle directories.
+Keep a compatible initialized main-thread runtime available for sync fallback.
+The packaged
 `animation/MMDPhysicsWorker.js` bundles its dependencies and needs no import
 map. Bundlers/deployments must preserve this asset beside `MMDPhysics.js`; use
 `workerPhysics.createWorker: () => new Worker( yourWorkerURL )` to override its
-location or satisfy CSP. Allow the worker and Ammo script under your CSP.
+location or satisfy CSP. Allow the Worker URL in `worker-src`, the classic Ammo
+glue in `script-src`, and the binary in `connect-src`; restrictive policies may
+also need `script-src 'wasm-unsafe-eval'` for WASM compilation. Use same-origin
+URLs and serve over HTTP(S), not `file:`. COOP/COEP is only needed for SAB, not
+for WebAssembly or transferable mode.
 Standalone construction accepts these same options as its fourth argument.
 Mode selection is fixed at setup; dispose/recreate to change it.
 
