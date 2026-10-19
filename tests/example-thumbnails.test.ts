@@ -15,6 +15,41 @@ const previousImages: Record<string, string> = {
 	webgl_loader_mmd_pmx_gene: 'b0ad142b8a7c7e640893a1e07205e9508484fe28c11ffc2382e6c1780ca6da48'
 };
 
+interface SceneProvenance {
+	sceneSha256: string;
+	runtimeUpdate?: { issue: number; sceneSha256: string; note: string };
+}
+
+function assertSceneProvenance( manifest: SceneProvenance, sceneSha256: string ) {
+
+	if ( manifest.runtimeUpdate === undefined ) {
+
+		// Fresh captures record the source used by examples:capture directly.
+		assert.equal( manifest.sceneSha256, sceneSha256, 'Capture must use the current scene source' );
+
+	} else {
+
+		// The retained asm.js previews describe the runtime change separately;
+		// their original capture source must never be relabeled as WASM.
+		assert.equal( manifest.runtimeUpdate.issue, 82 );
+		assert.equal( manifest.runtimeUpdate.sceneSha256, sceneSha256, 'Review preview provenance after changing the scene' );
+		assert.match( manifest.runtimeUpdate.note, /not evidence of WASM visual or motion parity/ );
+		assert.equal( manifest.sceneSha256, '44b01befefa1f7182e763982f89080cd9da53757efe72d706c6269bf25c45422', 'Preserve the actual asm.js capture source hash' );
+
+	}
+
+}
+
+test( 'fresh thumbnail provenance accepts the capture generator output without a legacy runtime note', async () => {
+
+	const sceneSha256 = sha256( await readFile( new URL( '../examples/scene.ts', import.meta.url ) ) );
+	assertSceneProvenance( { sceneSha256 }, sceneSha256 );
+	assert.throws( () => assertSceneProvenance( {
+		sceneSha256: '44b01befefa1f7182e763982f89080cd9da53757efe72d706c6269bf25c45422'
+	}, sceneSha256 ), /Capture must use the current scene source/ );
+
+} );
+
 function jpegDimensions( bytes: Buffer ) {
 
 	for ( let offset = 2; offset < bytes.length; ) {
@@ -38,10 +73,7 @@ test( 'four brighter Miku previews and unchanged Gene preview have valid dimensi
 	const manifest = JSON.parse( await readFile( new URL( '../examples/screenshots/manifest.json', import.meta.url ), 'utf8' ) );
 	assert.equal( manifest.version, 2 );
 	assert.equal( manifest.method, 'npm run examples:capture' );
-	assert.equal( manifest.runtimeUpdate.issue, 82 );
-	assert.equal( manifest.runtimeUpdate.sceneSha256, sha256( scene ), 'Review preview provenance after changing the scene' );
-	assert.match( manifest.runtimeUpdate.note, /not evidence of WASM visual or motion parity/ );
-	assert.equal( manifest.sceneSha256, '44b01befefa1f7182e763982f89080cd9da53757efe72d706c6269bf25c45422', 'Preserve the actual asm.js capture source hash' );
+	assertSceneProvenance( manifest, sha256( scene ) );
 	assert.deepEqual( [ manifest.width, manifest.height, manifest.pixelRatio ], [ 400, 250, 1 ] );
 	assert.deepEqual( manifest.sources, {
 		miku: { repository: 'mrdoob/three.js', commit: assetManifest.commit },
