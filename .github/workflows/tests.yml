@@ -14,6 +14,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:bullet
       - run: npm run test:browser
         env:
           CHROME_BIN: /usr/bin/google-chrome

@@ -417,7 +417,7 @@ test( 'pre-WASM sites remain verified rollback candidates; new publications requ
 	await siteFixture( async ( { site, root, base } ) => {
 
 		const manifest = JSON.parse( await readFile( join( site, manifestName ), 'utf8' ) );
-		const removed = requiredPages.filter( path => /ammojs-typed|ammo-runtime/.test( path ) );
+		const removed = requiredPages.filter( path => /ammojs-typed|ammo-runtime|vendor\/bullet/.test( path ) );
 		for ( const path of removed ) await rm( join( site, path ) );
 		manifest.files = manifest.files.filter( ( file: { path: string } ) => ! removed.includes( file.path ) );
 		await writeFile( join( site, manifestName ), JSON.stringify( manifest ) );
@@ -426,7 +426,7 @@ test( 'pre-WASM sites remain verified rollback candidates; new publications requ
 		assert.equal( ( await backupSite( base, directory ) ).success, true );
 		assert.equal( ( await verifyDeployment( base, await readFile( join( directory, manifestName ) ), 'success', { allowLegacyPages: true } ) ).success, true );
 		// New candidates cannot accidentally publish either half of the pair.
-		for ( const missing of [ 'ammo.wasm.js', 'ammo.wasm.wasm' ] ) {
+		for ( const missing of [ 'ammo.wasm.js', 'ammo.wasm.wasm', 'ammo.js', 'ammo.wasm', 'manifest.json', 'LICENSE.Bullet.txt' ] ) {
 
 			const files = requiredPages.filter( path => ! path.endsWith( '/' + missing ) ).map( path => ( { path, sha256: 'a'.repeat( 64 ) } ) );
 			assert.throws( () => validateManifest( { ...manifest, files } ), new RegExp( 'Missing example content: .*' + missing.replaceAll( '.', '\\.' ) ) );

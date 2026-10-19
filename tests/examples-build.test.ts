@@ -66,6 +66,12 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			assert.deepEqual( await readFile( join( outputDirectory, 'examples/assets/gene-light', path ) ), await readFile( join( assetDirectory, 'gene-light', path ) ) );
 
 		}
+		for ( const name of [ 'ammo.js', 'ammo.wasm', 'manifest.json', 'LICENSE.Bullet.txt', 'LICENSE.Bullet-source-notices.txt', 'LICENSE.Emscripten.txt', 'LICENSE.musl.txt', 'LICENSE.libcxx.txt', 'LICENSE.libcxxabi.txt', 'LICENSE.compiler-rt.txt', 'LICENSE.dlmalloc.txt' ] ) {
+
+			const path = 'examples/vendor/bullet/' + name;
+			assert.deepEqual( await readFile( join( outputDirectory, path ) ), await readFile( new URL( '../' + path, import.meta.url ) ), path );
+
+		}
 		for ( const path of [
 			'examples/webgl_loader_mmd_pmx_gene.html', 'examples/webgl_loader_mmd_pmx_gene.js', 'examples/gene-showcase.js',
 			'examples/gene-light.md', 'examples/gene-light-inspection.json', 'examples/screenshots/webgl_loader_mmd_pmx_gene.jpg',

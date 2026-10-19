@@ -18,6 +18,7 @@ const types: Record<string, string> = {
 export function createExamplesServer( { assetRoot = resolve( root, 'examples/assets/mmd' ), geneAssetRoot = resolve( root, 'examples/assets/gene-light' ) } = {} ) {
 
 	const mounts: [ string, string ][] = [
+		[ '/examples/vendor/', resolve( root, 'examples/vendor' ) ],
 		[ '/examples/assets/mmd/', assetRoot ],
 		[ '/examples/assets/gene-light/', geneAssetRoot ],
 		[ '/examples/', resolve( root, 'examples' ) ],

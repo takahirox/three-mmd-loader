@@ -1,0 +1,24 @@
+{
+  "recordedAt": "2026-10-19T21:55:48.996821+00:00",
+  "command": "npm run build:bullet (then remove only .cache/bullet-experiment/build/cmake and repeat)",
+  "container": "emscripten/emsdk@sha256:90b757eb11fa9a0e3ce4d2d9f76d932a56018e4accc37b5a28b2783751e60eb7",
+  "platform": "linux/amd64",
+  "result": "All glue, WASM, notices and manifest bytes identical after clean native archive rebuild",
+  "sha256": {
+    "LICENSE.Bullet-source-notices.txt": "e296690c83e2a5ea8531284cf9e8d293baaf80f4df02585997c08a5fdc0f1949",
+    "LICENSE.Bullet.txt": "885cd516a8420acb7c3e0b1a7119913b686495001ae564e3229740460e8cff59",
+    "LICENSE.Emscripten.txt": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86",
+    "LICENSE.compiler-rt.txt": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d",
+    "LICENSE.dlmalloc.txt": "11e2e827a20a91e173bdfbf2f3504bba29e2aa285e1504d6552f13f7fc887f80",
+    "LICENSE.libcxx.txt": "539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b",
+    "LICENSE.libcxxabi.txt": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c",
+    "LICENSE.musl.txt": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af",
+    "ammo.js": "b859346ea1eb226b5f385633b66432ca542240b73aa14dde9b27e2f0f8997500",
+    "ammo.wasm": "e1bd8fe1da2c3da1e169305e753bd4def39e1127d724b80996cb2b0e98f6810f"
+  },
+  "recipeSha256": {
+    "build.py": "fb79ee1c4cc62255a8450fc2d911159b0d1717ef659a8833d526f19b6297747c",
+    "bindings.idl": "ccc6c23007eb3be6212f91940fdae6518df402ab69e47b67160df7f5c43d5afe",
+    "bindings.cpp": "29e38ac3025c9e887bb6a432807110204e2a43ec958214859a12041093f71a37"
+  }
+}

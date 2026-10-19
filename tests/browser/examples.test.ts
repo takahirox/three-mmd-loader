@@ -354,6 +354,32 @@ try {
 		renderer.dispose();
 		frame.remove();
 	}
+	// Exercise the opt-in engine on the actual served/built animation entries too.
+	for ( const suffix of [ '', '_worker' ] ) {
+		progress( 'experimental Bullet ' + suffix );
+		const frame=document.createElement('iframe');frame.width=800;frame.height=600;
+		const loaded=new Promise(resolve=>frame.onload=resolve);
+		frame.src='/examples/webgl_loader_mmd'+suffix+'.html?backend=webgl&bullet=master';
+		document.body.appendChild(frame);await loaded;
+		const page=frame.contentWindow,doc=frame.contentDocument;
+		const context=await (await page.eval("import('/examples/webgl_loader_mmd"+suffix+".js')")).ready;
+		context.renderer.setAnimationLoop(null);
+		const physics=context.helper.objects.get(context.mesh).physics;
+		for(let frameIndex=0;frameIndex<12;frameIndex++) {
+			context.helper.update(1/60);
+			const deadline=performance.now()+8000;
+			while(physics.workerStatus?.inFlight) {if(performance.now()>deadline)throw new Error('experimental Worker step timeout');await new Promise(resolve=>setTimeout(resolve,5));}
+			context.helper.update(0);
+		}
+		results.push({page:'experimental '+(suffix||'sync'),checks:{
+			ready:doc.body.dataset.state==='ready',source:doc.body.dataset.bulletBackend==='master-d3afe76132fc',
+			wasm:doc.body.dataset.ammoBackend==='wasm',mode:physics.physicsMode===(suffix?'worker':'sync'),
+			settings:physics.unitStep===1/60 && physics.maxStepNum===10,
+			finite:physics.bodyResults.every(body=>body.position.concat(body.quaternion).every(Number.isFinite)),
+			communication:!suffix || physics.workerStatus.completedSequence>0
+		}});
+		page.dispatchEvent(new page.Event('pagehide'));frame.remove();
+	}
 	const missing = document.createElement( 'iframe' );
 	const loaded = new Promise( resolve => missing.onload = resolve );
 	missing.src = '/examples/webgl_loader_mmd.html?missing=1';
@@ -507,7 +533,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 
 		} );
 		t.diagnostic( `Light example validation: ${Math.round( performance.now() - started )} ms (budget ${timeoutMs} ms)` );
-		assert.equal( results.length, 6, JSON.stringify( results ) );
+		assert.equal( results.length, 8, JSON.stringify( results ) );
 		const darkResults = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test-dark`, join( temporary, 'profile-dark' ), 'dark' );
 		assert.equal( darkResults.length, 1, JSON.stringify( darkResults ) );
 		for ( const result of [ ...results, ...darkResults ] ) {
