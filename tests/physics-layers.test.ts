@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { initializeAmmo as initializeWasmAmmo } from './ammo-runtime.ts';
 import { test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import { Texture, Vector3 } from 'three';
@@ -31,7 +31,7 @@ function bodyPosition( helper: MMDAnimationHelper, mesh: MMDMesh, index: number 
 
 }
 const ammoGlobal = globalThis as typeof globalThis & { Ammo?: AmmoAPI };
-const initializeAmmo = async () => { ammoGlobal.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )(); };
+const initializeAmmo = async () => { ammoGlobal.Ammo = await initializeWasmAmmo<AmmoAPI>(); };
 
 test( 'binary PMX fixture preserves phases, ordered classes, grants, IK, body modes and constrained pair', () => {
 

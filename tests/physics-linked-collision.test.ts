@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { initializeAmmo } from './ammo-runtime.ts';
 import { before, test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import { Texture, Vector3 } from 'three';
@@ -26,7 +26,7 @@ type NativeAmmo = Omit<AmmoAPI, 'btDiscreteDynamicsWorld'> & {
 	btDiscreteDynamicsWorld: new ( ...args: ConstructorParameters<AmmoAPI['btDiscreteDynamicsWorld']> ) => NativeWorld;
 };
 const host = globalThis as typeof globalThis & { Ammo: NativeAmmo };
-before( async () => { host.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<NativeAmmo> )(); } );
+before( async () => { host.Ammo = await initializeAmmo<NativeAmmo>(); } );
 
 const cases = [
 	{ name: 'linked, both masks allow', linked: true, masks: [ 128, 4 ], contact: true },

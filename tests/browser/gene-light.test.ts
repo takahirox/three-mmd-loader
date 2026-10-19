@@ -28,6 +28,7 @@ try {
  checks.lightColors=ambient.color.getHex()===0xffffff && directional.color.getHex()===0xffffff;
  checks.lightDirection=directional.position.toArray().join(',')==='-1,2,1' && directional.target.position.toArray().join(',')==='0,0,0';
  const state=helper.objects.get(mesh), data=mesh.geometry.userData.MMD;
+ checks.wasmRuntime=doc.body.dataset.ammoBackend==='wasm';
  checks.ready=doc.body.dataset.state==='ready' && doc.getElementById('status').textContent.startsWith('sync');
  checks.model=data.format==='pmx' && mesh.skeleton.bones.length===224 && data.iks.length===6 && data.grants.length===11;
  checks.phases=data.bones.filter(b=>b.flag&0x1000).length===38 && state.sortedBonesData.length===224;
@@ -131,7 +132,7 @@ test( 'licensed pinned Gene Light renders and exercises its actual PMX features 
 				if ( path.endsWith( '/' ) ) path += 'index.html';
 				const file = resolve( siteRoot, path.slice( prefix.length + 1 ) );
 				if ( ! file.startsWith( siteRoot + sep ) ) throw new Error( 'Outside site' );
-				const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json', '.md': 'text/plain; charset=utf-8', '.woff2': 'font/woff2' };
+				const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.mjs': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json', '.md': 'text/plain; charset=utf-8', '.woff2': 'font/woff2' };
 				response.writeHead( 200, { 'Content-Type': types[ extname( file ) ] || 'application/octet-stream' } ).end( await readFile( file ) );
 
 			} catch { response.writeHead( 404 ).end(); }

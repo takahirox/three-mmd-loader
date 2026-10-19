@@ -20,9 +20,10 @@ const collisionFixtures = ( [ 'pmd', 'pmx' ] as const ).flatMap( format => [
 ].map( options => ( { format, ...options, bytes: Array.from( new Uint8Array( linkedCollisionBuffer( format, options ) ) ) } ) ) );
 const harness = `<!doctype html><pre id="result">pending</pre>
 <script>addEventListener('error',event=>document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:event.message})));addEventListener('unhandledrejection',event=>document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(event.reason)})));</script>
-<script src="/node_modules/ammojs-typed/ammo/ammo.js"></script>
+<script src="/node_modules/ammojs-typed/ammo/ammo.wasm.js"></script>
 <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/tsl":"/node_modules/three/build/three.tsl.js","three/webgpu":"/node_modules/three/build/three.webgpu.js","three/addons/":"/node_modules/three/examples/jsm/","mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs"}}</script>
 <script type="module">
+import { initializeAmmoWasm } from "/examples/ammo-runtime.js";
 import { Texture, Vector3 } from 'three';
 import { Parser } from 'mmd-parser';
 import { MMDAnimationHelper, MMDLoader } from '/src/index.js';
@@ -52,7 +53,7 @@ async function complete(p, sequence) {
  }
 }
 try {
- globalThis.Ammo = await Ammo();
+ globalThis.Ammo = await initializeAmmoWasm();
  // Exercise the actual bundled Worker with binary PMD/PMX metadata. Two
  // separated models share its world, using each real transport below.
  const collisionHelper=new MMDAnimationHelper({sync:false});collisionHelper.sharedPhysics=true;
@@ -64,7 +65,7 @@ try {
     const parser=new Parser(),buffer=new Uint8Array(fixture.bytes).buffer;
     const data=fixture.format==='pmd'?parser.parsePmd(buffer,true):parser.parsePmx(buffer,true);
     const mesh=loader.meshBuilder.build(data,'');mesh.position.z=(index*2+i)*20;
-    collisionHelper.add(mesh,{...stepParams,physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()});
+    collisionHelper.add(mesh,{...stepParams,physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.wasm.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()});
     collisionModels.push({mesh,fixture,index,i,p:collisionHelper.objects.get(mesh).physics});
    }
   }
@@ -89,7 +90,7 @@ try {
  } finally {for(const {mesh} of collisionModels)collisionHelper.remove(mesh);}
  const helper = new MMDAnimationHelper(), sync = new MMDAnimationHelper(); helper.sharedPhysics=true;
  const first=model(), second=model(), reference=model(); second.position.z=20;
- const options={...stepParams,physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()};
+ const options={...stepParams,physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.wasm.js',location.href).href},warmup:0,animationWarmup:false,gravity:new Vector3()};
  helper.add(first,options); helper.add(second,options);
  sync.add(reference,{...stepParams,warmup:0,animationWarmup:false,gravity:new Vector3()});
  const p=helper.objects.get(first).physics, q=helper.objects.get(second).physics;
@@ -157,6 +158,7 @@ for ( const isolated of [ false, true ] ) for ( const limited of [ false, true ]
 
 
 const demoHarness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
+import { initializeAmmoWasm } from "/examples/ammo-runtime.js";
 const checks={};
 function check(name,value) {if(!value) throw new Error(name);checks[name]=true;}
 try {
@@ -211,6 +213,7 @@ test( 'animation entry points ignore conflicting physics queries and retain back
 
 
 const standaloneHarness = `<!doctype html><pre id="result">pending</pre><script type="module">
+import { initializeAmmoWasm } from "/examples/ammo-runtime.js";
 const checks = {};
 function check(name, value) { if (!value) throw new Error(name); checks[name] = true; }
 const wait = () => new Promise(resolve => setTimeout(resolve, 20));

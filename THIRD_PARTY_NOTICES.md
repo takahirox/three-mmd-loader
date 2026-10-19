@@ -137,3 +137,13 @@ author endorsement. Preserve the original usage guidelines and disclaimer in
 both source READMEs. The public site includes the unchanged original notices
 at `examples/assets/gene-light/README.md` and `README.ja.md`, together with the
 [review and measured feature record](examples/gene-light.md).
+
+## Ammo.js Examples runtime
+
+The Examples site distributes `ammojs-typed@1.1.0` artifacts
+`ammo/ammo.wasm.js` and `ammo/ammo.wasm.wasm`, unchanged, with the package's
+`node_modules/ammojs-typed/LICENSE.md` (MIT; the glue also retains its
+upstream license comments).
+These runtime assets are installed development dependencies, not included in
+the standalone library npm package. Compatible consumer-provided Ammo builds
+remain supported.

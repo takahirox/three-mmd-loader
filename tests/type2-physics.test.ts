@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { initializeAmmo } from './ammo-runtime.ts';
 import { before, test } from 'node:test';
 import { Quaternion, Vector3 } from 'three';
 import { MMDAnimationHelper } from '../src/animation/MMDAnimationHelper.js';
@@ -8,7 +8,7 @@ import type { AmmoAPI } from '@takahirox/three-mmd';
 import { type2Fixture } from './type2-fixture.ts';
 
 const host = globalThis as typeof globalThis & { Ammo: AmmoAPI };
-before( async () => { host.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )(); } );
+before( async () => { host.Ammo = await initializeAmmo<AmmoAPI>(); } );
 function near( actual: ArrayLike<number>, expected: ArrayLike<number>, tolerance = 5e-4 ) {
 
 	assert.equal( actual.length, expected.length );

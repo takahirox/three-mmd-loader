@@ -269,7 +269,7 @@ try {
 
 } );
 
-test( 'private generated physics viewer runs Ammo, reports actual layers/body modes, steps and resets', { timeout: 60000 }, async () => {
+test( 'private generated physics viewer exercises the retained asm.js compatibility baseline, layers/body modes, steps and resets', { timeout: 60000 }, async () => {
 
 	const profile = await mkdtemp( join( tmpdir(), 'mmd-physics-viewer-profile-' ) );
 	const local = createSdefServer();
@@ -285,6 +285,7 @@ try {
  const info=document.getElementById('physics-info');await until(()=>info.textContent.includes('postKinematic'));
  const mesh=helper.meshes[0],state=helper.objects.get(mesh),physics=state.physics;
  check(physics?.bodies.length===5 && physics.constraints.length===1,'actual Ammo fixture missing');
+ check(document.querySelector('script[src*="ammojs-typed"]').src.endsWith('/ammo/ammo.js'),'private viewer must remain an explicit asm.js comparison');
  for(const text of ['postKinematic":1','postDynamic":1','postMode2":1','flag=0x1380','Grant:','IK:','Authored','Pre','Physics','Final','NEXT-step'])check(info.textContent.includes(text),'missing diagnostic '+text);
  check(document.getElementById('physics').checked,'physics disabled');
  const translation=document.getElementById('translation');translation.value='1';translation.dispatchEvent(new Event('input'));

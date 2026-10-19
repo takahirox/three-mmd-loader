@@ -184,7 +184,7 @@ async function siteFixture( run: ( fixture: { site: string; root: string; base: 
 		try {
 
 			const bytes = await readFile( join( site, relative ) );
-			response.writeHead( 200 ).end( bytes );
+			response.writeHead( 200, relative.endsWith( '.wasm' ) ? { 'Content-Type': 'application/wasm' } : {} ).end( bytes );
 
 		} catch {
 
@@ -407,6 +407,52 @@ test( 'pre-Gene sites can be backed up and rolled back, while new publications r
 		const directory = join( root, 'pre-gene-backup' );
 		assert.equal( ( await backupSite( base, directory ) ).success, true );
 		assert.equal( ( await verifyDeployment( base, await readFile( join( directory, manifestName ) ), 'success', { allowLegacyPages: true } ) ).success, true );
+
+	} );
+
+} );
+
+test( 'pre-WASM sites remain verified rollback candidates; new publications require both WASM artifacts', async () => {
+
+	await siteFixture( async ( { site, root, base } ) => {
+
+		const manifest = JSON.parse( await readFile( join( site, manifestName ), 'utf8' ) );
+		const removed = requiredPages.filter( path => /ammojs-typed|ammo-runtime/.test( path ) );
+		for ( const path of removed ) await rm( join( site, path ) );
+		manifest.files = manifest.files.filter( ( file: { path: string } ) => ! removed.includes( file.path ) );
+		await writeFile( join( site, manifestName ), JSON.stringify( manifest ) );
+		assert.throws( () => validateManifest( manifest ), /Missing example content/ );
+		const directory = join( root, 'pre-wasm-backup' );
+		assert.equal( ( await backupSite( base, directory ) ).success, true );
+		assert.equal( ( await verifyDeployment( base, await readFile( join( directory, manifestName ) ), 'success', { allowLegacyPages: true } ) ).success, true );
+		// New candidates cannot accidentally publish either half of the pair.
+		for ( const missing of [ 'ammo.wasm.js', 'ammo.wasm.wasm' ] ) {
+
+			const files = requiredPages.filter( path => ! path.endsWith( '/' + missing ) ).map( path => ( { path, sha256: 'a'.repeat( 64 ) } ) );
+			assert.throws( () => validateManifest( { ...manifest, files } ), new RegExp( 'Missing example content: .*' + missing.replaceAll( '.', '\\.' ) ) );
+
+		}
+
+	} );
+
+} );
+
+test( 'public WASM verification rejects a binary served with the wrong MIME type', async () => {
+
+	await siteFixture( async ( { site, base } ) => {
+
+		const bytes = await readFile( join( site, manifestName ) );
+		await assert.rejects( verifySite( base, bytes, { fetcher: async ( ...args ) => {
+
+			const response = await fetch( ...args );
+			if ( new URL( String( args[ 0 ] ) ).pathname.endsWith( '.wasm' ) ) {
+
+				return new Response( await response.arrayBuffer(), { status: response.status, headers: { 'Content-Type': 'text/plain' } } );
+
+			}
+			return response;
+
+		} } ), /Incorrect WebAssembly Content-Type/ );
 
 	} );
 

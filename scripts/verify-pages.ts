@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { manifestName, requiredPages, sha256, validateManifest, writeUnpublishedSite } from './pages-manifest.ts';
 
-export interface ContentCheck { path: string; status: number; sha256?: string; success: boolean }
+export interface ContentCheck { path: string; status: number; sha256?: string; contentType?: string; success: boolean }
 export interface DeploymentReport {
 	success?: boolean; exists?: boolean; commit?: string; state?: 'unpublished'; checks?: ContentCheck[];
 	deployment_outcome?: string; attempts?: number; recovery?: string; error?: string;
@@ -18,7 +18,7 @@ async function get( base: string, path: string, fetcher: typeof fetch ) {
 	const url = new URL( path, base.endsWith( '/' ) ? base : base + '/' );
 	url.searchParams.set( 'deployment-check', `${Date.now()}-${Math.random()}` );
 	const response = await fetcher( url, { cache: 'no-store', signal: AbortSignal.timeout( 30000 ) } );
-	return { status: response.status, bytes: Buffer.from( await response.arrayBuffer() ) };
+	return { status: response.status, contentType: response.headers.get( 'content-type' ) || '', bytes: Buffer.from( await response.arrayBuffer() ) };
 
 }
 
@@ -37,10 +37,12 @@ async function checkSite( base: string, manifest: DeploymentManifest, { fetcher 
 		while ( next < entries.length ) {
 
 			const { path, sha256: expected } = entries[ next ++ ];
-			const { status, bytes } = await get( base, path, fetcher );
+			const { status, bytes, contentType } = await get( base, path, fetcher );
 			const hash = sha256( bytes );
-			checks.push( { path: path || '/', status, sha256: hash, success: status === 200 && hash === expected } );
+			const mimeMatches = ! path.endsWith( '.wasm' ) || contentType.split( ';' )[ 0 ].trim().toLowerCase() === 'application/wasm';
+			checks.push( { path: path || '/', status, sha256: hash, ...( path.endsWith( '.wasm' ) ? { contentType } : {} ), success: status === 200 && hash === expected && mimeMatches } );
 			if ( status !== 200 || hash !== expected ) throw new Error( `Public content mismatch: ${path || '/'} (HTTP ${status})` );
+			if ( ! mimeMatches ) throw new Error( `Incorrect WebAssembly Content-Type: ${path} (${contentType})` );
 			if ( directory && path && ! path.endsWith( '/' ) ) {
 
 				await mkdir( dirname( join( directory, path ) ), { recursive: true } );

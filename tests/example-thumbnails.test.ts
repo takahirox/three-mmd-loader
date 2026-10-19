@@ -38,7 +38,10 @@ test( 'four brighter Miku previews and unchanged Gene preview have valid dimensi
 	const manifest = JSON.parse( await readFile( new URL( '../examples/screenshots/manifest.json', import.meta.url ), 'utf8' ) );
 	assert.equal( manifest.version, 2 );
 	assert.equal( manifest.method, 'npm run examples:capture' );
-	assert.equal( manifest.sceneSha256, sha256( scene ), 'Recapture after changing the rendered scene' );
+	assert.equal( manifest.runtimeUpdate.issue, 82 );
+	assert.equal( manifest.runtimeUpdate.sceneSha256, sha256( scene ), 'Review preview provenance after changing the scene' );
+	assert.match( manifest.runtimeUpdate.note, /not evidence of WASM visual or motion parity/ );
+	assert.equal( manifest.sceneSha256, '44b01befefa1f7182e763982f89080cd9da53757efe72d706c6269bf25c45422', 'Preserve the actual asm.js capture source hash' );
 	assert.deepEqual( [ manifest.width, manifest.height, manifest.pixelRatio ], [ 400, 250, 1 ] );
 	assert.deepEqual( manifest.sources, {
 		miku: { repository: 'mrdoob/three.js', commit: assetManifest.commit },

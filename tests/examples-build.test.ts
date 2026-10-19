@@ -69,7 +69,7 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 		for ( const path of [
 			'examples/webgl_loader_mmd_pmx_gene.html', 'examples/webgl_loader_mmd_pmx_gene.js', 'examples/gene-showcase.js',
 			'examples/gene-light.md', 'examples/gene-light-inspection.json', 'examples/screenshots/webgl_loader_mmd_pmx_gene.jpg',
-			'examples/index.html', 'examples/scene.js', 'examples/README.md',
+			'examples/index.html', 'examples/ammo-runtime.js', 'examples/scene.js', 'examples/README.md',
 			'examples/common.css', 'examples/main.css',
 			'examples/browser.css', 'examples/browser.js',
 			'examples/screenshots/webgl_loader_mmd.jpg',
@@ -89,7 +89,8 @@ test( 'static build includes checkout modules, runtime dependencies, all assets 
 			'node_modules/three/examples/jsm/controls/OrbitControls.js',
 			'node_modules/three/examples/jsm/loaders/TGALoader.js',
 			'node_modules/three/examples/jsm/libs/lil-gui.module.min.js',
-			'node_modules/ammojs-typed/ammo/ammo.js',
+			'node_modules/ammojs-typed/ammo/ammo.wasm.js',
+			'node_modules/ammojs-typed/ammo/ammo.wasm.wasm',
 			'node_modules/three/LICENSE', 'node_modules/ammojs-typed/LICENSE.md',
 			'LICENSE', 'THIRD_PARTY_NOTICES.md'
 		] ) {

@@ -1,7 +1,7 @@
 import { Parser, CharsetEncoder } from 'mmd-parser';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createRequire } from 'node:module';
+import { initializeAmmo } from './ammo-runtime.ts';
 import type { AnimationClip } from 'three';
 import type { AmmoAPI } from '../dist/ammo.js';
 import {
@@ -14,7 +14,7 @@ import {
 } from '@takahirox/three-mmd';
 import { pmdBuffer, pmxBuffer, vmdBuffer } from './fixtures.ts';
 
-const AmmoFactory = createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI>;
+const AmmoFactory = initializeAmmo;
 const ammoGlobal = globalThis as typeof globalThis & { Ammo?: AmmoAPI };
 
 function modelLoader() {

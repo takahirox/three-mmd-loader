@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { initializeAmmo } from './ammo-runtime.ts';
 import { before, test } from 'node:test';
 import { Parser } from 'mmd-parser';
 import { Texture, Vector3 } from 'three';
@@ -10,7 +10,7 @@ import { linkedCollisionBuffer } from './fixtures.ts';
 import { ManualWorker } from './manual-physics-worker.ts';
 
 const host = globalThis as typeof globalThis & { Ammo: AmmoAPI };
-before( async () => { host.Ammo = await ( createRequire( import.meta.url )( 'ammojs-typed' ) as () => Promise<AmmoAPI> )(); } );
+before( async () => { host.Ammo = await initializeAmmo<AmmoAPI>(); } );
 const tapes = [
 	...[ 10, 20, 30, 60, 120, 144 ].map( fps => ( { name: `${fps} FPS`, deltas: Array.from( { length: fps }, () => 1 / fps ), long: false } ) ),
 	{ name: '100ms one-off stall', deltas: [ 1 / 120, 0.1, ...Array<number>( 12 ).fill( 1 / 120 ) ], long: false },

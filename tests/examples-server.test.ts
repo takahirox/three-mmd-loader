@@ -20,7 +20,8 @@ test( 'example server serves local modules with MIME types and limits file acces
 			[ '/node_modules/mmd-parser/build/mmdparser.module.mjs', 'text/javascript' ],
 			[ '/src/loaders/MMDLoader.js', 'text/javascript' ],
 			[ '/node_modules/three/build/three.module.js', 'text/javascript' ],
-			[ '/node_modules/ammojs-typed/ammo/ammo.js', 'text/javascript' ]
+			[ '/node_modules/ammojs-typed/ammo/ammo.wasm.js', 'text/javascript' ],
+			[ '/node_modules/ammojs-typed/ammo/ammo.wasm.wasm', 'application/wasm' ]
 		] ) {
 
 			const response = await fetch( base + path );
