@@ -10,10 +10,9 @@ import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
 const harness = `<!doctype html><pre id="result">pending</pre>
 <script>for(const event of ['error','unhandledrejection'])addEventListener(event,e=>document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(e.reason||e.message)})));</script>
-<script src="/node_modules/ammojs-typed/ammo/ammo.wasm.js"></script>
 <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/","three/tsl":"/node_modules/three/build/three.tsl.js","three/webgpu":"/node_modules/three/build/three.webgpu.js","mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs"}}</script>
 <script type="module">
-import { ammoURL, experimentalBullet, initializeAmmoWasm } from '/examples/ammo-runtime.js';
+import { ammoURL, legacyBullet, initializeAmmoWasm } from '/examples/ammo-runtime.js';
 import { MMDLoader, MMDPhysics } from '/src/index.js';
 import { Texture } from 'three';
 import { Parser } from 'mmd-parser';
@@ -24,11 +23,12 @@ try {
  if(failure){
   let reason='';try{await initializeAmmoWasm();}catch(error){reason=String(error);}
   check('main failure diagnosed',failure==='api'?reason.includes('API incompatible: btGeneric6DofSpringConstraint'):failure==='identity'?reason.includes('source identity mismatch'):failure==='glue'?reason.includes('glue failed to load'):reason.includes('Ammo WASM initialization failed') && reason.includes('ammo.wasm'));
-  check('no initialized runtime',typeof Ammo==='function' && document.body.dataset.ammoBackend!=='wasm');
+  check('no initialized runtime',typeof Ammo!=='object' && document.body.dataset.ammoBackend!=='wasm');
  }else{
   globalThis.Ammo=await initializeAmmoWasm();
   check('main WASM instance verified',document.body.dataset.ammoBackend==='wasm');
-  const binaryResponse=await fetch(new URL(experimentalBullet?'ammo.wasm':'ammo.wasm.wasm',ammoURL));
+  check('selected build',legacyBullet ? !Ammo.bulletCommit : Ammo.bulletCommit==='d3afe76132fc76b0f9b2359cbaef47a3766e7fbb' && typeof Ammo.getWasmExports().emscripten_bind_btDiscreteDynamicsWorld_stepSimulation_3==='function');
+  const binaryResponse=await fetch(new URL(legacyBullet?'ammo.wasm.wasm':'ammo.wasm',ammoURL));
   check('binary MIME',binaryResponse.ok && binaryResponse.headers.get('Content-Type').split(';')[0]==='application/wasm');
   const parser=new Parser(),data=parser.parsePmd(new Uint8Array(${JSON.stringify( Array.from( new Uint8Array( linkedCollisionBuffer( 'pmd', { masks: [ 0, 0 ] } ) ) ) )}).buffer,true);
   const loader=new MMDLoader();loader.meshBuilder.materialBuilder.textureLoader.load=()=>new Texture();
@@ -41,6 +41,7 @@ try {
     check(variant+' transport',p.transport===(crossOriginIsolated?'shared':'transferable'));
    }else{
     check(variant+' sync fallback',p.physicsMode==='sync' && !!p.world && !p.initializationError);
+    check(variant+' same fallback engine',legacyBullet ? !Ammo.bulletCommit : Ammo.bulletCommit==='d3afe76132fc76b0f9b2359cbaef47a3766e7fbb');
     check(variant+' diagnostic',variant==='timeout'?reason.includes('timed out'):reason.includes('wasm')||reason.includes('WebAssembly'));
    }
    p.update(1/60);
@@ -57,14 +58,14 @@ try {
 }catch(error){document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error),checks}));}
 </script>`;
 
-for ( const bullet of [ 'default', 'master' ] ) for ( const isolated of [ false, true ] ) test( `WASM instance evidence, glue-relative classic Worker binaries and failure recovery, Bullet=${bullet}, isolation=${isolated}`, { timeout: 60000 }, async () => {
+for ( const bullet of [ '', 'legacy' ] ) for ( const isolated of [ false, true ] ) test( `WASM instance evidence, glue-relative classic Worker binaries and failure recovery, Bullet=${bullet || 'default (no query)'}, isolation=${isolated}`, { timeout: 60000 }, async () => {
 
 	const profile = await mkdtemp( join( tmpdir(), 'mmd-wasm-browser-' ) );
 	const files = createExamplesServer();
-	const glue = await readFile( new URL( bullet === 'master' ? '../../examples/vendor/bullet/ammo.js' : '../../node_modules/ammojs-typed/ammo/ammo.wasm.js', import.meta.url ), 'utf8' );
+	const glue = await readFile( new URL( bullet !== 'legacy' ? '../../examples/vendor/bullet/ammo.js' : '../../node_modules/ammojs-typed/ammo/ammo.wasm.js', import.meta.url ), 'utf8' );
 	const asm = await readFile( new URL( '../../node_modules/ammojs-typed/ammo/ammo.js', import.meta.url ) );
-	const binaryName = bullet === 'master' ? 'ammo.wasm' : 'ammo.wasm.wasm';
-	const binary = await readFile( new URL( bullet === 'master' ? '../../examples/vendor/bullet/ammo.wasm' : '../../node_modules/ammojs-typed/ammo/ammo.wasm.wasm', import.meta.url ) );
+	const binaryName = bullet !== 'legacy' ? 'ammo.wasm' : 'ammo.wasm.wasm';
+	const binary = await readFile( new URL( bullet !== 'legacy' ? '../../examples/vendor/bullet/ammo.wasm' : '../../node_modules/ammojs-typed/ammo/ammo.wasm.wasm', import.meta.url ) );
 	let evidence = 0, binaryRequests = 0;
 	// Observe the actual Emscripten instantiation, without replacing its loader.
 	const observer = `
@@ -72,7 +73,7 @@ globalThis.wasmInstances=[];
 for(const key of ['instantiate','instantiateStreaming']){const native=WebAssembly[key];WebAssembly[key]=async function(...args){const result=await native.apply(WebAssembly,args);wasmInstances.push(result.instance||result);return result;};}
 `;
 	const verify = `
-Ammo=((factory)=>async options=>{const runtime=await factory(options);if(!wasmInstances.some(instance=>instance instanceof WebAssembly.Instance && (runtime.asm||runtime.getWasmExports?.())===instance.exports))throw new Error('Worker did not execute WASM exports');await fetch('/wasm-evidence');return runtime;})(Ammo);
+Ammo=((factory)=>async options=>{const runtime=await factory(options);if(${bullet !== 'legacy' ? "runtime.bulletCommit!=='d3afe76132fc76b0f9b2359cbaef47a3766e7fbb'" : 'false'} || !wasmInstances.some(instance=>instance instanceof WebAssembly.Instance && (runtime.asm||runtime.getWasmExports?.())===instance.exports))throw new Error('Worker did not execute WASM exports');await fetch('/wasm-evidence');return runtime;})(Ammo);
 `;
 	const server = createServer( ( request, response ) => {
 
@@ -89,7 +90,7 @@ Ammo=((factory)=>async options=>{const runtime=await factory(options);if(!wasmIn
 			} else if ( path === '/different/verified/' + binaryName ) { binaryRequests ++; response.writeHead( 200, { 'Content-Type': 'application/wasm' } ).end( binary ); }
 			else response.writeHead( path.includes( '/invalid/' ) ? 200 : 404, { 'Content-Type': 'application/wasm' } ).end( 'invalid WASM' );
 
-		} else if ( bullet === 'master' && path === '/examples/vendor/bullet/ammo.js' && request.headers.referer?.includes( 'mainFailure=' ) ) {
+		} else if ( bullet !== 'legacy' && path === '/examples/vendor/bullet/ammo.js' && request.headers.referer?.includes( 'mainFailure=' ) ) {
 
 			const failure = new URL( request.headers.referer ).searchParams.get( 'mainFailure' );
 			if ( failure === 'glue' ) response.writeHead( 404 ).end();
@@ -106,9 +107,9 @@ Ammo=((factory)=>async options=>{const runtime=await factory(options);if(!wasmIn
 	try {
 
 		const address = server.address(); assert.ok( address && typeof address !== 'string' );
-		for ( const failure of bullet === 'master' ? [ '', 'missing', 'invalid', 'api', 'identity', 'glue' ] : [ '', 'missing', 'invalid' ] ) {
+		for ( const failure of bullet !== 'legacy' ? [ '', 'missing', 'invalid', 'api', 'identity', 'glue' ] : [ '', 'missing', 'invalid' ] ) {
 
-			const result: { error?: string; checks: Record<string, boolean> } = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/test?bullet=${bullet}${failure ? '&mainFailure=' + failure : ''}`, profile );
+			const result: { error?: string; checks: Record<string, boolean> } = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/test${bullet || failure ? '?' + new URLSearchParams( { ...( bullet ? { bullet } : {} ), ...( failure ? { mainFailure: failure } : {} ) } ) : ''}`, profile );
 			assert.equal( result.error, undefined, JSON.stringify( result ) );
 			assert.ok( Object.values( result.checks ).every( Boolean ) );
 

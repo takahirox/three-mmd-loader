@@ -15,7 +15,7 @@ const checks = {}, errors = [];
 try {
  const frame = document.createElement('iframe'); frame.width=1024; frame.height=768;
  const loaded = new Promise(resolve => frame.onload=resolve);
- frame.src='/examples/webgl_loader_mmd_pmx_gene.html?backend=webgl&bullet='+new URLSearchParams(location.search).get('bullet'); document.body.appendChild(frame); await loaded;
+ frame.src='/examples/webgl_loader_mmd_pmx_gene.html'+(new URLSearchParams(location.search).has('bullet')?'?bullet='+new URLSearchParams(location.search).get('bullet'):''); document.body.appendChild(frame); await loaded;
  const page=frame.contentWindow, doc=frame.contentDocument;
  page.addEventListener('error', e=>errors.push(e.message));
  page.addEventListener('unhandledrejection', e=>errors.push(String(e.reason)));
@@ -29,7 +29,8 @@ try {
  checks.lightDirection=directional.position.toArray().join(',')==='-1,2,1' && directional.target.position.toArray().join(',')==='0,0,0';
  const state=helper.objects.get(mesh), data=mesh.geometry.userData.MMD;
  checks.wasmRuntime=doc.body.dataset.ammoBackend==='wasm';
- checks.bulletRuntime=doc.body.dataset.bulletBackend===(new URLSearchParams(location.search).get('bullet')==='master'?'master-d3afe76132fc':'ammojs-typed-1.1.0');
+ checks.buildIdentity=new URLSearchParams(location.search).get('bullet')==='legacy' ? !page.Ammo.bulletCommit : page.Ammo.bulletCommit==='d3afe76132fc76b0f9b2359cbaef47a3766e7fbb' && typeof page.Ammo.getWasmExports().emscripten_bind_btGeneric6DofSpringConstraint_setParam_3==='function';
+ checks.bulletRuntime=doc.body.dataset.bulletBackend===(new URLSearchParams(location.search).get('bullet')==='legacy'?'ammojs-typed-1.1.0':'master-d3afe76132fc');
  checks.ready=doc.body.dataset.state==='ready' && doc.getElementById('status').textContent.startsWith('sync');
  checks.model=data.format==='pmx' && mesh.skeleton.bones.length===224 && data.iks.length===6 && data.grants.length===11;
  checks.phases=data.bones.filter(b=>b.flag&0x1000).length===38 && state.sortedBonesData.length===224;
@@ -95,7 +96,7 @@ try {
  // Missing PMX or textures must fail before enabling controls.
  for(const missing of ['model','texture']){
   const f=document.createElement('iframe');const loaded=new Promise(r=>f.onload=r);
-  f.src='/examples/webgl_loader_mmd_pmx_gene.html?backend=webgl&missing='+missing+'&bullet='+new URLSearchParams(location.search).get('bullet');document.body.appendChild(f);await loaded;
+  f.src='/examples/webgl_loader_mmd_pmx_gene.html?backend=webgl&missing='+missing+(new URLSearchParams(location.search).has('bullet')?'&bullet='+new URLSearchParams(location.search).get('bullet'):'');document.body.appendChild(f);await loaded;
   const ready=(await f.contentWindow.eval("import('/examples/webgl_loader_mmd_pmx_gene.js')")).ready;
   let rejected=false;try{await ready;}catch{rejected=true;}
   checks['missing_'+missing]=rejected && f.contentDocument.body.dataset.state==='error' && f.contentDocument.getElementById('controls').getAttribute('aria-disabled')==='true';f.remove();
@@ -104,7 +105,7 @@ try {
 if(document.getElementById('result').textContent==='pending')document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks}));
 </script>`;
 
-for ( const bullet of [ 'default', 'master' ] ) test( `licensed pinned Gene Light renders and exercises its actual PMX features without cross-origin isolation, Bullet=${bullet}`, { timeout: 180000, skip: process.env.MMD_EXAMPLE_FIXTURES === '1' ? 'Synthetic artifact only; real pinned Gene is checked by test:browser and the Pages build.' : false }, async t => {
+for ( const bullet of [ '', 'legacy' ] ) test( `licensed pinned Gene Light renders and exercises its actual PMX features without cross-origin isolation, Bullet=${bullet || 'default (no query)'}`, { timeout: 180000, skip: process.env.MMD_EXAMPLE_FIXTURES === '1' ? 'Synthetic artifact only; real pinned Gene is checked by test:browser and the Pages build.' : false }, async t => {
 
 	await fetchGeneLightAssets();
 	assert.deepEqual( await inspectGeneLight(), JSON.parse( await readFile( new URL( '../../examples/gene-light-inspection.json', import.meta.url ), 'utf8' ) ) );
@@ -115,7 +116,7 @@ for ( const bullet of [ 'default', 'master' ] ) test( `licensed pinned Gene Ligh
 	const handler = app.listeners( 'request' )[ 0 ];
 	const server = createServer( async ( request, response ) => {
 
-		if ( request.url?.startsWith( '/test?' ) ) {
+		if ( request.url?.startsWith( '/test' ) ) {
 
 			response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness.replaceAll( '/examples/', prefix + '/examples/' ) );
 
@@ -152,7 +153,7 @@ for ( const bullet of [ 'default', 'master' ] ) test( `licensed pinned Gene Ligh
 			assert.equal( ( await response.arrayBuffer() ).byteLength, size, path );
 
 		}
-		const result = await runBrowser<Result>( base + '/test?bullet=' + bullet, join( temporary, 'profile' ), 'light', 150000 );
+		const result = await runBrowser<Result>( base + '/test' + ( bullet ? '?bullet=' + bullet : '' ), join( temporary, 'profile' ), 'light', 150000 );
 		assert.equal( result.error, undefined, result.error );
 		t.diagnostic( JSON.stringify( result.checks ) );
 		for ( const [ name, passed ] of Object.entries( result.checks ) ) assert.equal( passed, true, name );

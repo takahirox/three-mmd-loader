@@ -185,7 +185,7 @@
   ],
   "runtimeUpdate": {
     "issue": 82,
-    "sceneSha256": "a67b1fe3f630b6df5da417df74d34b8cec1e35337afd236f242cc42bb958c13c",
-    "note": "Existing JPEG captures and their source hashes are retained from the asm.js runtime. Issue #82 changes Ammo initialization to WASM without recapturing; these images are not evidence of WASM visual or motion parity. Issue #84 adds an opt-in Bullet master selector; the default remains the Issue #82 WASM backend, and no images were recaptured for this experiment."
+    "sceneSha256": "856b336022265b29337c6acf0485af08d2b10feef1be20c50b50a408481c8968",
+    "note": "Existing JPEG captures and their source hashes are retained from the asm.js runtime. Issue #82 changed Ammo initialization to WASM without recapturing; these images are not evidence of WASM visual or motion parity. Issue #84 introduced the pinned upstream Bullet build as opt-in. Issue #86 makes that unchanged build the default and removes the selector; no images were recaptured for either Bullet change."
   }
 }

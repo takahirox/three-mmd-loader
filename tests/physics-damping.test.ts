@@ -51,7 +51,7 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const path of [ 'sync', 
 	const expected = path === 'shared sync' ? [ ...meta.rigidBodies, ...meta.rigidBodies ] : meta.rigidBodies;
 
 	// Subclass only the JS wrappers: allocation, setters, getters and simulation
-	// still run in the pinned ammojs-typed native runtime.
+	// still run in the pinned official Bullet native runtime.
 	t.mock.method( ammo, 'btRigidBodyConstructionInfo', class extends ammo.btRigidBodyConstructionInfo {
 
 		constructor( ...args: ConstructorParameters<NativeAmmo['btRigidBodyConstructionInfo']> ) {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -80,10 +81,10 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		assert.ok( files.includes( 'LICENSE' ) );
 		assert.ok( files.includes( 'THIRD_PARTY_NOTICES.md' ) );
 		assert.ok( files.includes( 'README.md' ) );
-		// Allow only runtime JS/declarations and the four npm metadata/legal files.
+		// Allow runtime JS/declarations, pinned Bullet assets and npm metadata/legal files.
 		// This also excludes assets, caches, archives, viewers, CI output and tokens.
 		for ( const path of files ) assert.match( path,
-			/^(?:package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|dist\/(?:index|types|ammo)\.(?:js|d\.ts)|dist\/(?:animation|exporters|loaders|materials|effects|skinning)\/[\w-]+\.(?:js|d\.ts))$/ );
+			/^(?:package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|dist\/(?:index|types|ammo)\.(?:js|d\.ts)|dist\/(?:animation|exporters|loaders|materials|effects|skinning)\/[\w-]+\.(?:js|d\.ts)|dist\/vendor\/bullet\/(?:ammo\.(?:js|wasm)|manifest\.json|LICENSE\.[\w-]+\.txt))$/ );
 		// Pack the pinned peer installed by npm ci; resolving a registry version
 		// offline would require metadata that npm ci does not cache.
 		const [ peer ]: PackedPackage[] = JSON.parse( execFileSync( npm, [
@@ -256,6 +257,16 @@ for ( const [ path, names ] of Object.entries( ${JSON.stringify( publicModules )
 		assert.equal( installed.peerDependencies.three, '~0.186.0' );
 		assert.deepEqual( installed.dependencies, { 'mmd-parser': '^1.1.4' } );
 		assert.equal( installed.dependencies[ 'mmd-parser' ], manifest.dependencies[ 'mmd-parser' ] );
+		// The optional self-hosted runtime must be the exact default Examples build,
+		// including all transitive license notices, inside an installed tarball.
+		const bulletDirectory = join( consumer, 'node_modules/@takahirox/three-mmd/dist/vendor/bullet' );
+		const bulletManifest = readFileSync( join( bulletDirectory, 'manifest.json' ), 'utf8' );
+		assert.equal( bulletManifest, readFileSync( join( root, 'examples/vendor/bullet/manifest.json' ), 'utf8' ) );
+		for ( const [ name, hash ] of Object.entries( JSON.parse( bulletManifest ).sha256 ) ) {
+
+			assert.equal( createHash( 'sha256' ).update( readFileSync( join( bulletDirectory, name ) ) ).digest( 'hex' ), hash, name );
+
+		}
 		const installedParser = JSON.parse( readFileSync( join( consumer, 'node_modules/mmd-parser/package.json' ), 'utf8' ) );
 		assert.equal( installedParser.version, '1.1.4' );
 
