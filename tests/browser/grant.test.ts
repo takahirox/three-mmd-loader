@@ -126,7 +126,7 @@ for ( const physicsMode of [ false, true ] ) test( `PMX ${physicsMode ? 'post-ph
 "three/webgpu":"/node_modules/three/build/three.webgpu.js",
 "three/tsl":"/node_modules/three/build/three.tsl.js",
 "three/addons/":"/node_modules/three/examples/jsm/"}}</script>
-<script src="/node_modules/ammojs-typed/ammo/ammo.wasm.js"></script><pre id="result">pending</pre><script type="module">
+<pre id="result">pending</pre><script type="module">
 import { initializeAmmoWasm } from "/examples/ammo-runtime.js";
 import { Vector3, AmbientLight, DataTexture, DirectionalLight, Float32BufferAttribute, FloatType, Mesh, OrthographicCamera, Scene, Texture } from 'three';
 import { RenderTarget, WebGPURenderer } from 'three/webgpu';
@@ -135,11 +135,11 @@ import { MMDAnimationHelper, MMDLoader, MMDOutlineEffect } from '/src/index.js';
 const poses = ${JSON.stringify( testPoses )};
 const rests = ${JSON.stringify( testRests )};
 const physicsMode=${physicsMode};
-if(physicsMode)window.Ammo=await initializeAmmoWasm();
 const result = { backends: [], errors: [], webgpu: 'unavailable' };
 console.error = (...args) => result.errors.push(args.map(String).join(' '));
 function check(value, message) { if(!value) throw new Error(message); }
 try {
+ if(physicsMode)window.Ammo=await initializeAmmoWasm();
  const adapter = await navigator.gpu?.requestAdapter();
  if(adapter) result.webgpu = 'available';
  for(const backend of adapter ? ['webgl','webgpu'] : ['webgl']) for(const pmxAnimation of [false,true]) {
@@ -266,8 +266,8 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 	const server = createServer( async ( request, response ) => {
 
 		if ( request.url === '/' ) { response.setHeader( 'Content-Type', 'text/html' ); response.end( html ); return; }
-		const path = request.url?.replace( /^\/src\//, 'dist/' ).replace( /^\/examples\//, 'dist/example-modules/' ).replace( /^\//, '' );
-		if ( ! path || ! /^(?:node_modules|dist)\//.test( path ) || path.includes( '..' ) ) { response.writeHead( 404 ).end(); return; }
+		const path = request.url?.replace( /^\/src\//, 'dist/' ).replace( /^\/examples\/(?!vendor\/)/, 'dist/example-modules/' ).replace( /^\//, '' );
+		if ( ! path || ! /^(?:node_modules\/|dist\/|examples\/vendor\/bullet\/)/.test( path ) || path.includes( '..' ) ) { response.writeHead( 404 ).end(); return; }
 		try { response.setHeader( 'Content-Type', path.endsWith( '.wasm' ) ? 'application/wasm' : 'text/javascript' ); response.end( await readFile( new URL( path, root ) ) ); }
 		catch { response.writeHead( 404 ).end(); }
 

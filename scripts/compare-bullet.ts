@@ -26,7 +26,8 @@ interface Run { backend: string; initializationMs: number; cases: Case[] }
 const backend = process.argv[ 2 ];
 if ( backend === 'default' || backend === 'master' ) {
 
-	process.env.MMD_AMMO_VARIANT = backend === 'master' ? 'bullet-master' : 'default';
+	// Preserve PR #85's historical baseline/latest labels in comparison output.
+	process.env.MMD_AMMO_VARIANT = backend === 'master' ? 'default' : 'legacy';
 	const start = performance.now();
 	const { initializeAmmo } = await import( '../tests/ammo-runtime.ts' );
 	const ammo = await initializeAmmo();

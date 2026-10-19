@@ -263,11 +263,12 @@ examples/assets/mmd/
 
 Preserve the downloaded notices. These assets have individual usage conditions;
 the upstream summary also links to the character guidelines. The examples use
-the already installed `ammojs-typed` development dependency for physics; its
-runtime is not bundled into the standalone MMD package. The public site copies
-**both** `ammo/ammo.wasm.js` and `ammo/ammo.wasm.wasm` from pinned
-`ammojs-typed@1.1.0`, plus its `LICENSE.md`. Pages and the local server serve
-the binary on the same origin, including under `/three-mmd-loader/`.
+the pinned official Bullet WASM build in `vendor/bullet/` by default. The static
+site ships its `ammo.js`, `ammo.wasm`, manifest and all license notices unchanged.
+The same optional assets ship in the npm package at `dist/vendor/bullet/`.
+`ammojs-typed@1.1.0` and its license remain on the Examples site solely for
+explicit rollback with `?bullet=legacy`. Pages and the local server serve
+the selected binary on the same origin, including under `/three-mmd-loader/`.
 `ammo-runtime.ts` awaits explicit WASM instantiation before creating physics,
 checks that Ammo uses that instance's exports, and reports HTTP, compile or
 10-second timeout failures. Worker factory binary URLs resolve relative to
@@ -275,11 +276,11 @@ the supplied glue URL. A Worker failure falls back to the initialized main-threa
 WASM runtime; a main-thread initialization failure displays an error and stops
 setup. There is no asm.js fallback in the Examples.
 
-This is an implementation/performance experiment, not a claim of stability,
-visual fidelity or universal speed improvements. Existing gallery JPEGs retain
+Changing the default backend does not establish improved stability,
+visual fidelity or universal speed. Existing gallery JPEGs retain
 their original asm.js capture provenance and do not demonstrate WASM parity.
 See [consumer initialization and CSP](https://github.com/takahirox/three-mmd-loader/blob/main/README.md#optional-worker-physics) and
-[validation evidence](https://github.com/takahirox/three-mmd-loader/blob/main/docs/ammo-wasm-validation.md).
+[current validation evidence](https://github.com/takahirox/three-mmd-loader/blob/main/docs/bullet-default.md).
 
 ## Deployment
 
@@ -388,25 +389,28 @@ licenses.
 
 ## Automated validation
 
-### Experimental latest official Bullet
+### Default official Bullet WASM
 
-The **Bullet engine** selector on physics scenes reloads the same scene with
-either default `ammojs-typed@1.1.0` WASM or an experimental build of official
-Bullet master commit `d3afe76132fc76b0f9b2359cbaef47a3766e7fbb`. Direct links
-use `?bullet=master` (append `&bullet=master` to an existing query); remove it
-or select **Default** to roll back. Both the animation Sync page and Worker
-page support this choice, as do audio and Gene. The selection leaves physics
-parameters and animation code unchanged. Initialization failures are reported;
-the experiment never silently substitutes the old backend.
+All physics scenes use official Bullet commit
+`d3afe76132fc76b0f9b2359cbaef47a3766e7fbb` without a query parameter,
+including PMD Sync, Worker, audio and Gene Light PMX. The engine selector has
+been removed. `?bullet=legacy` explicitly restores `ammojs-typed@1.1.0` WASM;
+remove it to return to the default. Existing `?bullet=master` and
+`?bullet=default` links also use the new build. Physics parameters and
+animation code are unchanged. Initialization failures stop setup with a
+diagnostic; Worker recovery retains the selected main-thread engine.
 
-For example, after `npm ci && npm run dev`, open
-`http://127.0.0.1:8080/examples/webgl_loader_mmd.html?bullet=master` or
-`http://127.0.0.1:8080/examples/webgl_loader_mmd_worker.html?bullet=master`.
-The committed glue, WASM, manifest and notices under `vendor/bullet/` also
-ship in the static Examples build. Rebuild them with `npm run build:bullet`
-(Docker and Git required). [Build pins, API coverage, measurements and limits](https://github.com/takahirox/three-mmd-loader/blob/main/docs/bullet-experiment.md)
-are recorded separately. Latest Bullet changes the synthetic trajectories;
-the intermittent 120 FPS oscillation has not been reproduced or shown fixed.
+After `npm ci && npm run dev`, open
+`http://127.0.0.1:8080/examples/webgl_loader_mmd.html`,
+`http://127.0.0.1:8080/examples/webgl_loader_mmd_worker.html`, or
+`http://127.0.0.1:8080/examples/webgl_loader_mmd_pmx_gene.html`.
+Check `Ammo.bulletCommit`, `Ammo.getWasmExports()` and
+`document.body.dataset.bulletBackend` in DevTools.
+[Verification, rollback and pending hosted checks](https://github.com/takahirox/three-mmd-loader/blob/main/docs/bullet-default.md)
+are documented separately. Rebuild with `npm run build:bullet` (Docker and Git
+required); [source/toolchain pins and historical measurements](https://github.com/takahirox/three-mmd-loader/blob/main/docs/bullet-experiment.md)
+remain available. Trajectories differ from old Bullet; intermittent 120 FPS
+oscillation has not been reproduced or shown fixed.
 
 ```sh
 npm test

@@ -1,12 +1,16 @@
-# Experimental official Bullet WASM comparison
+# Official Bullet WASM provenance and historical comparison
 
-Issue [#84](https://github.com/takahirox/three-mmd-loader/issues/84) adds an
-opt-in Ammo-compatible WASM build of current official Bullet source. The default
-remains `ammojs-typed@1.1.0` WASM. Latest Bullet passes the existing physics
-regressions, but produces different synthetic trajectories. Both engines finish
-the controlled tapes with finite transforms. The intermittent violent
-oscillation at 120 FPS was not reproduced, so this experiment establishes no
-stability improvement or confirmed fix.
+Issue [#84](https://github.com/takahirox/three-mmd-loader/issues/84) and PR #85
+introduced this pinned Ammo-compatible WASM build as opt-in. Issue #86 promotes
+**the same unchanged build to the default** for Examples and primary tests.
+See [current default verification and rollback](bullet-default.md). The engine
+labels and measurements in the historical comparison below describe PR #85's
+old-default/new-opt-in configuration, not current selection behavior.
+
+Latest Bullet passes the existing physics regressions but produces different
+synthetic trajectories. Both engines finish the controlled tapes with finite
+transforms. The intermittent violent oscillation at 120 FPS was not reproduced,
+so neither the comparison nor this default switch establishes a confirmed fix.
 
 The reproducible pass/fail outcome is **unchanged**: both engines pass the
 same regressions and remain finite on these tapes. Trajectories and costs
@@ -73,18 +77,20 @@ Bullet retains its zlib license and individual source author notices.
 Emscripten retains MIT/NCSA terms; adjacent files preserve musl, compiler-rt,
 libc++, libc++abi and dlmalloc notices supplied by the pinned toolchain.
 No Extras, Bullet examples, Python/OpenCL runtime, or third-party Ammo binary
-is redistributed. These Examples artifacts stay outside the npm package.
+is redistributed. The same runtime artifacts and notices now also ship in the
+npm package at `dist/vendor/bullet/` for optional self-hosting.
 
 ## Selection and compatibility
 
-Run `npm run dev` and use the **Bullet engine** selector on the Sync animation,
-Worker animation, audio or Gene page. `?bullet=master` chooses the experimental
-build; `?bullet=default`, no query, or the Default option restores the baseline.
-Switching reloads the same URL, preserving the scene, renderer, other query
-parameters and hash. No physics parameters are changed. Default fixed step is
-still `1/60`, `maxStepNum=10`; gravity, STOP_ERP, damping, collision policy,
-poses, animation/IK and kinematic control remain in the existing implementation.
-The gallery's retained JPEGs are not experimental-backend captures.
+Run `npm run dev` and open any physics Example with no query to use this
+pinned build. `?bullet=legacy` explicitly restores the old diagnostic runtime;
+remove it to restore the new default. `?bullet=master` and `?bullet=default`
+also select the new default. There is no engine-selection UI.
+
+No physics parameters are changed. Default fixed step is still `1/60`,
+`maxStepNum=10`; gravity, STOP_ERP, damping, collision policy, poses,
+animation/IK and kinematic control remain in the existing implementation.
+The gallery's retained JPEGs predate the default switch.
 
 The WebIDL surface covers the structural APIs in `src/ammo.ts`, native worlds,
 motion states, sphere/box/capsule shapes, additional damping construction fields,
@@ -159,9 +165,9 @@ synthetic type-2/joint trajectories are deliberately sensitive to anchor
 sampling. The comparison also changes compiler and binding generation, so
 cost differences cannot be attributed solely to the Bullet source revision.
 
-## Validation
+## Historical PR #85 validation
 
-The default and experimental Node suites each pass **851 tests**. All **48**
+The then-default and experimental Node suites each pass **851 tests**. All **48**
 browser cases have passing results across the full run and two focused reruns;
 the original-assets built site passes its Examples and both Gene backend checks.
 The full browser invocation initially had an ambient timeout (passed unchanged
@@ -186,7 +192,7 @@ Reproduction commands:
 ```sh
 npm run typecheck
 npm test
-npm run test:bullet
+npm run test:legacy
 npm run test:browser
 npm run build:examples
 MMD_EXAMPLE_SITE=dist/examples npm run test:examples
@@ -197,11 +203,12 @@ MMD_EXAMPLE_SITE=dist/examples npm run test:examples
 **PENDING until run:** Inspect the latest attempt of the merge-triggered Pages
 workflow, record its deployed commit, and verify the published manifest,
 new glue/WASM bytes, MIME types and paths. The deployment validator includes
-the experimental runtime and all license files, while verified old sites
+the default runtime and all license files, while verified old sites
 remain valid rollback candidates.
 
 **PENDING until run:** Smoke-test the actual public Sync and Worker examples
-with both engines; record browser, URLs, backend evidence, UTC timestamps and
+with no Bullet query (PMD, Gene Light PMX and Worker); record browser, URLs,
+active build identity, initialization, controlled steps, UTC timestamps and
 failures. Local source and built-site checks do not substitute for these checks.
 
 Optional maintainer follow-up: long-running natural 120 Hz motion on real

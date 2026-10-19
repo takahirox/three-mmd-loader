@@ -64,12 +64,13 @@
     "THIRD_PARTY_NOTICES.md",
     "dist/materials",
     "dist/effects",
-    "dist/skinning"
+    "dist/skinning",
+    "dist/vendor/bullet"
   ],
   "scripts": {
     "build:bullet": "node --import tsx scripts/build-experimental-bullet.ts",
-    "test:bullet": "MMD_AMMO_VARIANT=bullet-master node --import tsx --test tests/*.test.ts",
-    "pretest:bullet": "npm run build",
+    "test:legacy": "MMD_AMMO_VARIANT=legacy node --import tsx --test tests/*.test.ts",
+    "pretest:legacy": "npm run build",
     "benchmark:bullet": "node --import tsx scripts/compare-bullet.ts",
     "build": "node --import tsx scripts/build-package.ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.examples.json --noEmit && tsc -p tsconfig.tools.json && npm run check:typescript",

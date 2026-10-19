@@ -69,33 +69,42 @@ The internal `libs/mmdparser.module.js` subpath and package-root
 Synchronous physics requires an initialized [Ammo.js](https://github.com/kripken/ammo.js)
 runtime exposed as `globalThis.Ammo` before creating `MMDPhysics` or adding a
 mesh with physics enabled (the helper's default). Ammo is supplied by the
-application and is not bundled with this package. For example, using the
-`ammojs-typed@1.1.0` WebAssembly distribution used by the Examples and tests:
+application. The Examples and primary regression tests use the Ammo-compatible
+WASM build of official Bullet commit
+`d3afe76132fc76b0f9b2359cbaef47a3766e7fbb` by default.
+The npm package includes the same optional runtime, manifest and licenses in
+`dist/vendor/bullet/`. Copy that entire directory from the installed package
+(`node_modules/@takahirox/three-mmd/dist/vendor/bullet/`) to your served
+`vendor/bullet/` directory, then load its classic script:
+
+```html
+<script src="./vendor/bullet/ammo.js"></script>
+```
 
 ```js
-import AmmoFactory from 'ammojs-typed/wasm';
-
-// Copy ammo/ammo.wasm.wasm to this served directory. Await before physics.
-const ammoBaseURL = new URL( './vendor/ammo/', document.baseURI );
-globalThis.Ammo = await AmmoFactory( {
-  locateFile: path => new URL( path, ammoBaseURL ).href
+// Await initialization before creating physics.
+const ammoURL = new URL( './vendor/bullet/ammo.js', document.baseURI );
+globalThis.Ammo = await globalThis.Ammo( {
+  locateFile: path => new URL( path, ammoURL ).href
 } );
 helper.add( anotherMesh );
 ```
 
-Install that optional distribution separately (`npm install ammojs-typed`), or
-initialize your own compatible Ammo.js build, including asm.js. The library does
-not select or download an Ammo backend. WebAssembly requires browser support
-and a separately served binary; use `application/wasm`, preferably on the same
-origin. Failed HTTP/compilation, CSP restrictions, and slow initialization need
-an application setup error handler. The bundled Examples use an explicit
-10-second initialization deadline and verify the instantiated WASM exports;
-they never silently substitute asm.js. This is an engine implementation
-experiment, with no guarantee of better speed, stability, or MMD fidelity.
-The Examples also offer an opt-in **Bullet engine** selector (`?bullet=master`)
-for a pinned build of current official Bullet source. Default remains
-`ammojs-typed@1.1.0` WASM. See [the experimental build and comparison](docs/bullet-experiment.md)
-for reproduction, licenses, results and rollback.
+The library continues to accept your own compatible Ammo.js build, including
+`ammojs-typed` and asm.js; it does not select or download a backend.
+WebAssembly requires browser support and a separately served binary; use
+`application/wasm`, preferably on the same origin. Handle setup errors in your
+application. The Examples enforce a 10-second initialization deadline, verify
+the instantiated WASM exports and pinned source identity, and stop on failure.
+Worker recovery uses the initialized main-thread engine. There is no automatic
+fallback to the old Bullet build.
+
+Normal Examples need no Bullet query parameter. `?bullet=legacy` explicitly
+rolls back to `ammojs-typed@1.1.0` WASM for diagnostics; `?bullet=master` and
+`?bullet=default` are aliases for the new default. There is no engine selector.
+See [default runtime verification and rollback](docs/bullet-default.md) and
+[build provenance and historical comparison](docs/bullet-experiment.md).
+This switch does not establish a fix for intermittent 120 FPS instability.
 Pass `{ physics: false }` when
 adding a mesh to use animation without Ammo. Model texture decoding and
 rendering require a browser environment. The `mmd-parser` dependency
@@ -278,7 +287,7 @@ helper.add( mesh, {
   physics: true,
   physicsMode: 'worker',
   workerPhysics: {
-    ammoURL: new URL( './vendor/ammo/ammo.wasm.js', document.baseURI ).href,
+    ammoURL: new URL( './vendor/bullet/ammo.js', document.baseURI ).href,
     onFallback: reason => console.warn( reason )
   }
 } );
@@ -289,9 +298,9 @@ helper.update( delta );
 
 `ammoURL` must serve a compatible **classic** Ammo script exposing an `Ammo`
 factory or initialized API. Each Worker initializes its own Ammo. For the pinned
-WASM build, copy **both** `ammo/ammo.wasm.js` and `ammo/ammo.wasm.wasm`
-into the same served directory. The Worker resolves factory `locateFile` paths
-relative to `ammoURL`, independent of the page and Worker bundle directories.
+WASM build, copy the complete `dist/vendor/bullet/` directory, keeping
+`ammo.js` and `ammo.wasm` together with their manifest and licenses. The Worker
+resolves factory `locateFile` paths relative to `ammoURL`, independent of the page and Worker bundle directories.
 Keep a compatible initialized main-thread runtime available for sync fallback.
 The packaged
 `animation/MMDPhysicsWorker.js` bundles its dependencies and needs no import

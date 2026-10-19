@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { mkdir, readdir, rm } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -18,3 +18,6 @@ execFileSync( process.execPath, [ 'node_modules/typescript/bin/tsc', '-p', 'tsco
 // Classic worker bundles Three/core adapters, so it needs no import map and can
 // initialize classic Ammo distributions with importScripts.
 await build( { entryPoints: [ fileURLToPath( new URL( '../src/animation/MMDPhysicsWorker.ts', import.meta.url ) ) ], outfile: fileURLToPath( new URL( '../dist/animation/MMDPhysicsWorker.js', import.meta.url ) ), bundle: true, format: 'iife', platform: 'browser', target: 'es2022' } );
+
+// Optional self-hosted runtime assets; consumers still supply globalThis.Ammo.
+await cp( new URL( '../examples/vendor/bullet/', import.meta.url ), new URL( '../dist/vendor/bullet/', import.meta.url ), { recursive: true } );

@@ -252,7 +252,7 @@ try {
 		context.renderer.setAnimationLoop( null );
 		const { mesh, helper, camera, effect, renderer, scene } = context;
 		const checks = checkInfo( page, doc );
-		checks.wasmRuntime = suffix === '_pose' || doc.body.dataset.ammoBackend === 'wasm';
+		checks.wasmRuntime = suffix === '_pose' || doc.body.dataset.ammoBackend === 'wasm' && page.Ammo.bulletCommit === 'd3afe76132fc76b0f9b2359cbaef47a3766e7fbb';
 		checks.workerRemainsWorker = suffix !== '_worker' || helper.objects.get( mesh ).physics.physicsMode === 'worker';
 		const control = name => [...doc.querySelectorAll( '#controls .controller' )].find( c => c.querySelector( '.name' ).textContent === name ).querySelector( 'input, select, button' );
 		const info = doc.getElementById( 'info' );
@@ -354,12 +354,12 @@ try {
 		renderer.dispose();
 		frame.remove();
 	}
-	// Exercise the opt-in engine on the actual served/built animation entries too.
+	// Exercise the no-query default on the actual served/built animation entries.
 	for ( const suffix of [ '', '_worker' ] ) {
-		progress( 'experimental Bullet ' + suffix );
+		progress( 'default Bullet ' + suffix );
 		const frame=document.createElement('iframe');frame.width=800;frame.height=600;
 		const loaded=new Promise(resolve=>frame.onload=resolve);
-		frame.src='/examples/webgl_loader_mmd'+suffix+'.html?backend=webgl&bullet=master';
+		frame.src='/examples/webgl_loader_mmd'+suffix+'.html';
 		document.body.appendChild(frame);await loaded;
 		const page=frame.contentWindow,doc=frame.contentDocument;
 		const context=await (await page.eval("import('/examples/webgl_loader_mmd"+suffix+".js')")).ready;
@@ -368,11 +368,12 @@ try {
 		for(let frameIndex=0;frameIndex<12;frameIndex++) {
 			context.helper.update(1/60);
 			const deadline=performance.now()+8000;
-			while(physics.workerStatus?.inFlight) {if(performance.now()>deadline)throw new Error('experimental Worker step timeout');await new Promise(resolve=>setTimeout(resolve,5));}
+			while(physics.workerStatus?.inFlight) {if(performance.now()>deadline)throw new Error('default Worker step timeout');await new Promise(resolve=>setTimeout(resolve,5));}
 			context.helper.update(0);
 		}
-		results.push({page:'experimental '+(suffix||'sync'),checks:{
-			ready:doc.body.dataset.state==='ready',source:doc.body.dataset.bulletBackend==='master-d3afe76132fc',
+		results.push({page:'default '+(suffix||'sync'),checks:{
+			ready:doc.body.dataset.state==='ready',source:doc.body.dataset.bulletBackend==='master-d3afe76132fc' && page.Ammo.bulletCommit==='d3afe76132fc76b0f9b2359cbaef47a3766e7fbb',
+			exports:typeof page.Ammo.getWasmExports().emscripten_bind_btDiscreteDynamicsWorld_stepSimulation_3==='function',
 			wasm:doc.body.dataset.ammoBackend==='wasm',mode:physics.physicsMode===(suffix?'worker':'sync'),
 			settings:physics.unitStep===1/60 && physics.maxStepNum===10,
 			finite:physics.bodyResults.every(body=>body.position.concat(body.quaternion).every(Number.isFinite)),

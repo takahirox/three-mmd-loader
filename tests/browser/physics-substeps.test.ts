@@ -10,10 +10,9 @@ import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
 const fixtures = ( [ 'pmd', 'pmx' ] as const ).map( format => ( { format, bytes: Array.from( new Uint8Array( linkedCollisionBuffer( format, { masks: [ 0, 0 ], timeProbe: true } ) ) ) } ) );
 const harness = `<!doctype html><pre id="result">pending</pre>
-<script src="/node_modules/ammojs-typed/ammo/ammo.wasm.js"></script>
 <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/tsl":"/node_modules/three/build/three.tsl.js","three/webgpu":"/node_modules/three/build/three.webgpu.js","three/addons/":"/node_modules/three/examples/jsm/","mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs"}}</script>
 <script type="module">
-import { initializeAmmoWasm } from "/examples/ammo-runtime.js";
+import { ammoURL, initializeAmmoWasm } from "/examples/ammo-runtime.js";
 import { Parser } from 'mmd-parser';
 import { Texture, Vector3 } from 'three';
 import { MMDAnimationHelper, MMDLoader } from '/src/index.js';
@@ -46,7 +45,7 @@ try {
   const models=[model(0),model(1)],refs=[model(0),model(1)];
   const params={unitStep:override,maxStepNum:cap,warmup:0,animationWarmup:false,gravity:new Vector3(0,0,10)};
   for(let i=0;i<2;i++) {
-   helper.add(models[i],{...params,physicsMode:'worker',workerPhysics:{ammoURL:new URL('/node_modules/ammojs-typed/ammo/ammo.wasm.js',location.href).href,createWorker}});
+   helper.add(models[i],{...params,physicsMode:'worker',workerPhysics:{ammoURL,createWorker}});
    sync.add(refs[i],params);
   }
   const physics=models.map(m=>helper.objects.get(m).physics),native=refs.map(m=>sync.objects.get(m).physics);

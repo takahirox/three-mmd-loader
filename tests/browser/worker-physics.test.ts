@@ -20,7 +20,6 @@ const collisionFixtures = ( [ 'pmd', 'pmx' ] as const ).flatMap( format => [
 ].map( options => ( { format, ...options, bytes: Array.from( new Uint8Array( linkedCollisionBuffer( format, options ) ) ) } ) ) );
 const harness = `<!doctype html><pre id="result">pending</pre>
 <script>addEventListener('error',event=>document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:event.message})));addEventListener('unhandledrejection',event=>document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(event.reason)})));</script>
-<script src="/node_modules/ammojs-typed/ammo/ammo.wasm.js"></script>
 <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/tsl":"/node_modules/three/build/three.tsl.js","three/webgpu":"/node_modules/three/build/three.webgpu.js","three/addons/":"/node_modules/three/examples/jsm/","mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs"}}</script>
 <script type="module">
 import { ammoURL, initializeAmmoWasm } from "/examples/ammo-runtime.js";
@@ -54,6 +53,7 @@ async function complete(p, sequence) {
 }
 try {
  globalThis.Ammo = await initializeAmmoWasm();
+ check('selectedBuild',new URLSearchParams(location.search).get('bullet')==='legacy' ? !Ammo.bulletCommit : Ammo.bulletCommit==='d3afe76132fc76b0f9b2359cbaef47a3766e7fbb');
  // Exercise the actual bundled Worker with binary PMD/PMX metadata. Two
  // separated models share its world, using each real transport below.
  const collisionHelper=new MMDAnimationHelper({sync:false});collisionHelper.sharedPhysics=true;
@@ -131,7 +131,7 @@ try {
 } catch(error) {document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error),checks}));}
 </script>`;
 
-for ( const bullet of [ 'default', 'master' ] ) for ( const isolated of [ false, true ] ) for ( const limited of [ false, true ] ) for ( const legacyStep of [ false, true ] ) test( `real bundled classic Worker / Ammo integration, Bullet=${bullet}, isolation=${isolated}, limited=${limited}, legacyStep=${legacyStep}`, { timeout: 60000 }, async t => {
+for ( const bullet of [ '', 'legacy' ] ) for ( const isolated of [ false, true ] ) for ( const limited of [ false, true ] ) for ( const legacyStep of [ false, true ] ) test( `real bundled classic Worker / Ammo integration, Bullet=${bullet || 'default (no query)'}, isolation=${isolated}, limited=${limited}, legacyStep=${legacyStep}`, { timeout: 60000 }, async t => {
 
 	const profile = await mkdtemp( join( tmpdir(), 'mmd-worker-browser-' ) );
 	const files = createExamplesServer();
@@ -146,7 +146,7 @@ for ( const bullet of [ 'default', 'master' ] ) for ( const isolated of [ false,
 	try {
 
 		const address = server.address(); assert.ok( address && typeof address !== 'string' );
-		const result = await runBrowser<{ error?: string; checks: Record<string, boolean>; isolated: boolean }>( `http://127.0.0.1:${address.port}/worker-test?limited=${limited}&legacyStep=${legacyStep}&bullet=${bullet}`, profile );
+		const result = await runBrowser<{ error?: string; checks: Record<string, boolean>; isolated: boolean }>( `http://127.0.0.1:${address.port}/worker-test?limited=${limited}&legacyStep=${legacyStep}${bullet ? '&bullet=' + bullet : ''}`, profile );
 		assert.equal( result.error, undefined, JSON.stringify( result ) );
 		assert.ok( Object.values( result.checks ).every( Boolean ) );
 		if ( isolated && ! result.isolated ) t.diagnostic( 'Browser isolation unavailable: transferable integration passed; atomic publication covered in deterministic tests.' );
@@ -165,13 +165,13 @@ try {
  for(const [suffix,expected,stray] of [['','sync','worker'],['_worker','worker','sync']]) {
   const frame=document.createElement('iframe');frame.width=800;frame.height=600;
   const loaded=new Promise(resolve=>frame.onload=resolve);
-  const search='?backend=webgl&physicsMode='+stray+'&bullet='+new URLSearchParams(location.search).get('bullet');
+  const search='?backend=webgl&physicsMode='+stray+(new URLSearchParams(location.search).has('bullet')?'&bullet='+new URLSearchParams(location.search).get('bullet'):'');
   frame.src='/examples/webgl_loader_mmd'+suffix+'.html'+search+'#fixed-mode';
   document.body.appendChild(frame);await loaded;
   const page=frame.contentWindow,doc=frame.contentDocument;
   const module=await page.eval("import('/examples/webgl_loader_mmd"+suffix+".js')");
   const c=await module.ready,p=c.helper.objects.get(c.mesh).physics;
-  check('bulletSelection'+suffix,doc.getElementById('bullet-engine').value===new URLSearchParams(location.search).get('bullet') && doc.body.dataset.bulletBackend===(new URLSearchParams(location.search).get('bullet')==='master'?'master-d3afe76132fc':'ammojs-typed-1.1.0'));
+  check('bulletSelection'+suffix,doc.body.dataset.bulletBackend===(new URLSearchParams(location.search).get('bullet')==='legacy'?'ammojs-typed-1.1.0':'master-d3afe76132fc'));
   check('fixedMode'+suffix,p.requestedPhysicsMode===expected && p.physicsMode===expected);
   check('transport'+suffix,expected==='worker' ? p.transport==='transferable' : !p.transport);
   check('noSelector'+suffix,!c.gui.controllers.some(controller=>controller.property==='physicsMode') && !doc.getElementById('controls').textContent.includes('Physics mode (reload)'));
@@ -183,27 +183,21 @@ try {
   check('actualStatus'+suffix,doc.getElementById('status').textContent.startsWith(expected==='worker' ? 'worker / transferable' : 'sync —'));
   check('backend'+suffix,c.renderer.backend.isWebGLBackend);
   check('url'+suffix,page.location.search===search && page.location.hash==='#fixed-mode');
-  const nextBullet=new URLSearchParams(location.search).get('bullet')==='master'?'default':'master';
-  const selector=doc.getElementById('bullet-engine');
-  check('selectorInteractive'+suffix,page.getComputedStyle(selector).pointerEvents==='auto');
-  const reloaded=new Promise(resolve=>frame.onload=resolve);
-  selector.value=nextBullet;selector.dispatchEvent(new page.Event('change'));await reloaded;
-  const switched=await (await page.eval("import('/examples/webgl_loader_mmd"+suffix+".js')")).ready;
-  check('reversibleSelection'+suffix,page.document.body.dataset.bulletBackend===(nextBullet==='master'?'master-d3afe76132fc':'ammojs-typed-1.1.0') && switched.helper.objects.get(switched.mesh).physics.physicsMode===expected && page.location.hash==='#fixed-mode' && new URLSearchParams(page.location.search).get('physicsMode')===stray);
+  check('noBulletSelector'+suffix,!doc.getElementById('bullet-engine'));
   page.dispatchEvent(new page.Event('pagehide'));frame.remove();
  }
  document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks}));
 } catch(error) {document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error),checks}));}
 </script>`;
 
-for ( const bullet of [ 'default', 'master' ] ) test( `animation entry points ignore conflicting physics queries and retain backend, hash and measured status, Bullet=${bullet}`, { timeout: 60000 }, async () => {
+for ( const bullet of [ '', 'legacy' ] ) test( `animation entry points ignore conflicting physics queries and retain backend, hash and measured status, Bullet=${bullet || 'default (no query)'}`, { timeout: 60000 }, async () => {
 
 	const directory = await mkdtemp( join( tmpdir(), 'mmd-worker-demo-' ) );
 	await writeGeneratedExampleAssets( join( directory, 'assets' ) );
 	const files = createExamplesServer( { assetRoot: join( directory, 'assets' ) } );
 	const server = createServer( ( request, response ) => {
 
-		if ( request.url?.startsWith( '/demo-test?' ) ) { response.setHeader( 'Content-Type', 'text/html' ); response.end( demoHarness ); }
+		if ( request.url?.startsWith( '/demo-test' ) ) { response.setHeader( 'Content-Type', 'text/html' ); response.end( demoHarness ); }
 		else files.emit( 'request', request, response );
 
 	} );
@@ -211,7 +205,7 @@ for ( const bullet of [ 'default', 'master' ] ) test( `animation entry points ig
 	try {
 
 		const address = server.address(); assert.ok( address && typeof address !== 'string' );
-		const result = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/demo-test?bullet=${bullet}`, join( directory, 'profile' ) );
+		const result = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/demo-test${bullet ? '?bullet=' + bullet : ''}`, join( directory, 'profile' ) );
 		assert.equal( result.error, undefined, JSON.stringify( result ) );
 		assert.ok( Object.values( result.checks ).every( Boolean ) );
 
@@ -233,7 +227,7 @@ try {
  for(const failure of ['', 'startup', 'runtime']) {
   const frame=document.createElement('iframe');frame.width=800;frame.height=600;
   const loaded=new Promise(resolve=>frame.onload=resolve);
-  frame.src='/examples/webgl_loader_mmd_worker.html?failure='+failure+'&bullet='+new URLSearchParams(location.search).get('bullet');
+  frame.src='/examples/webgl_loader_mmd_worker.html?failure='+failure+(new URLSearchParams(location.search).has('bullet')?'&bullet='+new URLSearchParams(location.search).get('bullet'):'');
   document.body.appendChild(frame);await loaded;
   const page=frame.contentWindow, doc=frame.contentDocument;
   const module=await page.eval("import('/examples/webgl_loader_mmd_worker.js')");
@@ -279,14 +273,14 @@ try {
 } catch(error) {document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error),checks}));}
 </script>`;
 
-for ( const bullet of [ 'default', 'master' ] ) test( `standalone Worker page defaults to transferable physics, exposes startup/runtime fallback and cleans up, Bullet=${bullet}`, { timeout: 60000 }, async () => {
+for ( const bullet of [ '', 'legacy' ] ) test( `standalone Worker page defaults to transferable physics, exposes startup/runtime fallback and cleans up, Bullet=${bullet || 'default (no query)'}`, { timeout: 60000 }, async () => {
 
 	const directory = await mkdtemp( join( tmpdir(), 'mmd-standalone-worker-' ) );
 	await writeGeneratedExampleAssets( join( directory, 'assets' ) );
 	const files = createExamplesServer( { assetRoot: join( directory, 'assets' ) } );
 	const server = createServer( async ( request, response ) => {
 
-		if ( request.url?.startsWith( '/standalone-test?' ) ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( standaloneHarness );
+		if ( request.url?.startsWith( '/standalone-test' ) ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( standaloneHarness );
 		else if ( request.url?.startsWith( '/examples/webgl_loader_mmd_worker.html?failure=' ) ) {
 
 			const failure = new URL( request.url, 'http://localhost' ).searchParams.get( 'failure' );
@@ -304,7 +298,7 @@ for ( const bullet of [ 'default', 'master' ] ) test( `standalone Worker page de
 	try {
 
 		const address = server.address(); assert.ok( address && typeof address !== 'string' );
-		const result = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/standalone-test?bullet=${bullet}`, join( directory, 'profile' ) );
+		const result = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/standalone-test${bullet ? '?bullet=' + bullet : ''}`, join( directory, 'profile' ) );
 		assert.equal( result.error, undefined, JSON.stringify( result ) );
 		assert.ok( Object.values( result.checks ).every( Boolean ) );
 
