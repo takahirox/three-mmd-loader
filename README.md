@@ -92,6 +92,10 @@ an application setup error handler. The bundled Examples use an explicit
 10-second initialization deadline and verify the instantiated WASM exports;
 they never silently substitute asm.js. This is an engine implementation
 experiment, with no guarantee of better speed, stability, or MMD fidelity.
+The Examples also offer an opt-in **Bullet engine** selector (`?bullet=master`)
+for a pinned build of current official Bullet source. Default remains
+`ammojs-typed@1.1.0` WASM. See [the experimental build and comparison](docs/bullet-experiment.md)
+for reproduction, licenses, results and rollback.
 Pass `{ physics: false }` when
 adding a mesh to use animation without Ammo. Model texture decoding and
 rendering require a browser environment. The `mmd-parser` dependency

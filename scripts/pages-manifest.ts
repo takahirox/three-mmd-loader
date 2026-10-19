@@ -16,6 +16,8 @@ export const requiredPages = [
 	'examples/gene-light.md', 'examples/screenshots/webgl_loader_mmd_pmx_gene.jpg',
 	...geneLightManifest.files.map( file => 'examples/assets/gene-light/' + file.path ),
 	'src/loaders/MMDLoader.js', 'examples/ammo-runtime.js',
+	'examples/vendor/bullet/ammo.js', 'examples/vendor/bullet/ammo.wasm', 'examples/vendor/bullet/manifest.json',
+	...[ 'Bullet', 'Bullet-source-notices', 'Emscripten', 'musl', 'libcxx', 'libcxxabi', 'compiler-rt', 'dlmalloc' ].map( name => `examples/vendor/bullet/LICENSE.${name}.txt` ),
 	'node_modules/ammojs-typed/ammo/ammo.wasm.js',
 	'node_modules/ammojs-typed/ammo/ammo.wasm.wasm',
 	'node_modules/ammojs-typed/LICENSE.md'
@@ -50,7 +52,7 @@ export function validateManifest( value: unknown, { allowLegacyPages = false } =
 	// Existing deployments can predate the Worker/Gene pages and WASM assets. Only backup/rollback
 	// opt in to the previous page set; newly built/published artifacts require it.
 	const required = manifest.state === 'unpublished' ? [ '404.html' ] :
-		allowLegacyPages ? requiredPages.filter( path => path !== 'examples/webgl_loader_mmd_worker.html' && ! /gene-light|pmx_gene|gene-showcase|ammojs-typed|ammo-runtime/.test( path ) ) : requiredPages;
+		allowLegacyPages ? requiredPages.filter( path => path !== 'examples/webgl_loader_mmd_worker.html' && ! /gene-light|pmx_gene|gene-showcase|ammojs-typed|ammo-runtime|vendor\/bullet/.test( path ) ) : requiredPages;
 	for ( const path of required ) if ( ! paths.has( path ) ) throw new Error( `Missing example content: ${path}` );
 	if ( manifest.state === 'unpublished' && paths.size !== required.length ) throw new Error( 'Unpublished recovery site must not contain examples' );
 	return manifest as DeploymentManifest;

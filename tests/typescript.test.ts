@@ -40,7 +40,7 @@ test( 'repository JavaScript is limited to generated output', () => {
 	checkTypeScriptSources();
 	assert.deepEqual( unexpectedJavaScript( [
 		'src/libs/mmdparser.module.js', 'dist/index.js', 'dist/examples/examples/browser.js',
-		'examples/browser.ts', 'scripts/tool.ts', 'tests/unit.test.ts',
+		'examples/browser.ts', 'examples/vendor/bullet/ammo.js', 'scripts/tool.ts', 'tests/unit.test.ts',
 		'examples/regression.js', 'scripts/regression.js', 'tests/regression.js', 'other.js', 'other.mjs', 'other.cjs'
 	] ), [ 'src/libs/mmdparser.module.js', 'examples/regression.js', 'scripts/regression.js', 'tests/regression.js', 'other.js', 'other.mjs', 'other.cjs' ] );
 

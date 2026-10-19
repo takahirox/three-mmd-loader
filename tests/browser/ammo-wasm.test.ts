@@ -13,7 +13,7 @@ const harness = `<!doctype html><pre id="result">pending</pre>
 <script src="/node_modules/ammojs-typed/ammo/ammo.wasm.js"></script>
 <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/","three/tsl":"/node_modules/three/build/three.tsl.js","three/webgpu":"/node_modules/three/build/three.webgpu.js","mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs"}}</script>
 <script type="module">
-import { initializeAmmoWasm } from '/examples/ammo-runtime.js';
+import { ammoURL, experimentalBullet, initializeAmmoWasm } from '/examples/ammo-runtime.js';
 import { MMDLoader, MMDPhysics } from '/src/index.js';
 import { Texture } from 'three';
 import { Parser } from 'mmd-parser';
@@ -23,11 +23,13 @@ try {
  const failure=new URLSearchParams(location.search).get('mainFailure');
  if(failure){
   let reason='';try{await initializeAmmoWasm();}catch(error){reason=String(error);}
-  check('main failure diagnosed',reason.includes('Ammo WASM initialization failed') && reason.includes('ammo.wasm.wasm'));
+  check('main failure diagnosed',failure==='api'?reason.includes('API incompatible: btGeneric6DofSpringConstraint'):failure==='identity'?reason.includes('source identity mismatch'):failure==='glue'?reason.includes('glue failed to load'):reason.includes('Ammo WASM initialization failed') && reason.includes('ammo.wasm'));
   check('no initialized runtime',typeof Ammo==='function' && document.body.dataset.ammoBackend!=='wasm');
  }else{
   globalThis.Ammo=await initializeAmmoWasm();
   check('main WASM instance verified',document.body.dataset.ammoBackend==='wasm');
+  const binaryResponse=await fetch(new URL(experimentalBullet?'ammo.wasm':'ammo.wasm.wasm',ammoURL));
+  check('binary MIME',binaryResponse.ok && binaryResponse.headers.get('Content-Type').split(';')[0]==='application/wasm');
   const parser=new Parser(),data=parser.parsePmd(new Uint8Array(${JSON.stringify( Array.from( new Uint8Array( linkedCollisionBuffer( 'pmd', { masks: [ 0, 0 ] } ) ) ) )}).buffer,true);
   const loader=new MMDLoader();loader.meshBuilder.materialBuilder.textureLoader.load=()=>new Texture();
   for(const variant of ['verified','missing','invalid','timeout','asm']){
@@ -55,13 +57,14 @@ try {
 }catch(error){document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(error),checks}));}
 </script>`;
 
-for ( const isolated of [ false, true ] ) test( `WASM instance evidence, glue-relative classic Worker binaries and failure recovery, isolation=${isolated}`, { timeout: 60000 }, async () => {
+for ( const bullet of [ 'default', 'master' ] ) for ( const isolated of [ false, true ] ) test( `WASM instance evidence, glue-relative classic Worker binaries and failure recovery, Bullet=${bullet}, isolation=${isolated}`, { timeout: 60000 }, async () => {
 
 	const profile = await mkdtemp( join( tmpdir(), 'mmd-wasm-browser-' ) );
 	const files = createExamplesServer();
-	const glue = await readFile( new URL( '../../node_modules/ammojs-typed/ammo/ammo.wasm.js', import.meta.url ), 'utf8' );
+	const glue = await readFile( new URL( bullet === 'master' ? '../../examples/vendor/bullet/ammo.js' : '../../node_modules/ammojs-typed/ammo/ammo.wasm.js', import.meta.url ), 'utf8' );
 	const asm = await readFile( new URL( '../../node_modules/ammojs-typed/ammo/ammo.js', import.meta.url ) );
-	const binary = await readFile( new URL( '../../node_modules/ammojs-typed/ammo/ammo.wasm.wasm', import.meta.url ) );
+	const binaryName = bullet === 'master' ? 'ammo.wasm' : 'ammo.wasm.wasm';
+	const binary = await readFile( new URL( bullet === 'master' ? '../../examples/vendor/bullet/ammo.wasm' : '../../node_modules/ammojs-typed/ammo/ammo.wasm.wasm', import.meta.url ) );
 	let evidence = 0, binaryRequests = 0;
 	// Observe the actual Emscripten instantiation, without replacing its loader.
 	const observer = `
@@ -69,7 +72,7 @@ globalThis.wasmInstances=[];
 for(const key of ['instantiate','instantiateStreaming']){const native=WebAssembly[key];WebAssembly[key]=async function(...args){const result=await native.apply(WebAssembly,args);wasmInstances.push(result.instance||result);return result;};}
 `;
 	const verify = `
-Ammo=((factory)=>async options=>{const runtime=await factory(options);if(!wasmInstances.some(instance=>instance instanceof WebAssembly.Instance && runtime.asm===instance.exports))throw new Error('Worker did not execute WASM exports');await fetch('/wasm-evidence');return runtime;})(Ammo);
+Ammo=((factory)=>async options=>{const runtime=await factory(options);if(!wasmInstances.some(instance=>instance instanceof WebAssembly.Instance && (runtime.asm||runtime.getWasmExports?.())===instance.exports))throw new Error('Worker did not execute WASM exports');await fetch('/wasm-evidence');return runtime;})(Ammo);
 `;
 	const server = createServer( ( request, response ) => {
 
@@ -83,12 +86,18 @@ Ammo=((factory)=>async options=>{const runtime=await factory(options);if(!wasmIn
 
 				response.writeHead( 200, { 'Content-Type': 'text/javascript' } ).end( path.includes( '/timeout/' ) ? 'var Ammo=()=>new Promise(()=>{});' : path.includes( '/asm/' ) ? asm : path.includes( '/verified/' ) ? observer + glue + verify : glue );
 
-			} else if ( path === '/different/verified/ammo.wasm.wasm' ) { binaryRequests ++; response.writeHead( 200, { 'Content-Type': 'application/wasm' } ).end( binary ); }
+			} else if ( path === '/different/verified/' + binaryName ) { binaryRequests ++; response.writeHead( 200, { 'Content-Type': 'application/wasm' } ).end( binary ); }
 			else response.writeHead( path.includes( '/invalid/' ) ? 200 : 404, { 'Content-Type': 'application/wasm' } ).end( 'invalid WASM' );
 
-		} else if ( path.endsWith( '/ammo.wasm.wasm' ) && request.headers.referer?.includes( 'mainFailure=' ) ) {
+		} else if ( bullet === 'master' && path === '/examples/vendor/bullet/ammo.js' && request.headers.referer?.includes( 'mainFailure=' ) ) {
 
-			response.writeHead( request.headers.referer.includes( 'missing' ) ? 404 : 200, { 'Content-Type': 'application/wasm' } ).end( 'invalid WASM' );
+			const failure = new URL( request.headers.referer ).searchParams.get( 'mainFailure' );
+			if ( failure === 'glue' ) response.writeHead( 404 ).end();
+			else response.writeHead( 200, { 'Content-Type': 'text/javascript' } ).end( glue + ( failure === 'api' || failure === 'identity' ? `\nAmmo=((factory)=>async options=>{const runtime=await factory(options);${failure === 'api' ? 'delete runtime.btGeneric6DofSpringConstraint.prototype.setParam;' : "runtime.bulletCommit='wrong';"}return runtime;})(Ammo);` : '' ) );
+
+		} else if ( path.endsWith( '/' + binaryName ) && /mainFailure=(missing|invalid)/.test( request.headers.referer ?? '' ) ) {
+
+			response.writeHead( request.headers.referer?.includes( 'missing' ) ? 404 : 200, { 'Content-Type': 'application/wasm' } ).end( 'invalid WASM' );
 
 		} else files.emit( 'request', request, response );
 
@@ -97,9 +106,9 @@ Ammo=((factory)=>async options=>{const runtime=await factory(options);if(!wasmIn
 	try {
 
 		const address = server.address(); assert.ok( address && typeof address !== 'string' );
-		for ( const query of [ '', '?mainFailure=missing', '?mainFailure=invalid' ] ) {
+		for ( const failure of bullet === 'master' ? [ '', 'missing', 'invalid', 'api', 'identity', 'glue' ] : [ '', 'missing', 'invalid' ] ) {
 
-			const result: { error?: string; checks: Record<string, boolean> } = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/test${query}`, profile );
+			const result: { error?: string; checks: Record<string, boolean> } = await runBrowser<{ error?: string; checks: Record<string, boolean> }>( `http://127.0.0.1:${address.port}/test?bullet=${bullet}${failure ? '&mainFailure=' + failure : ''}`, profile );
 			assert.equal( result.error, undefined, JSON.stringify( result ) );
 			assert.ok( Object.values( result.checks ).every( Boolean ) );
 

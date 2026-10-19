@@ -8,7 +8,7 @@ const root = fileURLToPath( new URL( '../', import.meta.url ) );
 export function unexpectedJavaScript( paths: string[] ): string[] {
 
 	return paths.filter( path => /\.(?:c|m)?js$/.test( path ) &&
-		! path.startsWith( 'dist/' ) );
+		! path.startsWith( 'dist/' ) && path !== 'examples/vendor/bullet/ammo.js' ); // Reproducible Emscripten output.
 
 }
 

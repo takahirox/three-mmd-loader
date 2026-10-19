@@ -29,7 +29,7 @@ export async function buildExamples( {
 
 	}
 	await cp( join( root, 'dist/example-modules' ), join( outputDirectory, 'examples' ), { recursive: true } );
-	for ( const name of [ 'screenshots', 'fonts' ] ) {
+	for ( const name of [ 'screenshots', 'fonts', 'vendor' ] ) {
 
 		await cp( join( root, 'examples', name ), join( outputDirectory, 'examples', name ), { recursive: true } );
 

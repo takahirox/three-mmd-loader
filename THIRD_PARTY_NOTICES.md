@@ -147,3 +147,24 @@ upstream license comments).
 These runtime assets are installed development dependencies, not included in
 the standalone library npm package. Compatible consumer-provided Ammo builds
 remain supported.
+
+## Experimental official Bullet WASM runtime
+
+The opt-in Examples backend in `examples/vendor/bullet/` is built from
+[official bulletphysics/bullet3 commit d3afe76132fc76b0f9b2359cbaef47a3766e7fbb](https://github.com/bulletphysics/bullet3/tree/d3afe76132fc76b0f9b2359cbaef47a3766e7fbb).
+Bullet physics source is unmodified and retains its zlib license and individual
+author notices, including Erwin Coumans, Stan Melax and Francisco Leon Najera,
+in `LICENSE.Bullet.txt` and `LICENSE.Bullet-source-notices.txt`. The small
+compatibility bindings were authored for this repository; they do not replace
+the Bullet engine or change its parameters. This is an experimental build,
+not an official Ammo.js release.
+
+Emscripten 4.0.10 generates the WebIDL bindings and JavaScript runtime under
+its MIT / University of Illinois NCSA licenses. Adjacent license files retain
+the Emscripten, musl, LLVM compiler-rt, libc++ and libc++abi notices and the
+dlmalloc source header/public-domain dedication. The pinned container supplies
+these runtime dependencies; no third-party Ammo binary or `ammojs3` is used.
+`manifest.json` records source, compiler/container, flags, recipe and artifact
+hashes. See [the reproducible build and validation](docs/bullet-experiment.md).
+These binaries and license files are Examples assets and are excluded from
+the library npm package.

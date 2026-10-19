@@ -2,7 +2,7 @@ import { addGeneControls, createGeneAnimation } from './gene-showcase.js';
 import type { AnimationClip } from 'three';
 import type { Vpd } from 'mmd-parser';
 import type { MMDMesh } from '../dist/types.js';
-import { ammoURL, initializeAmmoWasm } from './ammo-runtime.js';
+import { addBulletSelector, ammoURL, initializeAmmoWasm } from './ammo-runtime.js';
 
 import {
 	AmbientLight, Audio, AudioListener, AudioLoader, Color, DirectionalLight,
@@ -32,6 +32,7 @@ const assets = './assets/mmd/';
 export async function initExample( mode: 'animation' | 'audio' | 'pose' | 'gene', options: { physicsMode?: 'sync' | 'worker' } = {} ) {
 
 	const requestedPhysicsMode = options.physicsMode ?? 'sync';
+	if ( mode !== 'pose' ) addBulletSelector();
 	let fallbackReason = '';
 
 	const status = document.getElementById( 'status' )!;

@@ -388,6 +388,26 @@ licenses.
 
 ## Automated validation
 
+### Experimental latest official Bullet
+
+The **Bullet engine** selector on physics scenes reloads the same scene with
+either default `ammojs-typed@1.1.0` WASM or an experimental build of official
+Bullet master commit `d3afe76132fc76b0f9b2359cbaef47a3766e7fbb`. Direct links
+use `?bullet=master` (append `&bullet=master` to an existing query); remove it
+or select **Default** to roll back. Both the animation Sync page and Worker
+page support this choice, as do audio and Gene. The selection leaves physics
+parameters and animation code unchanged. Initialization failures are reported;
+the experiment never silently substitutes the old backend.
+
+For example, after `npm ci && npm run dev`, open
+`http://127.0.0.1:8080/examples/webgl_loader_mmd.html?bullet=master` or
+`http://127.0.0.1:8080/examples/webgl_loader_mmd_worker.html?bullet=master`.
+The committed glue, WASM, manifest and notices under `vendor/bullet/` also
+ship in the static Examples build. Rebuild them with `npm run build:bullet`
+(Docker and Git required). [Build pins, API coverage, measurements and limits](https://github.com/takahirox/three-mmd-loader/blob/main/docs/bullet-experiment.md)
+are recorded separately. Latest Bullet changes the synthetic trajectories;
+the intermittent 120 FPS oscillation has not been reproduced or shown fixed.
+
 ```sh
 npm test
 npm run test:browser

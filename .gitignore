@@ -3,3 +3,4 @@ node_modules/
 examples/assets/
 dist/
 /deployment-evidence/
+/.cache/

@@ -1,0 +1,109 @@
+// Authored for this experiment. WebIDL bindings expose native Bullet unchanged.
+interface btVector3 {
+  void btVector3();
+  void btVector3(float x, float y, float z);
+  float x(); float y(); float z();
+  void setValue(float x, float y, float z);
+};
+interface btQuaternion {
+  void btQuaternion(float x, float y, float z, float w);
+  float x(); float y(); float z(); float w();
+  void setX(float x); void setY(float y); void setZ(float z); void setW(float w);
+};
+interface btMatrix3x3 {
+  void getRotation([Ref] btQuaternion rotation);
+};
+interface btTransform {
+  void btTransform();
+  void setIdentity();
+  [Ref] btVector3 getOrigin();
+  [Value] btQuaternion getRotation();
+  [Ref] btMatrix3x3 getBasis();
+  void setOrigin([Ref] btVector3 origin);
+  void setRotation([Ref] btQuaternion rotation);
+};
+interface btCollisionShape {
+  void calculateLocalInertia(float mass, [Ref] btVector3 inertia);
+};
+interface btSphereShape { void btSphereShape(float radius); };
+btSphereShape implements btCollisionShape;
+interface btBoxShape { void btBoxShape([Ref] btVector3 size); };
+btBoxShape implements btCollisionShape;
+interface btCapsuleShape { void btCapsuleShape(float radius, float height); };
+btCapsuleShape implements btCollisionShape;
+interface btMotionState {
+  void getWorldTransform([Ref] btTransform transform);
+  void setWorldTransform([Ref] btTransform transform);
+};
+interface btDefaultMotionState { void btDefaultMotionState([Ref] btTransform transform); };
+btDefaultMotionState implements btMotionState;
+interface btRigidBodyConstructionInfo {
+  void btRigidBodyConstructionInfo(float mass, btMotionState state, btCollisionShape shape, [Ref] btVector3 inertia);
+  attribute boolean m_additionalDamping;
+  attribute float m_additionalDampingFactor;
+  attribute float m_additionalLinearDampingThresholdSqr;
+  attribute float m_additionalAngularDampingThresholdSqr;
+  attribute float m_additionalAngularDampingFactor;
+  attribute float m_friction;
+  attribute float m_restitution;
+};
+interface btRigidBody {
+  void btRigidBody([Ref] btRigidBodyConstructionInfo info);
+  void setInterpolationWorldTransform([Ref] btTransform transform);
+  void setInterpolationLinearVelocity([Ref] btVector3 velocity);
+  void setInterpolationAngularVelocity([Ref] btVector3 velocity);
+  void setLinearVelocity([Ref] btVector3 velocity);
+  void setAngularVelocity([Ref] btVector3 velocity);
+  [Const, Ref] btVector3 getLinearVelocity();
+  [Const, Ref] btVector3 getAngularVelocity();
+  void applyCentralImpulse([Ref] btVector3 impulse);
+  void applyTorqueImpulse([Ref] btVector3 impulse);
+  void clearForces();
+  [Const, Ref] btTransform getCenterOfMassTransform();
+  void setCenterOfMassTransform([Ref] btTransform transform);
+  btMotionState getMotionState();
+  long getCollisionFlags();
+  void setCollisionFlags(long flags);
+  void setActivationState(long state);
+  void setDamping(float linear, float angular);
+  float getLinearDamping(); float getAngularDamping();
+  void setSleepingThresholds(float linear, float angular);
+};
+interface btGeneric6DofSpringConstraint {
+  void btGeneric6DofSpringConstraint([Ref] btRigidBody a, [Ref] btRigidBody b, [Ref] btTransform frameA, [Ref] btTransform frameB, boolean useReferenceFrameA);
+  void setLinearLowerLimit([Ref] btVector3 limit);
+  void setLinearUpperLimit([Ref] btVector3 limit);
+  void setAngularLowerLimit([Ref] btVector3 limit);
+  void setAngularUpperLimit([Ref] btVector3 limit);
+  void enableSpring(long index, boolean enabled);
+  void setStiffness(long index, float stiffness);
+  void setParam(long parameter, float value, long axis);
+};
+interface btDefaultCollisionConfiguration { void btDefaultCollisionConfiguration(); };
+interface btManifoldPoint { float getDistance(); float getAppliedImpulse(); };
+interface btPersistentManifold {
+  long getNumContacts();
+  [Ref] btManifoldPoint getContactPoint(long index);
+};
+interface btDispatcher {
+  long getNumManifolds();
+  btPersistentManifold getManifoldByIndexInternal(long index);
+};
+interface btCollisionDispatcher {
+  void btCollisionDispatcher(btDefaultCollisionConfiguration configuration);
+  long getNumManifolds();
+  btPersistentManifold getManifoldByIndexInternal(long index);
+};
+btCollisionDispatcher implements btDispatcher;
+interface btDbvtBroadphase { void btDbvtBroadphase(); };
+interface btSequentialImpulseConstraintSolver { void btSequentialImpulseConstraintSolver(); };
+interface btDiscreteDynamicsWorld {
+  void btDiscreteDynamicsWorld(btCollisionDispatcher dispatcher, btDbvtBroadphase broadphase, btSequentialImpulseConstraintSolver solver, btDefaultCollisionConfiguration configuration);
+  void setGravity([Ref] btVector3 gravity);
+  long stepSimulation(float time, long maxSteps, float unitStep);
+  void addRigidBody(btRigidBody body, long group, long mask);
+  void removeRigidBody(btRigidBody body);
+  void addConstraint(btGeneric6DofSpringConstraint constraint, boolean disableCollisions);
+  void removeConstraint(btGeneric6DofSpringConstraint constraint);
+  btDispatcher getDispatcher();
+};
