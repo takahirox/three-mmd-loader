@@ -82,7 +82,7 @@ for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ fal
 			const referenceBody = referencePhysics.bodies[ 0 ].body;
 			const inputTransform = referenceInput; inputTransform.getOrigin().setValue( ...previousFinal as [ number, number, number ] );
 			const inputRotation = inputTransform.getRotation(); inputRotation.setX( previousRotation[ 0 ] ); inputRotation.setY( previousRotation[ 1 ] ); inputRotation.setZ( previousRotation[ 2 ] ); inputRotation.setW( previousRotation[ 3 ] ); inputTransform.setRotation( inputRotation );
-			referenceBody.setCenterOfMassTransform( inputTransform ); referenceBody.getMotionState().setWorldTransform( inputTransform );
+			referenceBody.getMotionState().setWorldTransform( inputTransform );
 			referencePhysics.world!.stepSimulation( 1 / 60, 2, 1 / 60 );
 			helper.update( 1 / 60 );
 			for ( const index of [ 1, 2, 3, 4 ] ) {

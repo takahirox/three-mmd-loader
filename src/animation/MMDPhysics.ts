@@ -1130,11 +1130,14 @@ class RigidBody {
 
 		if ( this.pending ) this.manager.freeTransform( this.pending );
 		this.pending = undefined;
-		this._setTransformFromBone();
+		// A deliberate teleport must also reset Bullet's velocity history. Routine
+		// Type-0 following below only stages MotionState for the next native step.
+		this._setTransformFromBone( true );
 		const zero = this.manager.allocVector3(); zero.setValue( 0, 0, 0 );
 		this.body.setLinearVelocity?.( zero ); this.body.setAngularVelocity?.( zero ); this.body.clearForces?.();
 		this.body.setInterpolationWorldTransform?.( this.body.getCenterOfMassTransform() );
 		this.body.setInterpolationLinearVelocity?.( zero ); this.body.setInterpolationAngularVelocity?.( zero );
+		this.body.setActivationState( this.params.type === 0 ? 4 : 1 );
 		this.manager.freeVector3( zero );
 		return this;
 
@@ -1153,7 +1156,6 @@ class RigidBody {
 
 				if ( this.params.type === 0 ) {
 
-					this.body.setCenterOfMassTransform( this.pending );
 					this.body.getMotionState().setWorldTransform( this.pending );
 
 				} else if ( this.params.type === 2 && ! this.skeletalPositionOnly ) {
@@ -1338,14 +1340,16 @@ class RigidBody {
 
 	}
 
-	_setTransformFromBone() {
+	_setTransformFromBone( teleport = false ) {
 
 		const manager = this.manager;
 		const form = this._getBoneTransform();
 
-		// TODO: check the most appropriate way to set
-		//this.body.setWorldTransform( form );
-		this.body.setCenterOfMassTransform( form );
+		// Type-0 targets belong in btDefaultMotionState (#88). Bullet samples
+		// them in saveKinematicState only when substeps execute, preserving the
+		// previous native pose/velocity on zero-substep render frames. Explicit
+		// reset/reconstruction is the exception and synchronizes both transforms.
+		if ( teleport ) this.body.setCenterOfMassTransform( form );
 		this.body.getMotionState().setWorldTransform( form );
 
 		manager.freeTransform( form );
