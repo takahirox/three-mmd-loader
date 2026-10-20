@@ -94,10 +94,9 @@ export class WorkerPhysicsWorld {
 		if ( this.flight || Array.from( this.members.values() ).some( member => ! member.initialized ) ) return;
 		const members = Array.from( this.members.values() );
 		if ( members.length === 0 ) return;
-		const hasPMX = members.some( m => m.model.format === 'pmx' );
-		const time = ! Number.isFinite( delta ) ? delta : delta <= 0 && hasPMX ? 0 : this.delta || delta;
-		// PMX zero-time evaluation only projects the latest complete pose.
-		if ( ( ! Number.isFinite( time ) || time <= 0 ) && hasPMX && ! members.some( m => m.needsReset ) ) return;
+		const time = ! Number.isFinite( delta ) ? delta : delta <= 0 ? 0 : this.delta || delta;
+		// Zero-time evaluation only projects the latest complete pose in both formats.
+		if ( ( ! Number.isFinite( time ) || time <= 0 ) && ! members.some( m => m.needsReset ) ) return;
 		const length = members.reduce( ( n, m ) => n + inputLength( m.model ) + outputLength( m.model ), 0 );
 		if ( ! this.buffer || this.buffer.byteLength !== length * 8 ) {
 
@@ -336,7 +335,7 @@ export class WorkerPhysicsAdapter {
 
 		this.withUnitScale( () => {
 
-			for ( const [ i, body ] of this.model.bodies.entries() ) if ( this.deferred[ i ] && ( body.type === 0 || ( body.type === 2 && this.model.format !== 'pmx' ) ) ) this.pending[ i ] = this.bodyPose( i );
+			for ( const [ i, body ] of this.model.bodies.entries() ) if ( this.deferred[ i ] && body.type === 0 ) this.pending[ i ] = this.bodyPose( i );
 
 		} );
 

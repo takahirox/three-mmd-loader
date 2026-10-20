@@ -299,7 +299,7 @@ class MMDAnimationHelper {
 
 		}
 
-		const poseLayers = mesh.geometry.userData.MMD.format === 'pmx' ? this.objects.get( mesh )?.poseLayers ?? new PMXPoseLayers( mesh ) : undefined;
+		const poseLayers = this.objects.get( mesh )?.poseLayers ?? new PMXPoseLayers( mesh );
 		poseLayers?.capture( poseLayers.authored );
 		boneMorphs?.apply( this.enabled.boneMorph );
 		poseLayers?.capture( poseLayers.morphed );
@@ -336,6 +336,14 @@ class MMDAnimationHelper {
 				this.createGrantSolver( mesh ).update();
 
 			}
+
+		}
+
+		if ( mesh.geometry.userData.MMD.format !== 'pmx' ) {
+
+			poseLayers.capture( poseLayers.beforePhysics );
+			poseLayers.capture( poseLayers.physics );
+			poseLayers.capture( poseLayers.final );
 
 		}
 
@@ -453,7 +461,7 @@ class MMDAnimationHelper {
 		}
 		this._getBoneMorphController( mesh )?.restore();
 		this.meshes.push( mesh );
-		this.objects.set( mesh, { looped: false, poseLayers: mesh.geometry.userData.MMD.format === 'pmx' ? new PMXPoseLayers( mesh ) : undefined } );
+		this.objects.set( mesh, { looped: false, poseLayers: new PMXPoseLayers( mesh ) } );
 
 		this._setupMeshAnimation( mesh, params.animation );
 
@@ -713,12 +721,6 @@ class MMDAnimationHelper {
 		objects.physics.warmupStep = delta => {
 
 			objects.initialPose?.advance();
-			if ( ! animationWarmup && ! objects.poseLayers && ! this.sharedPhysics ) {
-
-				objects.physics!.update( delta );
-				return;
-
-			}
 			if ( this.sharedPhysics ) {
 
 				for ( const participant of this.meshes ) this._animateMesh( participant, delta, 0, this.objects.get( participant )?.initialPose );
@@ -904,7 +906,14 @@ class MMDAnimationHelper {
 	_animateAfterPhysics( mesh: MMDMesh ) {
 
 		const objects = this.objects.get( mesh )!;
-		if ( mesh.geometry.userData.MMD.format !== 'pmx' || ! objects.sortedBonesData ) return;
+		if ( mesh.geometry.userData.MMD.format !== 'pmx' || ! objects.sortedBonesData ) {
+
+			objects.poseLayers?.capture( objects.poseLayers.physics );
+			objects.poseLayers?.capture( objects.poseLayers.final );
+			objects.physics?.deferAfterPhysics();
+			return;
+
+		}
 		objects.poseLayers?.capture( objects.poseLayers.physics );
 		objects.poseLayers?.postPhysicsBase.set( objects.poseLayers.physics );
 		// Publish the authored post layer once at the phase boundary. An IK
@@ -957,7 +966,8 @@ class MMDAnimationHelper {
 
 	_getBoneMorphController( mesh: MMDMesh ) {
 
-		if ( mesh.geometry.userData.MMD.format !== 'pmx' && ! mesh.geometry.userData.MMD.boneMorphs?.length && ! mesh.geometry.userData.MMD.grants.length ) return undefined;
+		// Authored-pose restoration also serves PMD models without bone morphs:
+		// physical output must not become the next animation/reset input (#92).
 		let controller = this.boneMorphControllers.get( mesh );
 		if ( ! controller ) {
 
@@ -1341,11 +1351,9 @@ class MMDAnimationHelper {
 
 		}
 
-		// A shared world has one clock. Any PMX participant requires zero-time
-		// pose evaluation to leave every body's simulation state unchanged,
-		// regardless of which mesh supplied the master adapter.
-		const evaluateOnly = ! Number.isFinite( delta ) || ( delta <= 0 && this.meshes.some( mesh =>
-			mesh.geometry.userData.MMD.format === 'pmx' && Boolean( this.objects.get( mesh )?.physics ) ) );
+		// A shared world has one clock; pose evaluation never stages or steps
+		// native bodies, regardless of the participants' file formats (#92).
+		const evaluateOnly = ! Number.isFinite( delta ) || delta <= 0;
 
 		for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
 
@@ -1368,7 +1376,7 @@ class MMDAnimationHelper {
 
 			if ( p !== null && p !== undefined ) {
 
-				if ( delta > 0 ) p._captureBodyResults( 'step' );
+				if ( ! evaluateOnly ) p._captureBodyResults( 'step' );
 				p._updateBones( ! evaluateOnly );
 
 			}

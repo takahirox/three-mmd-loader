@@ -201,10 +201,10 @@ class MMDPhysics {
 
 		// calculate physics and update bones
 
-		if ( delta > 0 || ( this.mesh as MMDMesh ).geometry.userData.MMD?.format !== 'pmx' ) this._updateRigidBodies();
+		if ( Number.isFinite( delta ) && delta > 0 ) this._updateRigidBodies();
 		this._stepSimulation( delta );
-		if ( delta > 0 ) this._captureBodyResults( 'step' );
-		this._updateBones( delta > 0 || ( this.mesh as MMDMesh ).geometry.userData.MMD?.format !== 'pmx' );
+		if ( Number.isFinite( delta ) && delta > 0 ) this._captureBodyResults( 'step' );
+		this._updateBones();
 
 		// restore mesh if converted above
 
@@ -1072,7 +1072,6 @@ class RigidBody {
 	boneOffsetFormInverse!: AmmoTransform;
 	private deferred = false;
 	private pending: AmmoTransform | undefined;
-	private readonly skeletalPositionOnly: boolean;
 
 	constructor( mesh: SkinnedMesh, world: AmmoWorld, params: RigidBodyParameters, manager: ResourceManager ) {
 
@@ -1082,9 +1081,8 @@ class RigidBody {
 		this.manager = manager;
 
 		const metadata = ( mesh as MMDMesh ).geometry.userData.MMD;
-		// PMX mode 2 merges skeletal translation with physical rotation on the
-		// bone only. Native dynamic translation must remain in Bullet's solve.
-		this.skeletalPositionOnly = metadata?.format === 'pmx' && params.type === 2;
+		// Both formats merge mode-2 skeletal translation with physical rotation
+		// on the bone only. Only mode 0 can stage native body inputs (#92).
 		if ( metadata?.format === 'pmx' ) {
 
 			const visited = new Set<number>();
@@ -1106,7 +1104,7 @@ class RigidBody {
 	setDeferredPose( data: Float64Array, offset: number ) {
 
 		this.clearDeferred();
-		if ( this.skeletalPositionOnly || ! Number.isFinite( data[ offset ] ) ) return;
+		if ( this.params.type !== 0 || ! Number.isFinite( data[ offset ] ) ) return;
 		const transform = this.manager.allocTransform();
 		this.manager.setOriginFromArray3( transform, Array.from( data.subarray( offset, offset + 3 ) ) );
 		const q = this.manager.allocQuaternion();
@@ -1133,7 +1131,7 @@ class RigidBody {
 
 	deferFromBone() {
 
-		if ( this.skeletalPositionOnly || ! this.deferred || ( this.params.type !== 0 && this.params.type !== 2 ) ) return;
+		if ( ! this.deferred || this.params.type !== 0 ) return;
 		if ( this.pending ) this.manager.freeTransform( this.pending );
 		this.pending = this._getBoneTransform();
 
@@ -1176,15 +1174,6 @@ class RigidBody {
 
 					this.body.getMotionState().setWorldTransform( this.pending );
 
-				} else if ( this.params.type === 2 && ! this.skeletalPositionOnly ) {
-
-					const transform = this.manager.allocTransform();
-					transform.setRotation( this.body.getCenterOfMassTransform().getRotation() );
-					this.manager.copyOrigin( transform, this.pending );
-					this.body.setCenterOfMassTransform( transform );
-					this.body.getMotionState().setWorldTransform( transform );
-					this.manager.freeTransform( transform );
-
 				}
 
 			}
@@ -1204,7 +1193,9 @@ class RigidBody {
 	 *
 	 * @return {RidigBody}
 	 */
-	updateBone( alignPosition = true, defer = false ) {
+	// Historical arguments stay accepted; dynamic projection never aligns native
+	// positions, even for deferred bones or callers explicitly passing true (#92).
+	updateBone( _alignPosition = true, _defer = false ) {
 
 		if ( this.params.type === 0 || this.params.boneIndex === - 1 ) {
 
@@ -1221,12 +1212,6 @@ class RigidBody {
 		}
 
 		this.bone.updateMatrixWorld( true );
-
-		if ( this.params.type === 2 && ! this.skeletalPositionOnly && alignPosition && ! ( this.deferred && defer ) ) {
-
-			this._setPositionFromBone();
-
-		}
 
 		return this;
 
@@ -1370,25 +1355,6 @@ class RigidBody {
 		if ( teleport ) this.body.setCenterOfMassTransform( form );
 		this.body.getMotionState().setWorldTransform( form );
 
-		manager.freeTransform( form );
-
-	}
-
-	_setPositionFromBone() {
-
-		const manager = this.manager;
-		const form = this._getBoneTransform();
-
-		const tr = manager.allocTransform();
-		this.body.getMotionState().getWorldTransform( tr );
-		manager.copyOrigin( tr, form );
-
-		// TODO: check the most appropriate way to set
-		//this.body.setWorldTransform( tr );
-		this.body.setCenterOfMassTransform( tr );
-		this.body.getMotionState().setWorldTransform( tr );
-
-		manager.freeTransform( tr );
 		manager.freeTransform( form );
 
 	}

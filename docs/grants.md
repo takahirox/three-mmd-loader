@@ -118,8 +118,8 @@ simulation, including shared worlds. Calls at zero delta can evaluate a new
 final pose/deferred input but neither advance Ammo nor consume that input.
 Pre-phase kinematics retain same-step synchronization.
 
-PMX mode 2 preserves skeletal position while projecting Bullet rotation onto the
-bone. It never aligns the native dynamic body's position, either after a step
+PMD and PMX mode 2 preserve skeletal position while projecting Bullet rotation
+onto the bone. It never aligns the native dynamic body's position, either after a step
 or from deferred post input. Mode-1 and mode-2 post transforms never become
 next-step body inputs. This corrects the earlier mode-2 alignment policy from
 Issue #39: real Ammo fixtures reproduce joint/contact trajectory errors from
@@ -127,11 +127,12 @@ those writes, while independent Saba/Babylon policies merge on the skeleton.
 See the [type-2 audit and numerical evidence](type2-physics-validation.md).
 Post mode-0 timing and dynamic post-layer composition above still apply.
 
-`physics.bodyResults` stores the actual Bullet output **before** any adapter
-alignment, separately from current body/adapter and next-input poses; the viewer
-reports all three. For PMX mode 2, raw and native results now agree, and there is
-no alignment input. PMD retains its legacy type-2 alignment. Zero-time PMX
-evaluation performs no position alignment or body writes.
+`physics.bodyResults` stores raw Bullet output, separately from skeletal
+projection and next-input poses; the viewer
+reports all three. For mode 2 in both formats, raw and native results agree and
+there is no alignment input. Zero-time evaluation performs no body writes.
+The [unified format policy](physics-format-policy.md) supersedes the original
+PMD compatibility exception.
 
 Both helper modes use these semantics. Shared worlds stage every mesh before
 one world step and finish every post phase afterward. Warmup settles physics at
@@ -139,8 +140,8 @@ fixed authored time through the full PMX pipeline, including direct
 `physics.warmup()` on a helper-owned adapter. Reset uses the pre-physics baseline
 for dynamic bodies, clears velocity/forces/interpolation and stale contacts,
 and seeds deferred follow inputs from the current pose. Removing a helper mesh
-removes its bodies/constraints from a shared world. PMD keeps its existing phase
-and warmup path.
+removes its bodies/constraints from a shared world. PMD uses the same authored
+input snapshots, reset and warmup pipeline, with no PMX post-phase metadata.
 
 This is a defined compatibility policy for the PMX motion → physics → post
 ordering described by the [PMXEditor specification](https://gist.github.com/FlandreDaisuki/90ae5abf3138a15994526b6bfec73c2c)

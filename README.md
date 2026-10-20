@@ -250,6 +250,12 @@ frames using the default `1/60` fixed step. Zero, negative and non-finite deltas
 do not advance Bullet. See the [timekeeping experiment and validation](docs/physics-timestep-validation.md)
 for the removed legacy minimum and its possible effect on motion/settling.
 
+PMD and PMX share the same physics policy after coordinate normalization. Type 2
+keeps skeletal bone translation and Bullet rotation without teleporting the
+native dynamic body. Authored-pose restoration, zero-time evaluation, reset and
+warmup also share one policy; PMX before/after-physics features remain supported.
+See the [format audit, validation and rollback](docs/physics-format-policy.md).
+
 PMD and PMX rigid bodies enable Bullet's additional damping during construction
 in sync, shared sync and Worker physics. Model-defined linear/angular damping
 is retained, and Bullet's additional factors and thresholds stay at their

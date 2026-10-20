@@ -986,9 +986,9 @@ class GeometryBuilder {
 			const params = { ...rigidBody, originalType: rigidBody.type, position: rigidBody.position.slice() as [ number, number, number ], shapeType: rigidBody.shapeType as 0 | 1 | 2 };
 
 			/*
-				 * RigidBody position parameter in PMX seems global position
-				 * while the one in PMD seems offset from corresponding bone.
-				 * So unify being offset.
+				 * PMX stores model-space rigid-body positions; PMD stores offsets
+				 * from the associated bone. Normalize both to bone offsets before
+				 * applying the shared physics policy (docs/physics-format-policy.md).
 				 */
 			if ( ! isPmd( data ) ) {
 

@@ -46,7 +46,7 @@ export class PhysicsWorkerRuntime {
 			this.models.values().next().value?.physics.setGravity( new Vector3().fromArray( message.value ) ); return;
 
 		}
-		const evaluateOnly = ! Number.isFinite( message.delta ) || ( message.delta <= 0 && message.models.some( f => this.models.get( f.id )!.model.format === 'pmx' ) );
+		const evaluateOnly = ! Number.isFinite( message.delta ) || message.delta <= 0;
 		const data = new Float64Array( message.buffer );
 		let offset = 0;
 		for ( const frame of message.models ) {
@@ -90,8 +90,8 @@ export class PhysicsWorkerRuntime {
 				data.set( result.position, offset ); data.set( result.quaternion, offset + 3 ); offset += 7;
 
 			}
-			// PMX mode 2 projects rotation without writing the native body. PMD
-			// retains legacy alignment here, independent of delayed display.
+			// Both formats project dynamic results on bones without writing native
+			// bodies, independent of delayed display (#92).
 			for ( const body of physics.bodies ) body.updateBone( ! evaluateOnly, frame.staged );
 
 		}

@@ -129,8 +129,8 @@ try {
    for(const list of [refs,workers])for(const p of list) {p.mesh.skeleton.pose();p.mesh.updateMatrixWorld(true);p.reset();}
    workers[0].workerAdapter.group.update(0);await finish();
    workers[0].warmup(2);
-   // Capture every shared Sync model before PMD type-2 native alignment,
-   // matching each Worker's raw publication boundary during warmup.
+   // Capture every shared Sync model at the same step boundary as each
+   // Worker publication during warmup; dynamic projection never writes bodies.
    for(let frame=0;frame<2;frame++) {stepSync(1/60);await finish();}
    parity('warmup');
   } finally {Ammo.btGeneric6DofSpringConstraint=NativeConstraint;for(const p of [...workers,...refs])p.dispose();for(const mesh of meshes) {mesh.geometry.dispose();mesh.skeleton.dispose();}}
