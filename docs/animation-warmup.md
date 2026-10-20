@@ -35,8 +35,9 @@ Later explicit `physics.warmup(N)` calls settle at the current authored time
 without creating another startup ramp. Ordinary updates, seeks and loops do
 not create ramps.
 
-Worker startup uses the same snapshots and stages. Mesh playback waits while
-warmup is queued or in flight, including delayed model readiness. Each accepted
+Worker startup uses the same snapshots and stages. The helper holds mesh,
+camera and audio playback clocks together while warmup is queued or in flight,
+including delayed model readiness. Each accepted
 result completes its pose phases before the next stage is submitted. Both
 transferable and shared buffers use this path. Warmup calls made during startup
 append cycles; they do not restart the ramp. Worker fallback rebuilds the world
@@ -44,6 +45,12 @@ as before, continues the remaining stages, and replays an unaccepted in-flight
 stage on the rebuilt world. `physics.ready` means initialization or fallback
 has completed; queued warmup may still remain. `workerStatus` reports remaining
 cycles and in-flight work.
+
+Disabling physics during Worker startup cancels its queued transition and
+releases the full authored pose so animation can play. Re-enabling physics
+resets the cancelled participant at its current pre-physics pose; it does not
+resume the old start-time ramp. Results rejected by buffer validation replay
+their unaccepted warmup stage on synchronous fallback.
 
 ## Opt out or revert
 

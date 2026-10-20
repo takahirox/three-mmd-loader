@@ -62,6 +62,19 @@ export class WorkerPhysicsWorld {
 
 	invalidate() { this.generation = ( this.generation + 1 ) & 0x7fffffff; this.delta = 0; }
 	pause( paused: boolean ) { this.paused = paused; this.invalidate(); if ( ! paused ) this.pumpWarmup(); }
+	cancelWarmup() {
+
+		const cancelled = new Set( Array.from( this.members.values() ).filter( member => member.warmupCycles > 0 ) );
+		if ( this.flight?.warmup ) {
+
+			cancelled.add( this.flight.warmup );
+			this.flight.warmup = undefined;
+
+		}
+		for ( const member of cancelled ) member.warmupCycles = 0;
+		return cancelled;
+
+	}
 	setGravity( value: Vector3 ) {
 
 		for ( const member of this.members.values() ) member.owner.gravity.copy( value );
@@ -123,7 +136,7 @@ export class WorkerPhysicsWorld {
 		}
 		const flight = this.flight;
 		if ( ! flight || flight.sequence !== message.sequence || flight.generation !== message.generation ) return;
-		clearTimeout( this.timer ); this.flight = undefined;
+		clearTimeout( this.timer );
 		if ( this.transport === 'transferable' ) this.buffer = message.buffer;
 		if ( flight.generation === this.generation ) {
 
@@ -132,7 +145,6 @@ export class WorkerPhysicsWorld {
 				this.fail( 'Incomplete physics result' ); return;
 
 			}
-			this.lastCompletedSequence = message.sequence;
 			const data = new Float64Array( this.buffer );
 			let offset = flight.models.reduce( ( n, m ) => n + inputLength( m.model ), 0 );
 			const expectedLength = offset + flight.models.reduce( ( n, m ) => n + outputLength( m.model ), 0 );
@@ -141,6 +153,7 @@ export class WorkerPhysicsWorld {
 				this.fail( 'Invalid physics result buffer' ); return;
 
 			}
+			this.lastCompletedSequence = message.sequence;
 			for ( const member of flight.models ) {
 
 				member.accept( data, offset, flight.delta > 0 ? 'step' : member.owner.bodyResultPhase ); offset += outputLength( member.model );
@@ -148,6 +161,9 @@ export class WorkerPhysicsWorld {
 			}
 
 		}
+		// Keep the flight available to fail() until all result validation passes,
+		// so a rejected warmup stage can be rewound and replayed on fallback.
+		this.flight = undefined;
 		flight.warmup?.owner.warmupStepComplete?.( flight.generation === this.generation );
 		this.pumpWarmup();
 

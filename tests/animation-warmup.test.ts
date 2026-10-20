@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { before, test } from 'node:test';
 import { Parser } from 'mmd-parser';
-import { AnimationClip, NumberKeyframeTrack, Quaternion, QuaternionKeyframeTrack, Texture, Vector3, VectorKeyframeTrack } from 'three';
+import { AnimationClip, Audio, NumberKeyframeTrack, PerspectiveCamera, Quaternion, QuaternionKeyframeTrack, Texture, Vector3, VectorKeyframeTrack } from 'three';
 import { MMDAnimationHelper } from '../src/animation/MMDAnimationHelper.js';
 import { MMDLoader } from '../src/loaders/MMDLoader.js';
 import type { AmmoAPI, AmmoWorld } from '../src/ammo.js';
@@ -9,6 +9,7 @@ import type { MMDMesh } from '../src/types.js';
 import { initializeAmmo } from './ammo-runtime.ts';
 import { linkedCollisionBuffer, physicsLayersPmxBuffer } from './fixtures.ts';
 import { ManualWorker } from './manual-physics-worker.ts';
+import { inputLength } from '../src/animation/PhysicsWorkerProtocol.js';
 
 const host = globalThis as typeof globalThis & { Ammo: AmmoAPI };
 before( async () => { host.Ammo = await initializeAmmo<AmmoAPI>(); } );
@@ -313,5 +314,119 @@ test( 'removing a PMD during Worker startup releases the full authored pose', ()
 	helper.add( mesh, { animation: clip, warmup: 7, physicsMode: 'worker', workerPhysics: worker.options(), gravity: new Vector3() } ); worker.start();
 	helper.remove( mesh ); near( mesh.skeleton.bones[ animated ].position.toArray(), target );
 	assert.ok( Math.abs( mesh.skeleton.bones[ animated ].quaternion.dot( rotation ) ) > 1 - 1e-6 );
+
+} );
+
+for ( const shared of [ false, true ] ) test( `delayed Worker startup holds mesh, camera and audio clocks together shared=${shared}`, async () => {
+
+	const helper = new MMDAnimationHelper(), worker = new ManualWorker(), { mesh, clip } = fixture( 'pmx' ); helper.sharedPhysics = shared;
+	const companion = fixture( 'pmd' ), camera = new PerspectiveCamera();
+	const audio: Audio = Object.assign( Object.create( Audio.prototype ), {
+		type: 'Audio', name: 'clock fixture', buffer: { duration: 2 }, isPlaying: false,
+		play( this: { isPlaying: boolean } ) { this.isPlaying = true; },
+		pause( this: { isPlaying: boolean } ) { this.isPlaying = false; }, stop( this: { isPlaying: boolean } ) { this.isPlaying = false; }
+	} );
+	helper.add( mesh, { animation: clip, warmup: 3, physicsMode: 'worker', workerPhysics: worker.options(), gravity: new Vector3() } );
+	helper.add( companion.mesh, { animation: companion.clip, physics: false } );
+	helper.add( camera, { animation: new AnimationClip( 'camera', 2, [ new VectorKeyframeTrack( '.position', [ 0, 2 ], [ 0, 0, 10, 2, 0, 10 ] ) ] ) } );
+	helper.add( audio, { delayTime: 0.25 } );
+	const states = [ mesh, companion.mesh, camera ].map( object => helper.objects.get( object )! );
+	const assertClocks = ( time: number ) => {
+
+		for ( const state of states ) near( [ state.mixer!.time, state.mixer!._actions[ 0 ].time ], [ time, time ] );
+		near( [ helper.audioManager!.elapsedTime, helper.audioManager!.currentTime ], [ time, time ] );
+
+	};
+	for ( let i = 0; i < 60; i ++ ) helper.update( 1 / 60 );
+	assertClocks( 0 ); assert.equal( audio.isPlaying, false );
+	worker.start();
+	for ( let stage = 0; stage < 3; stage ++ ) {
+
+		for ( let i = 0; i < 60; i ++ ) helper.update( 1 / 60 );
+		assertClocks( 0 ); assert.equal( audio.isPlaying, false ); worker.finish();
+
+	}
+	assert.equal( worker.frames, 3 );
+	helper.update( 0.125 ); finish( worker ); assertClocks( 0.125 ); assert.equal( audio.isPlaying, false );
+	helper.update( 0.125 ); finish( worker ); assertClocks( 0.25 ); assert.equal( audio.isPlaying, true );
+	// Queued warmup after playback starts must pause the Audio source as well
+	// as its manager clock, then resume playback after the last result.
+	states[ 0 ].physics!.warmup( 1 ); helper.update( 1 ); assertClocks( 0.25 ); assert.equal( audio.isPlaying, false );
+	await Promise.resolve(); finish( worker );
+	helper.update( 0.125 ); finish( worker ); assertClocks( 0.375 ); assert.equal( audio.isPlaying, true );
+	helper.remove( mesh ); helper.remove( companion.mesh ); helper.remove( camera ); helper.remove( audio );
+
+} );
+
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const shared of [ false, true ] ) for ( const stage of [ 0, 2, 3 ] ) test( `disable physics abandons startup and resumes at current pose ${format} shared=${shared} stage=${stage}`, () => {
+
+	const helper = new MMDAnimationHelper( { sync: false } ), worker = new ManualWorker(), { mesh, clip, animated, target } = fixture( format ); helper.sharedPhysics = shared;
+	const reference = fixture( format ), animationOnly = new MMDAnimationHelper( { sync: false } );
+	animationOnly.add( reference.mesh, { animation: reference.clip, physics: false } );
+	const weights: number[] = [];
+	helper.onBeforePhysics = () => weights.push( helper.objects.get( mesh )!.initialPose?.weight ?? 1 );
+	helper.add( mesh, { animation: clip, warmup: 3, physicsMode: 'worker', workerPhysics: worker.options(), gravity: new Vector3() } );
+	if ( stage ) { worker.start(); for ( let i = 1; i < stage; i ++ ) worker.finish(); }
+	const state = helper.objects.get( mesh )!, adapter = state.physics!.workerAdapter!;
+	helper.enable( 'physics', false );
+	assert.equal( adapter.warmupCycles, 0 ); assert.equal( state.initialPose, undefined );
+	for ( let i = 0; i < 60; i ++ ) { helper.update( 1 / 60 ); animationOnly.update( 1 / 60 ); }
+	near( [ state.mixer!.time ], [ 1 ] ); near( pose( mesh ), pose( reference.mesh ), 1e-4 );
+	// Readiness/results arriving while disabled cannot restore the old ramp.
+	finish( worker ); assert.equal( worker.frames, stage ); near( pose( mesh ), pose( reference.mesh ), 1e-4 );
+	const count = weights.length;
+	helper.enable( 'physics', true ); helper.update( 1 / 60 );
+	const frame = worker.requests.find( request => request.type === 'frame' ); assert.ok( frame && frame.type === 'frame' );
+	assert.equal( frame.models[ 0 ].reset, true );
+	const reset = frame.models[ 0 ].resetPose!;
+	const expected = target.map( value => value + 0.25 ); // authored time 1, not the startup target
+	near( reset.slice( 16 + animated * 7, 19 + animated * 7 ), expected );
+	finish( worker ); assert.equal( worker.frames, stage + 1 );
+	near( [ state.mixer!.time ], [ 1 + 1 / 60 ] ); assert.deepEqual( weights.slice( count ), [ 1 ] );
+	assert.equal( state.initialPose, undefined ); assert.ok( pose( mesh ).every( Number.isFinite ) );
+	helper.remove( mesh ); animationOnly.remove( reference.mesh );
+
+} );
+
+for ( const invalid of [ 'nan', 'length', 'incomplete-shared' ] ) for ( const cycles of [ 1, 3 ] ) test( `rejected ${invalid} warmup result replays ${cycles === 1 ? 'final' : 'intermediate'} stage on fallback`, t => {
+
+	if ( invalid === 'incomplete-shared' ) {
+
+		const isolation = Object.getOwnPropertyDescriptor( globalThis, 'crossOriginIsolated' );
+		Object.defineProperty( globalThis, 'crossOriginIsolated', { configurable: true, value: true } );
+		t.after( () => { if ( isolation ) Object.defineProperty( globalThis, 'crossOriginIsolated', isolation ); else Reflect.deleteProperty( globalThis, 'crossOriginIsolated' ); } );
+
+	}
+	const helper = new MMDAnimationHelper(), worker = new ManualWorker(), { mesh, clip } = fixture( 'pmx' );
+	const weights: number[] = [], nativeSteps: number[][] = [];
+	const step = host.Ammo.btDiscreteDynamicsWorld.prototype.stepSimulation;
+	t.mock.method( host.Ammo.btDiscreteDynamicsWorld.prototype, 'stepSimulation', function ( this: AmmoWorld, ...args: Parameters<AmmoWorld['stepSimulation']> ) {
+
+		nativeSteps.push( args ); return step.apply( this, args );
+
+	} );
+	helper.onBeforePhysics = () => weights.push( helper.objects.get( mesh )!.initialPose?.weight ?? 1 );
+	helper.add( mesh, { animation: clip, warmup: cycles, physicsMode: 'worker', workerPhysics: worker.options(), gravity: new Vector3() } ); worker.start();
+	const state = helper.objects.get( mesh )!, adapter = state.physics!.workerAdapter!;
+	if ( invalid === 'incomplete-shared' ) {
+
+		const frame = worker.requests[ 0 ]; assert.ok( frame.type === 'frame' && frame.control );
+		worker.deliver( { type: 'result', generation: frame.generation, sequence: frame.sequence } );
+
+	} else {
+
+		worker.process(); const result = worker.responses.shift(); assert.ok( result?.type === 'result' && result.buffer );
+		if ( invalid === 'nan' ) new Float64Array( result.buffer )[ inputLength( adapter.model ) ] = NaN;
+		else result.buffer = new ArrayBuffer( 8 );
+		worker.deliver( result );
+
+	}
+	assert.equal( state.physics!.physicsMode, 'sync' ); assert.ok( worker.terminated );
+	near( weights, [ 1 / cycles, ...Array.from( { length: cycles }, ( _, i ) => ( i + 1 ) / cycles ) ] );
+	assert.equal( nativeSteps.length, cycles + ( invalid === 'incomplete-shared' ? 0 : 1 ) );
+	assert.ok( nativeSteps.every( args => args[ 0 ] === 1 / 60 && args[ 1 ] === 2 && args[ 2 ] === 1 / 60 ) );
+	assert.equal( state.initialPose, undefined ); assert.equal( state.mixer!.time, 0 ); assert.ok( pose( mesh ).every( Number.isFinite ) );
+	helper.update( 1 / 60 ); near( [ state.mixer!.time ], [ 1 / 60 ] ); assert.equal( state.initialPose, undefined );
+	helper.remove( mesh );
 
 } );

@@ -70,6 +70,7 @@ export interface MMDAnimationState {
  */
 class MMDAnimationHelper {
 
+	private cancelledWorkerWarmups = new WeakSet<MMDPhysics>();
 	private materialMorphControllers = new WeakMap<MMDMesh, MMDMaterialMorphController>();
 	private boneMorphControllers = new WeakMap<MMDMesh, MMDBoneMorphController>();
 
@@ -221,16 +222,27 @@ class MMDAnimationHelper {
 	 */
 	update( delta: number ) {
 
+		// Worker startup advances via result callbacks. Hold every playback clock
+		// together until it finishes, including camera, audio and other meshes.
+		if ( this.enabled.physics && this.meshes.some( mesh => this.objects.get( mesh )?.physics?.workerAdapter?.group.warmingUp ) ) {
+
+			// An already-playing helper can acquire another warming model. Pause
+			// the Audio source too; AudioManager resumes it from the saved offset.
+			if ( this.audio?.isPlaying ) this.audio.pause();
+			return this;
+
+		}
+
 		if ( this.audioManager !== null ) this.audioManager.control( delta );
 
 		for ( let i = 0; i < this.meshes.length; i ++ ) {
 
 			const mesh = this.meshes[ i ];
-			if ( ! this.objects.get( mesh )?.physics?.workerAdapter?.group.warmingUp ) this._animateMesh( mesh, delta );
+			this._animateMesh( mesh, delta );
 
 		}
 
-		if ( this.sharedPhysics && ! this._getMasterPhysics()?.workerAdapter?.group.warmingUp ) {
+		if ( this.sharedPhysics ) {
 
 			this._finishSharedPhysics( delta );
 
@@ -352,12 +364,54 @@ class MMDAnimationHelper {
 
 		if ( key === 'physics' ) {
 
+			for ( const mesh of this.meshes ) this._optimizeIK( mesh, enabled );
+
 			const groups = new Set( this.meshes.map( mesh => this.objects.get( mesh )?.physics?.workerAdapter?.group ).filter( group => group !== undefined ) );
-			if ( previous !== enabled ) for ( const group of groups ) group.pause( ! enabled );
+			if ( previous !== enabled ) {
 
-			for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
+				if ( ! enabled ) {
 
-				this._optimizeIK( this.meshes[ i ], enabled );
+					for ( const group of groups ) {
+
+						group.pause( true );
+						for ( const member of group.cancelWarmup() ) {
+
+							const mesh = member.owner.mesh as MMDMesh, state = this.objects.get( mesh )!;
+							this.cancelledWorkerWarmups.add( member.owner );
+							if ( state.initialPose ) {
+
+								this.boneMorphControllers.get( mesh )?.restore();
+								InitialAnimationPose.write( mesh, state.initialPose.target );
+								state.initialPose.restoreMorphs();
+								state.initialPose = undefined;
+								this._saveBones( mesh );
+								this._animateMesh( mesh, 0, 0 );
+								if ( this.sharedPhysics ) {
+
+									this._animateAfterPhysics( mesh );
+									this.boneMorphControllers.get( mesh )?.capture();
+
+								}
+
+							}
+
+						}
+
+					}
+
+				} else {
+
+					// Playback may have moved while physics was disabled. Resume from
+					// its current pre-physics pose, never the abandoned startup input.
+					for ( const mesh of this.meshes ) {
+
+						const physics = this.objects.get( mesh )?.physics;
+						if ( physics && this.cancelledWorkerWarmups.delete( physics ) ) physics.reset();
+
+					}
+					for ( const group of groups ) group.pause( false );
+
+				}
 
 			}
 
