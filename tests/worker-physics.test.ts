@@ -225,9 +225,9 @@ for ( const postIK of [ false, true ] ) test( `real Ammo worker core matches syn
 
 } );
 
-for ( const fps of [ 30, 60, 120, 144 ] ) for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const contact of [ false, true ] ) test( `type2 Worker replays sync boundary tape, fps=${fps} phase=${phase} contact=${contact}`, t => {
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const fps of [ 30, 60, 120, 144 ] ) for ( const phase of format === 'pmd' ? [ 'pre' ] : [ 'pre', 'post', 'post-parent' ] ) for ( const contact of [ false, true ] ) test( `type2 Worker replays sync boundary tape, format=${format} fps=${fps} phase=${phase} contact=${contact}`, t => {
 
-	const model = type2Fixture( phase, contact ), helper = new MMDAnimationHelper( { sync: false } );
+	const model = type2Fixture( phase, contact, format ), helper = new MMDAnimationHelper( { sync: false } );
 	helper.add( model, { warmup: 0, animationWarmup: false, gravity: new Vector3() } );
 	const physics = helper.objects.get( model )!.physics!, dummy = new ManualWorker();
 	const adapter = new WorkerPhysicsAdapter( physics, new WorkerPhysicsWorld( dummy.options() ), model.geometry.userData.MMD.rigidBodies, model.geometry.userData.MMD.constraints );
@@ -245,8 +245,8 @@ for ( const fps of [ 30, 60, 120, 144 ] ) for ( const phase of [ 'pre', 'post', 
 			const data = new Float64Array( inputLength( adapter.model ) + outputLength( adapter.model ) );
 			const delta = sequence % 7 === 0 ? 0 : 1 / fps;
 			helper.onBeforePhysics = () => adapter.capture( data, 0 ); helper.update( delta );
-			// A stale finite alignment slot must not revive the old PMX policy.
-			if ( sequence === 15 && phase !== 'pre' ) data.set( [ 999, 999, 999, 0, 0, 0, 1 ], 16 + model.skeleton.bones.length * 7 + 7 );
+			// A stale finite alignment slot must not revive either legacy policy.
+			if ( sequence === 15 ) data.set( [ 999, 999, 999, 0, 0, 0, 1 ], 16 + model.skeleton.bones.length * 7 + 7 );
 			runtime.handle( { type: 'frame', generation: 0, sequence, delta, models: [ { id: 1, reset: sequence === 1, resetPose: adapter.resetSnapshot, staged: true } ], buffer: data.buffer } );
 			near( data.subarray( inputLength( adapter.model ) ), physics.bodyResults.flatMap( r => [ ...r.position, ...r.quaternion ] ), 5e-4 );
 			// Inspect the Worker-owned native bodies as well as published output;
@@ -311,7 +311,7 @@ test( 'PMD standalone sync/worker use identical sequenced inputs, including zero
 	worker.start();
 	for ( const delta of [ 1 / 60, 0, 1 / 120, 1 / 60, 0 ] ) {
 
-		sync.update( delta ); async.update( delta ); worker.finish(); async.workerAdapter!.project();
+		sync.update( delta ); async.update( delta ); if ( worker.requests.length ) worker.finish(); async.workerAdapter!.project();
 		near( b.skeleton.bones[ 0 ].position.toArray(), a.skeleton.bones[ 0 ].position.toArray() );
 		near( b.skeleton.bones[ 0 ].quaternion.toArray(), a.skeleton.bones[ 0 ].quaternion.toArray() );
 
@@ -322,8 +322,7 @@ test( 'PMD standalone sync/worker use identical sequenced inputs, including zero
 
 for ( const fps of [ 30, 60, 120, 144 ] ) for ( const contact of [ false, true ] ) test( `synthetic PMD modes 0/1/2 retain sync/Worker joint/contact behavior fps=${fps} contact=${contact}`, () => {
 
-	const a = type2Fixture( 'pre', contact ), b = type2Fixture( 'pre', contact ), worker = new ManualWorker();
-	for ( const model of [ a, b ] ) model.geometry.userData.MMD.format = 'pmd';
+	const a = type2Fixture( 'pre', contact, 'pmd' ), b = type2Fixture( 'pre', contact, 'pmd' ), worker = new ManualWorker();
 	const meta = a.geometry.userData.MMD;
 	const sync = new MMDPhysics( a, meta.rigidBodies, meta.constraints, { gravity: new Vector3() } );
 	const async = new MMDPhysics( b, b.geometry.userData.MMD.rigidBodies, b.geometry.userData.MMD.constraints, { gravity: new Vector3(), physicsMode: 'worker', workerPhysics: worker.options() } );
@@ -342,7 +341,7 @@ for ( const fps of [ 30, 60, 120, 144 ] ) for ( const contact of [ false, true ]
 			}
 			const delta = frame % 7 === 0 ? 0 : 1 / fps;
 			if ( frame === 30 ) { sync.reset(); async.reset(); }
-			sync.update( delta ); async.update( delta ); worker.finish(); async.workerAdapter!.project();
+			sync.update( delta ); async.update( delta ); if ( worker.requests.length ) worker.finish(); async.workerAdapter!.project();
 			if ( delta > 0 ) near( async.bodyResults.flatMap( r => [ ...r.position, ...r.quaternion ] ), sync.bodyResults.flatMap( r => [ ...r.position, ...r.quaternion ] ), 5e-4 );
 			for ( const i of [ 0, 3, 8 ] ) {
 

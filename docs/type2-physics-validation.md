@@ -1,5 +1,11 @@
 # PMX type-2 synchronization audit — Issue #53
 
+> Historical record of the PMX-only correction. [Issue #92](physics-format-policy.md)
+> supersedes the PMD compatibility exception: both formats now use skeletal-only
+> Type-2 merging, read-only zero-time evaluation and shared authored-pose inputs.
+> References below to retained PMD alignment and no post-merge verification describe
+> the original #53 scope, not the current policy or #92 acceptance requirements.
+
 PMX type 2 now preserves skeletal translation and applies physical rotation on
 the bone, while Bullet retains the native body's translation and rotation.
 The correction removes both pre-phase post-step alignment and post-phase
@@ -99,7 +105,7 @@ position is `(-0.77, 0, 0)` after separating overlapping spheres; the old pre
 alignment instead places it at approximately `(1.20, 0.20, 0.20)`.
 
 The permanent `reproduce legacy type2 alignment damage` tests replay the old
-schedule explicitly: pre alignment uses the retained legacy method after each
+schedule explicitly: pre alignment explicitly writes the historical COM/MotionState origin after each
 step; post alignment writes the preceding computed final origin before the next
 step, preserving native rotation. The corrected adapter runs alongside it with
 identical inputs. Reported 60-frame measurements (model units):

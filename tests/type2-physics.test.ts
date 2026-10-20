@@ -34,9 +34,9 @@ function anchorError( physics: MMDPhysics, localB: number[] ) {
 // only uses MMDPhysics to construct the same Bullet shapes/joint: it steps the
 // world directly, writes mode 0 from scalar inputs and never calls updateBone,
 // updateFromBone, deferAfterPhysics or any dynamic alignment implementation.
-for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ false, true ] ) for ( const contact of [ false, true ] ) test( `type2 independent native-body oracle phase=${phase} pmx=${pmxAnimation} shared=${sharedPhysics} contact=${contact}`, () => {
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const fps of [ 60, 120 ] ) for ( const phase of format === 'pmd' ? [ 'pre' ] : [ 'pre', 'post', 'post-parent' ] ) for ( const pmxAnimation of [ false, true ] ) for ( const sharedPhysics of [ false, true ] ) for ( const contact of [ false, true, 'joint-contact' ] as const ) test( `type2 independent native-body oracle format=${format} fps=${fps} phase=${phase} pmx=${pmxAnimation} shared=${sharedPhysics} contact=${contact}`, () => {
 
-	const mesh = type2Fixture( phase, contact ), referenceMesh = type2Fixture( phase, contact );
+	const mesh = type2Fixture( phase, contact, format ), referenceMesh = type2Fixture( phase, contact, format );
 	const meta = referenceMesh.geometry.userData.MMD;
 	const oracle = new MMDPhysics( referenceMesh, meta.rigidBodies, meta.constraints, { gravity: new Vector3(), unitStep: 1 / 60 } );
 	const helper = new MMDAnimationHelper( { pmxAnimation, sync: false } ); helper.sharedPhysics = sharedPhysics;
@@ -51,9 +51,9 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const pmxAnimation
 	let maxError = 0, contactDisplacement = 0, rotationChanged = false;
 	try {
 
-		for ( let frame = 0; frame < 60; frame ++ ) {
+		for ( let frame = 0; frame < fps; frame ++ ) {
 
-			const x = -frame / 600;
+			const x = -frame / fps / 10;
 			mesh.skeleton.bones[ 0 ].position.x = x;
 			mesh.skeleton.bones[ 7 ].position.set( 0.5 + frame / 100, 0.5, 0 );
 			mesh.skeleton.bones[ 7 ].quaternion.setFromAxisAngle( new Vector3( 0, 0, 1 ), frame / 100 );
@@ -61,8 +61,8 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const pmxAnimation
 			mesh.skeleton.bones[ 3 ].quaternion.setFromAxisAngle( new Vector3( 0, 1, 0 ), 0.2 );
 			input.getOrigin().setValue( x, 0, 0 );
 			oracle.bodies[ 0 ].body.getMotionState().setWorldTransform( input );
-			oracle.world!.stepSimulation( 1 / 60, 2, 1 / 60 );
-			helper.update( 1 / 60 );
+			oracle.world!.stepSimulation( 1 / fps, Math.floor( 60 / fps ) + 1, 1 / 60 );
+			mesh.updateMatrixWorld( true ); helper.update( 1 / fps );
 			for ( const i of [ 0, 1, 2 ] ) {
 
 				const expected = pose( oracle, i ), actual = pose( physics, i );
@@ -70,14 +70,14 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const pmxAnimation
 				near( actual.position, expected.position ); near( actual.quaternion, expected.quaternion );
 
 			}
-			const bone = mesh.skeleton.bones[ 3 ], layers = helper.objects.get( mesh )!.poseLayers!;
+			const bone = mesh.skeleton.bones[ 3 ], layers = helper.objects.get( mesh )!.poseLayers;
 			near( bone.position.toArray(), [ 2 + frame / 50, -0.3, 0.2 ] );
 			const offset = physics.bodies[ 1 ].boneOffsetForm.getRotation();
 			const offsetRotation = new Quaternion( offset.x(), offset.y(), offset.z(), offset.w() );
 			const expectedRotation = bone.parent!.getWorldQuaternion( new Quaternion() ).invert()
 				.multiply( new Quaternion().fromArray( pose( oracle, 1 ).quaternion ) )
 				.multiply( offsetRotation.invert() );
-			if ( phase === 'post' ) expectedRotation.multiply( new Quaternion().fromArray( layers.authored, 3 * 7 + 3 ) );
+			if ( phase === 'post' ) expectedRotation.multiply( new Quaternion().fromArray( layers!.authored, 3 * 7 + 3 ) );
 			near( bone.quaternion.toArray(), expectedRotation.normalize().toArray() );
 			assert.equal( physics.bodies[ 1 ].getDeferredPose(), null );
 			if ( ! contact ) maxError = Math.max( maxError, anchorError( physics, localB ) );
@@ -129,9 +129,11 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const contact of [
 			const bone = meshes[ 1 ].skeleton.bones[ 3 ];
 			if ( phase === 'pre' ) {
 
-				// This legacy PMD method was also called by PMX updateBone before
-				// Issue #53. It writes COM + motion state after the completed solve.
-				legacy.bodies[ 1 ]._setPositionFromBone();
+				// Historical teleport is reproduced here, outside production code.
+				const body = legacy.bodies[ 1 ].body, transform = body.getCenterOfMassTransform();
+				const origin = new Vector3().fromArray( legacy.bodies[ 1 ].params.position ).applyQuaternion( bone.getWorldQuaternion( new Quaternion() ) ).add( bone.getWorldPosition( new Vector3() ) );
+				transform.getOrigin().setValue( origin.x, origin.y, origin.z );
+				body.setCenterOfMassTransform( transform ); body.getMotionState().setWorldTransform( transform );
 
 			} else pending = new Vector3().fromArray( legacy.bodies[ 1 ].params.position ).applyQuaternion( bone.getWorldQuaternion( new Quaternion() ) ).add( bone.getWorldPosition( new Vector3() ) ).toArray();
 			const old = pose( legacy, 1 ), expected = pose( corrected, 1 );
@@ -158,9 +160,9 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const contact of [
 
 } );
 
-for ( const phase of [ 'pre', 'post', 'post-parent' ] ) test( `standalone type2 reset and warmup preserve rotated offsets phase=${phase}`, () => {
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const phase of format === 'pmd' ? [ 'pre' ] : [ 'pre', 'post', 'post-parent' ] ) test( `standalone type2 reset and warmup preserve rotated offsets format=${format} phase=${phase}`, () => {
 
-	const mesh = type2Fixture( phase ), meta = mesh.geometry.userData.MMD;
+	const mesh = type2Fixture( phase, false, format ), meta = mesh.geometry.userData.MMD;
 	meta.constraints = []; for ( const body of meta.rigidBodies ) body.groupTarget = 0;
 	const physics = new MMDPhysics( mesh, meta.rigidBodies, meta.constraints, { gravity: new Vector3(), unitStep: 1 / 60 } );
 	const velocity = new host.Ammo.btVector3( 0, 0, 0.4 );
@@ -186,11 +188,9 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) test( `standalone type2 
 
 } );
 
-test( 'PMD retains legacy native type2 alignment while type1 remains dynamic', () => {
+for ( const format of [ 'pmd', 'pmx' ] as const ) test( `${format} types 0/1/2 follow their kinematic/dynamic authorities`, () => {
 
-	// Exercise the PMD adapter contract with the same synthetic body parameters;
-	// parsing and helper PMD coverage also remain in worker/runtime tests.
-	const mesh = type2Fixture(), meta = mesh.geometry.userData.MMD; meta.format = 'pmd';
+	const mesh = type2Fixture( 'pre', false, format ), meta = mesh.geometry.userData.MMD;
 	meta.constraints = []; for ( const body of meta.rigidBodies ) body.groupTarget = 0;
 	const physics = new MMDPhysics( mesh, meta.rigidBodies, [], { gravity: new Vector3(), unitStep: 1 / 60 } );
 	try {
@@ -200,8 +200,8 @@ test( 'PMD retains legacy native type2 alignment while type1 remains dynamic', (
 			mesh.skeleton.bones[ 0 ].position.x = frame;
 			mesh.skeleton.bones[ 3 ].position.x = 2 + frame; mesh.updateMatrixWorld( true ); physics.update( 1 / 60 );
 			const bone = mesh.skeleton.bones[ 3 ];
-			const aligned = new Vector3().fromArray( physics.bodies[ 1 ].params.position ).applyQuaternion( bone.getWorldQuaternion( new Quaternion() ) ).add( bone.getWorldPosition( new Vector3() ) );
-			near( pose( physics, 1 ).position, aligned.toArray() );
+			near( bone.position.toArray(), [ 2 + frame, -0.5, 0 ] );
+			near( pose( physics, 1 ).position, physics.bodyResults[ 1 ].position );
 			near( pose( physics, 2 ).position, physics.bodyResults[ 2 ].position );
 			near( pose( physics, 0 ).position, [ frame, 0, 0 ] );
 

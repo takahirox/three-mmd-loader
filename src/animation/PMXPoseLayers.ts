@@ -3,7 +3,8 @@ import type { Object3D } from 'three';
 import type { MMDMesh } from '../types.js';
 
 /** Frame snapshots in bone-parent space, xyz + quaternion xyzw per bone.
- * Rest comes from PMX metadata, never from an animated skeleton. Snapshots
+ * Rest comes from normalized model metadata, never an animated skeleton. Both
+ * formats use snapshots; only PMX flags enable post-physics composition. Snapshots
  * are separate storage; physics and rendering cannot become authored input.
  */
 export class PMXPoseLayers {

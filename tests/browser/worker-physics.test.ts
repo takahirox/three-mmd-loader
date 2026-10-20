@@ -17,7 +17,7 @@ const collisionFixtures = ( [ 'pmd', 'pmx' ] as const ).flatMap( format => [
 	{ linked: false, masks: [ 128, 4 ], contact: true },
 	{ linked: true, masks: [ 0, 0 ], contact: false },
 	{ linked: false, masks: [ 0, 0 ], contact: false }
-].map( options => ( { format, ...options, bytes: Array.from( new Uint8Array( linkedCollisionBuffer( format, options ) ) ) } ) ) );
+].flatMap( options => [ 1, 2 ].map( type => ( { format, type, ...options, bytes: Array.from( new Uint8Array( linkedCollisionBuffer( format, options ) ) ) } ) ) ) );
 const harness = `<!doctype html><pre id="result">pending</pre>
 <script>addEventListener('error',event=>document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:event.message})));addEventListener('unhandledrejection',event=>document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({error:String(event.reason)})));</script>
 <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/tsl":"/node_modules/three/build/three.tsl.js","three/webgpu":"/node_modules/three/build/three.webgpu.js","three/addons/":"/node_modules/three/examples/jsm/","mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs"}}</script>
@@ -64,6 +64,7 @@ try {
     const loader=new MMDLoader();loader.meshBuilder.materialBuilder.textureLoader.load=()=>new Texture();
     const parser=new Parser(),buffer=new Uint8Array(fixture.bytes).buffer;
     const data=fixture.format==='pmd'?parser.parsePmd(buffer,true):parser.parsePmx(buffer,true);
+    data.rigidBodies[1].type=fixture.type;
     const mesh=loader.meshBuilder.build(data,'');mesh.position.z=(index*2+i)*20;
     collisionHelper.add(mesh,{...stepParams,physicsMode:'worker',workerPhysics:{ammoURL},warmup:0,animationWarmup:false,gravity:new Vector3()});
     collisionModels.push({mesh,fixture,index,i,p:collisionHelper.objects.get(mesh).physics});
@@ -80,11 +81,12 @@ try {
    for(const {mesh} of collisionModels)mesh.skeleton.bones[0].position.y=frame/650;
    collisionHelper.update(1/65);await complete(first,frame);collisionHelper.update(0);
   }
-  for(const {p,fixture,index,i} of collisionModels) {
+  for(const {mesh,p,fixture,index,i} of collisionModels) {
    const probe=p.bodyResults[1].position;
    check('collisionPolicy'+index+'model'+i,fixture.contact?probe[0]>0.95:Math.abs(probe[0]-0.75)<1e-5);
    if(fixture.linked)check('collisionJointSolves'+index+'model'+i,Math.abs(probe[1]-12/650)<0.004);
    else if(!fixture.contact)check('collisionFreeControl'+index+'model'+i,Math.abs(probe[1])<1e-5);
+   if(fixture.type===2)check('collisionSkeletalType2'+index+'model'+i,near(mesh.skeleton.bones[1].position.toArray(),[0,0,0]));
    check('collisionFinite'+index+'model'+i,p.bodyResults.every(r=>r.position.concat(r.quaternion).every(Number.isFinite)));
   }
  } finally {for(const {mesh} of collisionModels)collisionHelper.remove(mesh);}

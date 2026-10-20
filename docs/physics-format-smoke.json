@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-20T14:38:38.349Z",
+  "environment": "local source Examples server, pinned public Miku and Gene Light assets",
+  "pages": [
+    {
+      "url": "http://127.0.0.1:57920/examples/webgl_loader_mmd.html?backend=webgl",
+      "state": "ready",
+      "format": "pmd",
+      "wasm": "wasm",
+      "bullet": "master-d3afe76132fc",
+      "mode": "sync",
+      "modelBones": 140,
+      "bodies": 45,
+      "initialTime": 0,
+      "finalTime": 0.1333000000000002,
+      "finite": true
+    },
+    {
+      "url": "http://127.0.0.1:57920/examples/webgl_loader_mmd_pmx_gene.html?backend=webgl",
+      "state": "ready",
+      "format": "pmx",
+      "wasm": "wasm",
+      "bullet": "master-d3afe76132fc",
+      "mode": "sync",
+      "modelBones": 224,
+      "bodies": 87,
+      "initialTime": 0,
+      "finalTime": 0.1334,
+      "finite": true
+    },
+    {
+      "url": "http://127.0.0.1:57920/examples/webgl_loader_mmd_worker.html?backend=webgl",
+      "state": "ready",
+      "format": "pmd",
+      "wasm": "wasm",
+      "bullet": "master-d3afe76132fc",
+      "mode": "worker",
+      "transport": "transferable",
+      "modelBones": 140,
+      "bodies": 45,
+      "initialTime": 0,
+      "finalTime": 0.25,
+      "finite": true,
+      "workerSequence": 63
+    }
+  ],
+  "errors": [],
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36"
+}
