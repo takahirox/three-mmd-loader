@@ -40,6 +40,7 @@ export type MMDCamera = Camera & { updateProjectionMatrix(): void };
 type MMDMixer = AnimationMixer & {
 	_actions: AnimationAction[];
 	_activateAction( action: AnimationAction ): void;
+	_deactivateAction( action: AnimationAction ): void;
 	_bindings: { restoreOriginalState(): void; buffer: number[]; valueSize: number; binding: { getValue( buffer: number[], offset: number ): void } }[];
 	_accuIndex: number;
 };
@@ -751,9 +752,57 @@ class MMDAnimationHelper {
 			if ( objects.initialPose?.done ) objects.initialPose = undefined;
 
 		};
+		if ( objects.physics.workerAdapter && objects.mixer && objects.initialPose ) this._watchStartupAnimation( mesh );
 		objects.physics.warmup( cycles );
 
 		this._optimizeIK( mesh, this.enabled.physics );
+
+	}
+
+	_watchStartupAnimation( mesh: MMDMesh ) {
+
+		const state = this.objects.get( mesh )!, mixer = state.mixer!;
+		let depth = 0, changed = false;
+		const observe = <A extends unknown[], R>( operation: ( ...args: A ) => R ) => ( ...args: A ): R => {
+
+			if ( this.objects.get( mesh ) !== state ) return operation.apply( mixer, args );
+			const pose = state.initialPose, adapter = state.physics?.workerAdapter;
+			if ( pose && adapter ) {
+
+				// An explicit mixer edit supersedes the fixed startup target. Remove
+				// temporary ramp/procedural output before Three evaluates or restores
+				// bindings, then cancel only this participant's queued/in-flight ramp.
+				this.boneMorphControllers.get( mesh )?.restore();
+				InitialAnimationPose.write( mesh, pose.target );
+				pose.restoreMorphs();
+				state.initialPose = undefined;
+				adapter.group.cancelWarmup( adapter );
+				changed = true;
+				for ( const binding of mixer._bindings ) binding.binding.getValue( binding.buffer, ( mixer._accuIndex + 1 ) * binding.valueSize );
+
+			}
+			depth ++;
+			try { return operation.apply( mixer, args ); } finally {
+
+				depth --;
+				if ( depth === 0 && changed ) {
+
+					changed = false;
+					this._saveBones( mesh );
+					// Evaluate both authored phases without stepping or advancing time.
+					// reset() invalidates any old Worker result before it can project.
+					this._animateMesh( mesh, 0, 0, undefined, true );
+					state.physics!.reset();
+
+				}
+
+			}
+
+		};
+		mixer.update = observe( mixer.update );
+		mixer.stopAllAction = observe( mixer.stopAllAction );
+		mixer._activateAction = observe( mixer._activateAction );
+		mixer._deactivateAction = observe( mixer._deactivateAction );
 
 	}
 

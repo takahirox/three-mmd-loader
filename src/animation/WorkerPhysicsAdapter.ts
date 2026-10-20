@@ -62,10 +62,10 @@ export class WorkerPhysicsWorld {
 
 	invalidate() { this.generation = ( this.generation + 1 ) & 0x7fffffff; this.delta = 0; }
 	pause( paused: boolean ) { this.paused = paused; this.invalidate(); if ( ! paused ) this.pumpWarmup(); }
-	cancelWarmup() {
+	cancelWarmup( participant?: WorkerPhysicsAdapter ) {
 
-		const cancelled = new Set( Array.from( this.members.values() ).filter( member => member.warmupCycles > 0 ) );
-		if ( this.flight?.warmup ) {
+		const cancelled = new Set( Array.from( this.members.values() ).filter( member => member.warmupCycles > 0 && ( ! participant || member === participant ) ) );
+		if ( this.flight?.warmup && ( ! participant || this.flight.warmup === participant ) ) {
 
 			cancelled.add( this.flight.warmup );
 			this.flight.warmup = undefined;

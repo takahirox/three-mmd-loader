@@ -98,26 +98,30 @@ try {
  const oldCamera=camera.position.clone();const canvas=renderer.domElement;
  canvas.dispatchEvent(new page.WheelEvent('wheel',{deltaY:100,bubbles:true,cancelable:true}));
  checks.orbit=camera.position.distanceTo(oldCamera)>0;
+ let pendingResizes=0;
  async function resizeFrame(width,height) {
-  let resized=false;
-  const onResize=()=>{resized=true;};page.addEventListener('resize',onResize);
   frame.width=width;frame.height=height;
   const deadline=performance.now()+5000;
-  try {
-   // Poll from the parent: offscreen iframe animation callbacks can be suspended.
-   // Wait for the renderer's resize handler as well as the iframe viewport.
-   while(!resized || page.innerWidth!==width || page.innerHeight!==height || canvas.clientWidth!==width || canvas.clientHeight!==height) {
-    if(performance.now()>deadline)throw new Error('Gene resize timeout: '+JSON.stringify({expected:{width,height},resized,frame:frame.getBoundingClientRect().toJSON(),viewport:{width:page.innerWidth,height:page.innerHeight},canvas:{width:canvas.clientWidth,height:canvas.clientHeight}}));
+  const wait=async condition=>{
+   while(!condition()) {
+    if(performance.now()>deadline)throw new Error('Gene resize timeout: '+JSON.stringify({expected:{width,height},pendingResizes,frame:frame.getBoundingClientRect().toJSON(),viewport:{width:page.innerWidth,height:page.innerHeight},canvas:{width:canvas.clientWidth,height:canvas.clientHeight}}));
     await new Promise(r=>setTimeout(r,25));
    }
-  } finally {page.removeEventListener('resize',onResize);}
+  };
+  // Wait for layout from the parent, whose timers remain active. Chrome can
+  // defer a child frame's native resize event after scrollIntoView(), even
+  // though its viewport has already changed. Exercise the registered handler
+  // explicitly at that viewport instead of depending on event delivery timing.
+  await wait(()=>page.innerWidth===width && page.innerHeight===height);
+  page.dispatchEvent(new page.Event('resize'));
+  await wait(()=>pendingResizes===0 && canvas.clientWidth===width && canvas.clientHeight===height);
  }
  // Mobile: open morph controls remain within the viewport and can be scrolled.
  progress('mobile resize');
  // A slow renderer resize must not race the layout assertions, even when it
  // exceeds the former 100 ms delay (notably with Linux's non-overlay scrollbars).
  const setSize=renderer.setSize;
- renderer.setSize=function(...args){setTimeout(()=>setSize.apply(this,args),400);return this;};
+ renderer.setSize=function(...args){pendingResizes++;setTimeout(()=>{setSize.apply(this,args);pendingResizes--;},400);return this;};
  await resizeFrame(360,640);
  checks.mobileCanvasSize=canvas.clientWidth===360 && canvas.clientHeight===640;
  renderer.setSize=setSize;
@@ -127,6 +131,7 @@ try {
  const ctrl=controller('メッシュなし').domElement;ctrl.scrollIntoView();const ir=ctrl.getBoundingClientRect();
  checks.mobileMorphReachable=ir.top>=rect.top && ir.bottom<=rect.bottom;
  await resizeFrame(1024,768);
+ checks.desktopCanvasSize=canvas.clientWidth===1024 && canvas.clientHeight===768 && camera.aspect===1024/768;
  progress('desktop resize complete');
  morphFolder.close();
  checks.noIsolation=page.crossOriginIsolated===false;

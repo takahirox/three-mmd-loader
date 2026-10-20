@@ -476,3 +476,101 @@ for ( const invalid of [ 'nan', 'length', 'incomplete-shared' ] ) for ( const cy
 	helper.remove( mesh );
 
 } );
+
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const shared of [ false, true ] ) for ( const stage of [ 0, 2, 3 ] ) for ( const edit of [ 'seek', 'stop-all', 'stop-action' ] ) for ( const transport of [ 'transferable', 'shared' ] ) test( `authored edit supersedes queued Worker startup ${format} shared=${shared} stage=${stage} ${edit} ${transport}`, t => {
+
+	const isolation = Object.getOwnPropertyDescriptor( globalThis, 'crossOriginIsolated' );
+	Object.defineProperty( globalThis, 'crossOriginIsolated', { configurable: true, value: transport === 'shared' } );
+	t.after( () => { if ( isolation ) Object.defineProperty( globalThis, 'crossOriginIsolated', isolation ); else Reflect.deleteProperty( globalThis, 'crossOriginIsolated' ); } );
+
+	const helper = new MMDAnimationHelper( { sync: false } ), worker = new ManualWorker(); helper.sharedPhysics = shared;
+	const { mesh, clip, animated, base, target } = fixture( format );
+	// A seek changes the initial x=3 target to x=6, independently of ramp stage.
+	clip.tracks[ 0 ].values.set( [ ...target, ...target.map( value => value + 6 ) ] );
+	const params = { warmup: 3, physicsMode: 'worker' as const, workerPhysics: worker.options(), gravity: new Vector3() };
+	helper.add( mesh, { ...params, animation: clip } );
+	const companion = shared ? fixture( 'pmx' ) : undefined;
+	if ( companion ) helper.add( companion.mesh, { ...params, animation: companion.clip } );
+	if ( stage ) { worker.start(); for ( let i = 1; i < stage; i ++ ) worker.finish(); }
+	const state = helper.objects.get( mesh )!, mixer = state.mixer!, physics = state.physics!;
+	const expected = edit === 'seek' ? target.map( value => value + 3 ) : base;
+	const clock = edit === 'seek' ? 1 : 0;
+	try {
+
+		if ( edit === 'seek' ) mixer.setTime( 1 );
+		else if ( edit === 'stop-all' ) mixer.stopAllAction();
+		else mixer._actions[ 0 ].stop();
+		assert.equal( state.initialPose, undefined );
+		assert.equal( physics.workerAdapter!.warmupCycles, 0 );
+		const assertAuthored = () => {
+
+			near( ( state.poseLayers?.authored ?? state.backupBones! ).slice( animated * 7, animated * 7 + 3 ), expected );
+			assert.equal( mixer.time, clock );
+			assert.equal( mixer._actions[ 0 ].isScheduled(), edit === 'seek' );
+			if ( format === 'pmx' ) near( [ mesh.morphTargetInfluences![ 1 ] ], [ edit === 'seek' ? 0.8 : 0 ] );
+			assert.ok( pose( mesh ).every( Number.isFinite ) );
+
+		};
+		assertAuthored();
+		helper.update( 0 ); physics.reset();
+		near( physics.workerAdapter!.resetSnapshot.slice( 16 + animated * 7, 19 + animated * 7 ), expected );
+		// Delayed readiness and an already-issued old result cannot reinstate
+		// the abandoned snapshot. Other shared participants finish their ramp.
+		finish( worker ); assertAuthored();
+		assert.equal( worker.frames, stage + ( shared ? 3 : 0 ) );
+		if ( companion ) {
+
+			const other = helper.objects.get( companion.mesh )!;
+			assert.equal( other.initialPose, undefined ); assert.equal( other.mixer!.time, 0 );
+			near( other.poseLayers!.authored.slice( companion.animated * 7, companion.animated * 7 + 3 ), companion.target );
+
+		}
+		helper.update( 0 ); finish( worker ); assertAuthored();
+		// Fallback after reconciliation also starts from the edited authored input.
+		worker.deliver( { type: 'error', reason: 'edited startup fallback' } );
+		helper.update( 0 ); assertAuthored();
+		helper.update( 1 / 60 );
+		near( [ mixer.time ], [ clock + 1 / 60 ] );
+		near( ( state.poseLayers?.authored ?? state.backupBones! ).slice( animated * 7, animated * 7 + 3 ), edit === 'seek' ? expected.map( value => value + 3 / 60 ) : expected );
+
+	} finally {
+
+		helper.remove( mesh ); if ( companion ) helper.remove( companion.mesh );
+
+	}
+
+} );
+
+for ( const edit of [ 'seek', 'stop' ] ) test( `editing a joining Worker model preserves an already-playing shared participant: ${edit}`, t => {
+
+	const helper = new MMDAnimationHelper( { sync: false } ), worker = new ManualWorker(); helper.sharedPhysics = true;
+	const playing = fixture( 'pmx' ), joining = fixture( 'pmx' ); joining.mesh.position.z = 20;
+	const params = { warmup: 3, physicsMode: 'worker' as const, workerPhysics: worker.options(), gravity: new Vector3() };
+	helper.add( playing.mesh, { ...params, animation: playing.clip } ); finish( worker );
+	helper.update( 0.4 ); finish( worker ); helper.update( 0 );
+	const state = helper.objects.get( playing.mesh )!, authored = state.poseLayers!.authored.slice();
+	let resets = 0;
+	const reset = state.physics!.reset.bind( state.physics! );
+	t.mock.method( state.physics!, 'reset', () => { resets ++; return reset(); } );
+	helper.add( joining.mesh, { ...params, animation: joining.clip } ); worker.start();
+	const mixer = helper.objects.get( joining.mesh )!.mixer!;
+	if ( edit === 'seek' ) mixer.setTime( 1 ); else mixer.stopAllAction();
+	helper.update( 0 ); finish( worker ); helper.update( 0 ); finish( worker );
+	near( state.poseLayers!.authored, authored ); assert.equal( state.mixer!.time, 0.4 );
+	assert.equal( resets, 0 ); assert.equal( state.initialPose, undefined );
+	helper.remove( joining.mesh );
+	// Detached mixers may still be used by their caller after helper removal.
+	mixer.setTime( 0 ); mixer.stopAllAction();
+	helper.remove( playing.mesh );
+
+} );
+
+test( 'mixer edits after removal during startup do not re-enter the helper', () => {
+
+	const helper = new MMDAnimationHelper(), worker = new ManualWorker(), { mesh, clip } = fixture( 'pmx' );
+	helper.add( mesh, { animation: clip, warmup: 3, physicsMode: 'worker', workerPhysics: worker.options() } );
+	const mixer = helper.objects.get( mesh )!.mixer!;
+	helper.remove( mesh ); mixer.setTime( 1 ); mixer.stopAllAction();
+	assert.equal( helper.objects.get( mesh ), undefined );
+
+} );
