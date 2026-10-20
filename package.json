@@ -1,6 +1,6 @@
 {
   "name": "@takahirox/three-mmd",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MMD loading, animation, physics, TSL materials, outlines, and VPD export for Three.js",
   "type": "module",
   "main": "./dist/index.js",

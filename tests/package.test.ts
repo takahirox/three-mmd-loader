@@ -81,6 +81,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		assert.ok( files.includes( 'LICENSE' ) );
 		assert.ok( files.includes( 'THIRD_PARTY_NOTICES.md' ) );
 		assert.ok( files.includes( 'README.md' ) );
+		for ( const path of [ 'dist/animation/MMDPhysicsWorker.js', 'dist/vendor/bullet/ammo.js', 'dist/vendor/bullet/ammo.wasm', 'dist/vendor/bullet/manifest.json' ] ) assert.ok( files.includes( path ), `Missing runtime: ${path}` );
 		// Allow runtime JS/declarations, pinned Bullet assets and npm metadata/legal files.
 		// This also excludes assets, caches, archives, viewers, CI output and tokens.
 		for ( const path of files ) assert.match( path,

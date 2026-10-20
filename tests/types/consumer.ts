@@ -54,6 +54,12 @@ new CCDIKSolver( mesh, iks ).update().createHelper().dispose();
 new CCDIKHelper( mesh, iks ).dispose();
 const physics: MMDPhysics = new SubpathPhysics( mesh, [], [], { gravity: new Vector3( 0, - 10, 0 ) } );
 physics.update( 1 / 60 ).createHelper().dispose();
+helper.add( mesh, { physicsMode: 'worker', workerPhysics: {
+	ammoURL: new URL( './vendor/bullet/ammo.js', 'https://example.com/' ).href,
+	createWorker: () => new Worker( '/MMDPhysicsWorker.js' ),
+	onFallback: reason => console.warn( reason )
+} } );
+await physics.ready;
 const exporter: MMDExporter = new SubpathExporter();
 const text: string | null = exporter.parseVpd( mesh );
 const bytes: Uint8Array | null = exporter.parseVpd( mesh, true );

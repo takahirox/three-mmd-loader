@@ -20,9 +20,10 @@ License reproduced in this package's [LICENSE](LICENSE).
 Local changes route TGALoader through the external `three` package, remove
 the obsolete r172 deprecation warnings, and use the external SkeletonUtils
 clone in MMDExporter to avoid resetting the source skeleton when exporting.
-The CCDIK solver retains its r171 behavior. The loader and
-exporter now import the external `mmd-parser` dependency. Three.js itself,
-`mmd-parser`, and the Ammo.js physics runtime are not vendored.
+The CCDIK solver includes subsequent MMD limit handling updates. The loader
+and exporter now import the external `mmd-parser` dependency. Three.js itself and
+`mmd-parser` are external dependencies. The optional pinned Bullet-compatible
+Ammo runtime is distributed separately under the notices below.
 
 ## Three.js r186 node material and outlines
 
@@ -36,6 +37,8 @@ resource cleanup and renderer-state restoration. The package uses external
 Three.js `0.186.1`; these implementations replace the former r171 GLSL toon
 shader and WebGL `OutlineEffect` integration. Three.js is copyright © 2010-2026
 three.js authors, under the MIT license reproduced in [LICENSE](LICENSE).
+The classic `dist/animation/MMDPhysicsWorker.js` bundle also contains Three.js
+r186 core code, covered by this notice and the same MIT license.
 
 ## Three.js example stylesheet
 
@@ -77,7 +80,7 @@ examples-site assets and are not included in the npm package.
 
 ## mmd-parser
 
-[mmd-parser](https://github.com/takahirox/mmd-parser) (`^1.1.3`) is an external
+[mmd-parser](https://github.com/takahirox/mmd-parser) (`^1.1.4`) is an external
 runtime dependency for parsing MMD resources and Shift_JIS encoding. Its public
 TypeScript types describe the raw parser results consumed by this package.
 The browser examples use the installed `build/mmdparser.module.mjs` artifact;

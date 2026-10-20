@@ -10,12 +10,17 @@ Three.js instance, including its retained TGALoader and SkeletonUtils addons.
 `mmd-parser ^1.1.4` is an external runtime dependency installed automatically
 with this package; its implementation and public types come from that package.
 
-After the maintainer publishes the first release, install the package alongside
-the supported Three.js version:
+Install the package alongside the supported Three.js version:
 
 ```sh
 npm install @takahirox/three-mmd three@~0.186.0
 ```
+
+Release candidate **0.1.1** updates the published 0.1.0 with pinned Bullet
+WASM, animation startup and physics integration improvements, and unified
+PMD/PMX physics policy. Rare severe PMD physics instability remains **under
+investigation**; this release does not claim to resolve it. See the
+[release record](docs/releases/0.1.1.md) for source and validation evidence.
 
 Use native ES module imports, either from the package root or from addon-style
 subpaths:
@@ -98,6 +103,28 @@ application. The Examples enforce a 10-second initialization deadline, verify
 the instantiated WASM exports and pinned source identity, and stop on failure.
 Worker recovery uses the initialized main-thread engine. There is no automatic
 fallback to the old Bullet build.
+
+For optional Worker physics, keep the main-thread Ammo initialization above
+for recovery, and pass the same served glue URL when adding a mesh:
+
+```js
+const workerMesh = await loader.loadAsync( 'model.pmx' );
+helper.add( workerMesh, {
+  physicsMode: 'worker',
+  workerPhysics: { ammoURL: ammoURL.href }
+} );
+await helper.objects.get( workerMesh ).physics.ready;
+```
+
+The classic Worker is included at `dist/animation/MMDPhysicsWorker.js` and is
+resolved relative to the installed runtime module. Preserve that file when
+bundling or copying runtime modules. For custom hosting/CSP, provide
+`workerPhysics.createWorker: () => new Worker('/your/MMDPhysicsWorker.js')`;
+serve the bundled classic Worker on the same origin. No extra npm dependency
+is needed. Worker glue resolves `ammo.wasm` beside its `ammoURL`. Without
+cross-origin isolation it uses transferables; isolated pages can use shared
+memory. See [Worker physics](docs/worker-physics-validation.md) for behavior
+and recovery.
 
 Normal Examples need no Bullet query parameter. `?bullet=legacy` explicitly
 rolls back to `ammojs-typed@1.1.0` WASM for diagnostics; `?bullet=master` and
@@ -196,8 +223,9 @@ and the browser/example commands build the package first; `npm pack` builds it
 through `prepack`. Manual `npm publish` also runs strict type checks and the
 offline Node/package regression tests before uploading. See the
 [release guide](docs/releases.md) for maintainer prerequisites and dry-runs.
-Before publication, validate consumers with a local packed tarball rather than
-installing an unpublished registry package. TypeScript consumers should install matching Three.js types
+Validate the 0.1.1 candidate before publication by installing the local
+`takahirox-three-mmd-0.1.1.tgz` produced by `npm pack`. TypeScript consumers
+should install matching Three.js types
 with `npm install --save-dev @types/three@~0.186.0`. Root and documented `.js`
 subpath imports resolve to the same API in both JavaScript and TypeScript.
 
