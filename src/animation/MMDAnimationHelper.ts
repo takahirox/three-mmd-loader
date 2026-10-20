@@ -1,3 +1,4 @@
+import { InitialAnimationPose } from './InitialAnimationPose.js';
 import { PMXPoseLayers } from './PMXPoseLayers.js';
 import { GrantSolver } from './GrantSolver.js';
 import { updateMMDUVs } from './MMDUVMorphController.js';
@@ -28,6 +29,7 @@ export interface MMDAnimationParameters extends MMDPhysicsParameters {
 	animation?: AnimationClip | AnimationClip[];
 	physics?: boolean;
 	warmup?: number;
+	/** Gradually introduce the initial animation pose during startup warmup. Default true. */
 	animationWarmup?: boolean;
 	delayTime?: number;
 }
@@ -38,6 +40,7 @@ export type MMDCamera = Camera & { updateProjectionMatrix(): void };
 type MMDMixer = AnimationMixer & {
 	_actions: AnimationAction[];
 	_activateAction( action: AnimationAction ): void;
+	_deactivateAction( action: AnimationAction ): void;
 	_bindings: { restoreOriginalState(): void; buffer: number[]; valueSize: number; binding: { getValue( buffer: number[], offset: number ): void } }[];
 	_accuIndex: number;
 };
@@ -51,6 +54,8 @@ export interface MMDAnimationState {
 	backupBones?: Float32Array;
 	sortedBonesData?: MMDBone[];
 	poseLayers?: PMXPoseLayers;
+	/** Startup only; never recaptured from simulated bones. */
+	initialPose?: InitialAnimationPose;
 }
 
 
@@ -66,6 +71,7 @@ export interface MMDAnimationState {
  */
 class MMDAnimationHelper {
 
+	private cancelledPhysicsWarmups = new WeakSet<MMDPhysics>();
 	private materialMorphControllers = new WeakMap<MMDMesh, MMDMaterialMorphController>();
 	private boneMorphControllers = new WeakMap<MMDMesh, MMDBoneMorphController>();
 
@@ -135,7 +141,8 @@ class MMDAnimationHelper {
 	 * @param {Object} params - (optional)
 	 * @param {THREE.AnimationClip|Array<THREE.AnimationClip>} params.animation - Only for THREE.SkinnedMesh and THREE.Camera. Default is undefined.
 	 * @param {boolean} params.physics - Only for THREE.SkinnedMesh. Default is true.
-	 * @param {Integer} params.warmup - Only for THREE.SkinnedMesh and physics is true. Default is 60.
+	 * @param {Integer} params.warmup - Number of physics cycles (first min(30, warmup) ramp animation influence). Default is 60; 0 disables warmup.
+	 * @param {boolean} params.animationWarmup - Enable the initial animation-pose transition. Default is true.
 	 * @param {Number} params.unitStep - Only for THREE.SkinnedMesh and physics is true. Default is 1 / 60.
 	 * @param {Integer} params.maxStepNum - Maximum fixed substeps per update. Only for THREE.SkinnedMesh and physics is true. Default is 10.
 	 * @param {Vector3} params.gravity - Only for THREE.SkinnedMesh and physics is true. Default ( 0, - 9.8 * 10, 0 ).
@@ -216,11 +223,23 @@ class MMDAnimationHelper {
 	 */
 	update( delta: number ) {
 
+		// Worker startup advances via result callbacks. Hold every playback clock
+		// together until it finishes, including camera, audio and other meshes.
+		if ( this.enabled.physics && this.meshes.some( mesh => this.objects.get( mesh )?.physics?.workerAdapter?.group.warmingUp ) ) {
+
+			// An already-playing helper can acquire another warming model. Pause
+			// the Audio source too; AudioManager resumes it from the saved offset.
+			if ( this.audio?.isPlaying ) this.audio.pause();
+			return this;
+
+		}
+
 		if ( this.audioManager !== null ) this.audioManager.control( delta );
 
 		for ( let i = 0; i < this.meshes.length; i ++ ) {
 
-			this._animateMesh( this.meshes[ i ], delta );
+			const mesh = this.meshes[ i ];
+			this._animateMesh( mesh, delta );
 
 		}
 
@@ -346,12 +365,54 @@ class MMDAnimationHelper {
 
 		if ( key === 'physics' ) {
 
+			for ( const mesh of this.meshes ) this._optimizeIK( mesh, enabled );
+
 			const groups = new Set( this.meshes.map( mesh => this.objects.get( mesh )?.physics?.workerAdapter?.group ).filter( group => group !== undefined ) );
-			if ( previous !== enabled ) for ( const group of groups ) group.pause( ! enabled );
+			if ( previous !== enabled ) {
 
-			for ( let i = 0, il = this.meshes.length; i < il; i ++ ) {
+				if ( ! enabled ) {
 
-				this._optimizeIK( this.meshes[ i ], enabled );
+					for ( const group of groups ) {
+
+						group.pause( true );
+						for ( const member of group.cancelWarmup() ) {
+
+							const mesh = member.owner.mesh as MMDMesh, state = this.objects.get( mesh )!;
+							this.cancelledPhysicsWarmups.add( member.owner );
+							if ( state.initialPose ) {
+
+								this.boneMorphControllers.get( mesh )?.restore();
+								InitialAnimationPose.write( mesh, state.initialPose.target );
+								state.initialPose.restoreMorphs();
+								state.initialPose = undefined;
+								this._saveBones( mesh );
+								this._animateMesh( mesh, 0, 0 );
+								if ( this.sharedPhysics ) {
+
+									this._animateAfterPhysics( mesh );
+									this.boneMorphControllers.get( mesh )?.capture();
+
+								}
+
+							}
+
+						}
+
+					}
+
+				} else {
+
+					// Playback may have moved while physics was disabled. Resume from
+					// its current pre-physics pose, never the abandoned startup input.
+					for ( const mesh of this.meshes ) {
+
+						const physics = this.objects.get( mesh )?.physics;
+						if ( physics && this.cancelledPhysicsWarmups.delete( physics ) ) physics.reset();
+
+					}
+					for ( const group of groups ) group.pause( false );
+
+				}
 
 			}
 
@@ -465,6 +526,13 @@ class MMDAnimationHelper {
 			if ( this.meshes[ i ] === mesh ) {
 
 				// Release the authored pose so a new helper cannot bake in bone morphs.
+				const initialPose = this.objects.get( mesh )?.initialPose;
+				if ( initialPose ) {
+
+					InitialAnimationPose.write( mesh, initialPose.target );
+					initialPose.restoreMorphs();
+
+				}
 				this.boneMorphControllers.get( mesh )?.restore();
 				this.materialMorphControllers.get( mesh )?.apply( false );
 				updateMMDUVs( mesh, false );
@@ -621,38 +689,124 @@ class MMDAnimationHelper {
 		this._optimizeIK( mesh, this.enabled.physics );
 
 		const animationWarmup = ( objects.mixer || this._getBoneMorphController( mesh ) ) && params.animationWarmup !== false;
+		// Disabled physics has no startup to settle. Evaluate the full authored
+		// pose now and reset at the current pose on enable, rather than queueing
+		// a fixed-time ramp that animation can outgrow before Worker readiness.
+		const cycles = this.enabled.physics ? Math.max( 0, Math.floor( params.warmup !== undefined ? params.warmup : 60 ) ) : 0;
+		if ( ! this.enabled.physics ) this.cancelledPhysicsWarmups.add( objects.physics );
 		if ( animationWarmup ) {
 
-			this._animateMesh( mesh, 0 );
+			// Evaluate only the authored input, without a physics update or IK/grant
+			// output. The same fixed target is used throughout asynchronous startup.
+			const pose = new InitialAnimationPose( mesh, cycles );
+			if ( this.enabled.animation ) objects.mixer?.update( 0 );
+			pose.captureTarget();
+			objects.initialPose = cycles > 0 ? pose : undefined;
+			this._saveBones( mesh );
+			// Reset at the base input, with both PMX phases evaluated. With zero
+			// cycles preserve the historical full-pose initialization.
+			this._animateMesh( mesh, 0, 0, pose, true );
 			objects.physics.reset();
 
 		}
 
-		if ( objects.poseLayers || this.sharedPhysics ) objects.physics.warmupStep = delta => {
+		objects.physics.warmupStep = delta => {
 
-			// Settle physics at a fixed authored time, through both pose phases.
-			// One shared-world step affects every mesh, including meshes already
-			// present when a new adapter is added or warmup is called directly.
+			objects.initialPose?.advance();
+			if ( ! animationWarmup && ! objects.poseLayers && ! this.sharedPhysics ) {
+
+				objects.physics!.update( delta );
+				return;
+
+			}
 			if ( this.sharedPhysics ) {
 
-				for ( const participant of this.meshes ) this._animateMesh( participant, delta, 0 );
+				for ( const participant of this.meshes ) this._animateMesh( participant, delta, 0, this.objects.get( participant )?.initialPose );
 				this._finishSharedPhysics( delta );
 
 			} else {
 
-				this._animateMesh( mesh, delta, 0 );
+				this._animateMesh( mesh, delta, 0, objects.initialPose );
+
+			}
+			if ( ! objects.physics!.workerAdapter && objects.initialPose?.done ) objects.initialPose = undefined;
+
+		};
+		objects.physics.warmupStepCancelled = () => objects.initialPose?.rewind();
+		objects.physics.warmupStepComplete = accepted => {
+
+			if ( this.objects.get( mesh ) !== objects ) return;
+
+			// Worker results arrive after the input pass. Finish that same pose
+			// before scheduling another stage or exposing normal playback.
+			const participants = accepted ? ( this.sharedPhysics ? this.meshes : [ mesh ] ) : [];
+			for ( const participant of participants ) {
+
+				const state = this.objects.get( participant )!;
+				if ( state.poseLayers ) InitialAnimationPose.write( participant, state.poseLayers.beforePhysics );
+				state.physics?.workerAdapter?.project();
+				this._animateAfterPhysics( participant );
+				this.boneMorphControllers.get( participant )?.capture();
+
+			}
+			if ( objects.initialPose?.done ) objects.initialPose = undefined;
+
+		};
+		if ( objects.physics.workerAdapter && objects.mixer && objects.initialPose ) this._watchStartupAnimation( mesh );
+		objects.physics.warmup( cycles );
+
+		this._optimizeIK( mesh, this.enabled.physics );
+
+	}
+
+	_watchStartupAnimation( mesh: MMDMesh ) {
+
+		const state = this.objects.get( mesh )!, mixer = state.mixer!;
+		let depth = 0, changed = false;
+		const observe = <A extends unknown[], R>( operation: ( ...args: A ) => R ) => ( ...args: A ): R => {
+
+			if ( this.objects.get( mesh ) !== state ) return operation.apply( mixer, args );
+			const pose = state.initialPose, adapter = state.physics?.workerAdapter;
+			if ( pose && adapter ) {
+
+				// An explicit mixer edit supersedes the fixed startup target. Remove
+				// temporary ramp/procedural output before Three evaluates or restores
+				// bindings, then cancel only this participant's queued/in-flight ramp.
+				this.boneMorphControllers.get( mesh )?.restore();
+				InitialAnimationPose.write( mesh, pose.target );
+				pose.restoreMorphs();
+				state.initialPose = undefined;
+				adapter.group.cancelWarmup( adapter );
+				changed = true;
+				for ( const binding of mixer._bindings ) binding.binding.getValue( binding.buffer, ( mixer._accuIndex + 1 ) * binding.valueSize );
+
+			}
+			depth ++;
+			try { return operation.apply( mixer, args ); } finally {
+
+				depth --;
+				if ( depth === 0 && changed ) {
+
+					changed = false;
+					this._saveBones( mesh );
+					// Evaluate both authored phases without stepping or advancing time.
+					// reset() invalidates any old Worker result before it can project.
+					this._animateMesh( mesh, 0, 0, undefined, true );
+					state.physics!.reset();
+
+				}
 
 			}
 
 		};
-		objects.physics.warmup( params.warmup !== undefined ? params.warmup : 60 );
-
-		this._optimizeIK( mesh, this.enabled.physics );
-		if ( animationWarmup ) this.boneMorphControllers.get( mesh )?.capture();
+		mixer.update = observe( mixer.update );
+		mixer.stopAllAction = observe( mixer.stopAllAction );
+		mixer._activateAction = observe( mixer._activateAction );
+		mixer._deactivateAction = observe( mixer._deactivateAction );
 
 	}
 
-	_animateMesh( mesh: MMDMesh, delta: number, animationDelta = delta ) {
+	_animateMesh( mesh: MMDMesh, delta: number, animationDelta = delta, initialPose?: InitialAnimationPose, initializeOnly = false ) {
 
 		const objects = this.objects.get( mesh )!;
 
@@ -664,7 +818,11 @@ class MMDAnimationHelper {
 		if ( mixer ) boneMorphs?.watchAnimationMixer( mixer );
 		boneMorphs?.restore();
 
-		if ( mixer && this.enabled.animation ) {
+		if ( initialPose ) {
+
+			initialPose.apply();
+
+		} else if ( mixer && this.enabled.animation ) {
 
 			// alternate solution to save/restore bones but less performant?
 			//mesh.pose();
@@ -679,7 +837,7 @@ class MMDAnimationHelper {
 		}
 
 		objects.poseLayers?.capture( objects.poseLayers.authored );
-		boneMorphs?.apply( this.enabled.boneMorph );
+		boneMorphs?.apply( this.enabled.boneMorph, initialPose?.target );
 		objects.poseLayers?.capture( objects.poseLayers.morphed );
 		objects.poseLayers?.stageBeforePhysics();
 		if ( objects.poseLayers && grantSolver ) grantSolver.invalidPoseIndices = objects.poseLayers.invalid;
@@ -731,14 +889,14 @@ class MMDAnimationHelper {
 
 		}
 
-		if ( physics && this.enabled.physics && ! this.sharedPhysics ) {
+		if ( physics && this.enabled.physics && ! this.sharedPhysics && ! initializeOnly ) {
 
 			this.onBeforePhysics( mesh );
 			physics.update( delta );
 
 		}
 
-		if ( ! this.sharedPhysics ) this._animateAfterPhysics( mesh );
+		if ( ! this.sharedPhysics || initializeOnly ) this._animateAfterPhysics( mesh );
 		boneMorphs?.capture();
 
 	}

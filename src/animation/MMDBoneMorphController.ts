@@ -106,9 +106,12 @@ export class MMDBoneMorphController {
 
 	}
 
-	apply( enabled: boolean ) {
+	apply( enabled: boolean, authoredPose?: Float64Array ) {
 
+		// Warmup applies a temporary blend but must restore the full authored
+		// input after procedural output, including untracked bones.
 		this.save( this.base );
+		if ( authoredPose ) this.base.set( authoredPose );
 		if ( ! enabled ) return;
 		// Aggregate direct and all group contributions before composing each
 		// bone target in PMX file order. Never write effective weights back to

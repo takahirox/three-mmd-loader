@@ -340,12 +340,24 @@ sync pose; animation-driven contacts can therefore differ. For identical
 sequenced inputs, both backends use the same Bullet/body rules. This is an
 intentional responsiveness/visual-latency tradeoff, not a strict sync replay.
 
+Startup introduces the initial authored animation pose over the first **30**
+physics warmup cycles, then settles at full influence for the remaining **30**
+default cycles. Shorter `warmup: N` values ramp over `min(30, N)` cycles;
+`warmup: 0` evaluates the full initial pose without stepping physics.
+The authored animation time stays fixed throughout startup. Bone positions and
+shortest-arc rotations blend before morphs, IK, grants and PMX phase processing;
+post-physics bone results never become the next ramp input. `animationWarmup:
+false` opts out of this animation startup transition. To use immediate full-pose
+settling instead, add with `warmup: 0`, then call the resulting physics adapter's
+`warmup(60)`. See [initialization policy and validation](docs/animation-warmup.md).
+
 `ready` resolves after model initialization or fallback; async `warmup(cycles)`
 settles one frame per completion at fixed animation time through both pose
-phases. `workerStatus` reports initialization, remaining warmup cycles,
+phases. Normal mesh playback waits for queued startup warmup to complete;
+`ready` alone does not indicate that warmup has finished. `workerStatus` reports initialization, remaining warmup cycles,
 in-flight work and the last completed sequence. `physicsMode` and `transport`
-report the actual backend and transport. Zero-time PMX updates only reproject;
-PMD retains its existing minimum-step behavior. Gravity changes are ordered in
+report the actual backend and transport. Zero-time updates do not advance Bullet;
+PMX updates only reproject the last complete body results. Gravity changes are ordered in
 the Worker. Helper enable/disable suspends submissions/warmup and invalidates
 pending results. Reset captures the pre-physics pose and invalidates previous
 results; loop resets use the same path. Removal releases that model's Ammo

@@ -75,7 +75,11 @@ class MMDPhysics {
 	/** Helper-owned snapshots used to reset simulation without baking post offsets. */
 	poseLayers?: PMXPoseLayers;
 	warmupStep?: ( delta: number ) => void;
+	warmupStepComplete?: ( accepted: boolean ) => void;
+	warmupStepCancelled?: () => void;
 	private disposed = false;
+	private warming = false;
+	private warmupRemaining = 0;
 	/** Last actual Bullet step output, captured before mode-2 alignment. */
 	bodyResults: { position: number[]; quaternion: number[] }[] = [];
 	bodyResultPhase: 'reset' | 'step' = 'reset';
@@ -283,17 +287,31 @@ class MMDPhysics {
 
 			this.workerAdapter.warmupCycles += Math.max( 0, Math.floor( cycles ) );
 			// Schedule settling after setup has installed both pose phases.
-			queueMicrotask( () => this.workerAdapter?.group.update( 0 ) );
+			queueMicrotask( () => {
+
+				if ( this.workerAdapter && this.workerAdapter.warmupCycles > 0 ) this.workerAdapter.group.update( 0 );
+
+			} );
 			return this;
 
 		}
 
-		for ( let i = 0; i < cycles; i ++ ) {
+		// A callback may request more warmup while a stage is being evaluated.
+		// Append those cycles after the current pipeline rather than nesting it.
+		this.warmupRemaining += Math.max( 0, Math.floor( cycles ) );
+		if ( this.warming ) return this;
+		this.warming = true;
+		try {
 
-			if ( this.warmupStep ) this.warmupStep( 1 / 60 );
-			else this.update( 1 / 60 );
+			while ( this.warmupRemaining > 0 && ! this.disposed && ! this.initializationError ) {
 
-		}
+				this.warmupRemaining --;
+				if ( this.warmupStep ) this.warmupStep( 1 / 60 );
+				else this.update( 1 / 60 );
+
+			}
+
+		} finally { this.warming = false; }
 
 		return this;
 

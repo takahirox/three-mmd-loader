@@ -1,0 +1,192 @@
+{
+  "issue": 90,
+  "issueURL": "https://github.com/takahirox/three-mmd-loader/issues/90",
+  "startingHead": "5fcf867f7c76495128d2f40c2fbcdfac75eaaeb8",
+  "policy": {
+    "defaultCycles": 60,
+    "rampStages": 30,
+    "shortWarmup": "min(30, N) ramp stages within N total cycles",
+    "authoredTime": "Fixed initial mixer/action time; no animation-time advancement during warmup",
+    "blend": "Authored local position lerp, shortest-arc quaternion slerp, scaled morph influences before existing morph/IK/grant and PMX phase processing; full target copied at weight 1",
+    "revert": "Add with warmup: 0, then call helper.objects.get(mesh).physics.warmup(60) for immediate full-pose settling. animationWarmup: false keeps the existing opt-out. Revert this implementation commit to restore the prior default."
+  },
+  "nativeRuntime": {
+    "bulletCommit": "d3afe76132fc76b0f9b2359cbaef47a3766e7fbb",
+    "wasmSHA256": "e1bd8fe1da2c3da1e169305e753bd4def39e1127d724b80996cb2b0e98f6810f",
+    "rebuildPerformed": false,
+    "warmupStepArguments": [
+      0.016666666666666666,
+      2,
+      0.016666666666666666
+    ],
+    "unitStep": 0.016666666666666666,
+    "maxStepNum": 10,
+    "otherSettings": "Bullet version, gravity, damping, collision masks, joints, springs and constraints unchanged"
+  },
+  "coverage": [
+    "60 new Node cases with real WASM: PMD kinematic anchor and dynamic joint; PMX pre/post IK, grants, bone/group morphs and modes 0/1/2.",
+    "0, 1, 7, 30 and omitted/default 60 cycles; exact native call counts/arguments; input pose/weight sequence; fixed mixer/action times; shortest quaternion arc; full authored pipeline equivalence and finite deterministic first playback.",
+    "Standalone/shared Sync and Worker; delayed readiness and display morph weights; re-entrant/appended warmup; shared joining before readiness and during an in-flight last stage; no reset/reblend of running participants; removal during warmup restores authored state; in-flight failure replays the unaccepted stage on sync fallback.",
+    "Actual bundled classic Worker in Chrome, real Bullet instrumentation and Ammo-load failure: transferable/nonisolated and SharedArrayBuffer/isolated contexts, each with 92 assertions for PMD/PMX and standalone/shared startup.",
+    "Existing layer, morph, body mode, native MotionState, substep/timekeeping, reset/seek/loop, browser rendering and Worker regressions retained. Examples playback assertions wait for queued startup warmup and also check the playback clock."
+  ],
+  "environment": {
+    "platform": "macOS arm64",
+    "node": "v24.12.0",
+    "browser": "Google Chrome 155.0.8059.85, headless, SwiftShader"
+  },
+  "checks": [
+    {
+      "command": "npm ci",
+      "status": "PASSED",
+      "evidence": "18 packages; 0 vulnerabilities"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "PASSED"
+    },
+    {
+      "command": "npm test",
+      "status": "PASSED",
+      "tests": 974,
+      "skipped": 0
+    },
+    {
+      "command": "MMD_AMMO_VARIANT=legacy node --import tsx --test tests/*.test.ts",
+      "status": "PASSED",
+      "tests": 974,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:browser",
+      "status": "All 52 cases passed across the initial run and targeted reruns; initial full run FAILED (50 passed, 2 failed)",
+      "tests": 52,
+      "skipped": 0,
+      "followUp": "Isolated ramp timeout passed in targeted two-case runs. Examples startup timing assertion was corrected, and the complete built-site Examples case passed with existing checks retained plus playback-clock verification."
+    },
+    {
+      "command": "node --import tsx --test --test-reporter=tap tests/browser/animation-warmup.test.ts",
+      "status": "PASSED",
+      "tests": 2,
+      "assertions": 184
+    },
+    {
+      "command": "npm run build:examples",
+      "status": "PASSED",
+      "evidence": "Pinned original Miku/WAVEFILE and Gene Light assets verified; static site built."
+    },
+    {
+      "command": "MMD_EXAMPLE_SITE=dist/examples node --import tsx --test --test-reporter=tap --test-concurrency=1 tests/browser/examples.test.ts tests/browser/gene-light.test.ts",
+      "status": "Initial artifact run: Gene Light 2/2 PASSED; Examples FAILED on a test-only lookup for the pose-only page. Corrected with optional chaining; final Examples rerun PASSED."
+    },
+    {
+      "command": "MMD_EXAMPLE_SITE=dist/examples node --import tsx --test --test-reporter=tap tests/browser/examples.test.ts",
+      "status": "PASSED",
+      "tests": 1,
+      "evidence": "Complete actual-asset built Examples suite, light/dark layouts, controls, default PMD and Worker, normal playback, startup completion; 202.2 seconds. Local URL http://127.0.0.1:52952/three-mmd-loader/examples/."
+    },
+    {
+      "command": "Final npm run build:examples followed by a local artifact-only three-page Chrome smoke harness",
+      "status": "PASSED",
+      "pages": 3,
+      "evidence": "Fresh final build; real PMD, Gene Light PMX and Worker initialize, finish warmup, advance authored time by 1/60, render and expose finite native results, with zero recorded runtime errors."
+    },
+    {
+      "command": "git diff --check",
+      "status": "PASSED"
+    }
+  ],
+  "validationAttempts": [
+    {
+      "check": "New browser fixture development",
+      "result": "Both browser cases satisfied their 92 checks, but an initial assertion expected 96. Corrected the harness assertion count."
+    },
+    {
+      "check": "First full browser run",
+      "result": "Initial full run: 50/52 passed. Isolated ramp case timed out after 45 seconds. Examples checked bone movement while queued Worker warmup held the authored clock, then encountered a module-fetch error during overlapping package builds. Both ramp cases passed in targeted reruns; Examples now waits for startup, checks its playback clock, and passed against the static artifact without dependency fallback."
+    },
+    {
+      "check": "Built Examples first rerun",
+      "result": "Gene Light passed on default and legacy runtimes. The added warmup-wait lookup needed optional chaining on the pose-only page, which has no helper animation state. After that test-only correction the full built Examples case passed; existing assertions were retained."
+    }
+  ],
+  "localBuiltSite": {
+    "status": "PASSED",
+    "artifact": "dist/examples",
+    "prefix": "/three-mmd-loader",
+    "browser": "Google Chrome 155.0.8059.85, headless, SwiftShader",
+    "runtimeScope": "Only final artifact files served; no source-tree dependency fallback. Pinned original Miku/WAVEFILE and Gene Light assets.",
+    "evidence": [
+      {
+        "url": "http://127.0.0.1:57885/three-mmd-loader/examples/webgl_loader_mmd.html?backend=webgl",
+        "format": "pmd",
+        "mode": "sync",
+        "transport": null,
+        "ready": true,
+        "warmupComplete": true,
+        "playback": true,
+        "finite": true,
+        "render": true,
+        "errors": [],
+        "assets": [
+          "http://127.0.0.1:57885/three-mmd-loader/examples/ammo-runtime.js",
+          "http://127.0.0.1:57885/three-mmd-loader/examples/vendor/bullet/ammo.js",
+          "http://127.0.0.1:57885/three-mmd-loader/examples/vendor/bullet/ammo.wasm"
+        ]
+      },
+      {
+        "url": "http://127.0.0.1:57885/three-mmd-loader/examples/webgl_loader_mmd_pmx_gene.html?backend=webgl",
+        "format": "pmx",
+        "mode": "sync",
+        "transport": null,
+        "ready": true,
+        "warmupComplete": true,
+        "playback": true,
+        "finite": true,
+        "render": true,
+        "errors": [],
+        "assets": [
+          "http://127.0.0.1:57885/three-mmd-loader/examples/ammo-runtime.js",
+          "http://127.0.0.1:57885/three-mmd-loader/examples/vendor/bullet/ammo.js",
+          "http://127.0.0.1:57885/three-mmd-loader/examples/vendor/bullet/ammo.wasm"
+        ]
+      },
+      {
+        "url": "http://127.0.0.1:57885/three-mmd-loader/examples/webgl_loader_mmd_worker.html?backend=webgl",
+        "format": "pmd",
+        "mode": "worker",
+        "transport": "transferable",
+        "ready": true,
+        "warmupComplete": true,
+        "playback": true,
+        "finite": true,
+        "render": true,
+        "errors": [],
+        "assets": [
+          "http://127.0.0.1:57885/three-mmd-loader/examples/ammo-runtime.js",
+          "http://127.0.0.1:57885/three-mmd-loader/examples/vendor/bullet/ammo.js",
+          "http://127.0.0.1:57885/three-mmd-loader/examples/vendor/bullet/ammo.wasm",
+          "http://127.0.0.1:57885/three-mmd-loader/src/animation/MMDPhysicsWorker.js"
+        ]
+      }
+    ]
+  },
+  "postMerge": {
+    "latestPagesAttempt": {
+      "status": "PENDING",
+      "required": "After merge, inspect the latest attempt for the merge-triggered examples-pages.yml run; record run ID/attempt, conclusion, failures/retries and merge SHA. Match published deployment-manifest.json commit and JS/WASM hashes/loading paths."
+    },
+    "publicBrowserSmoke": {
+      "status": "PENDING",
+      "required": "Record URLs/browser/evidence that public PMD, Gene Light PMX and Worker pages load assets, initialize physics, finish warmup and enter normal playback without runtime errors."
+    },
+    "maintainerVisualFollowUp": {
+      "status": "UNVERIFIED",
+      "optional": true,
+      "acceptanceCriterion": false
+    },
+    "preMergeBlocker": false
+  },
+  "claims": "Automated evidence concerns initialization behavior, finite short runs and publication readiness. No appearance improvement or rare-instability improvement is claimed.",
+  "validatedAt": "2026-10-20T08:31:49.149690+00:00"
+}

@@ -9,11 +9,16 @@ import { inspectGeneLight } from '../../scripts/inspect-gene-light.ts';
 import { createExamplesServer } from '../../scripts/serve-examples.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
-interface Result { checks: Record<string, boolean>; error?: string }
+interface Result { checks: Record<string, boolean>; mobileLayout?: unknown; error?: string }
 const harness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
-const checks = {}, errors = [];
+const checks = {}, errors = []; let mobileLayout;
+const progress=stage=>fetch('/test-progress?stage='+encodeURIComponent(stage)).catch(()=>{});
 try {
+ progress('loading model');
  const frame = document.createElement('iframe'); frame.width=1024; frame.height=768;
+ // Keep the frame visible when a morph controller scrolls into view. Chrome
+ // can suspend resize events for an iframe scrolled outside the parent viewport.
+ frame.style.cssText='position:fixed;left:0;top:0;border:0';
  const loaded = new Promise(resolve => frame.onload=resolve);
  frame.src='/examples/webgl_loader_mmd_pmx_gene.html'+(new URLSearchParams(location.search).has('bullet')?'?bullet='+new URLSearchParams(location.search).get('bullet'):''); document.body.appendChild(frame); await loaded;
  const page=frame.contentWindow, doc=frame.contentDocument;
@@ -21,6 +26,7 @@ try {
  page.addEventListener('unhandledrejection', e=>errors.push(String(e.reason)));
  const context=await (await page.eval("import('/examples/webgl_loader_mmd_pmx_gene.js')")).ready;
  const {mesh, helper, gui, renderer, scene, camera, effect}=context;
+ progress('model ready');
  renderer.setAnimationLoop(null);
  const lights=scene.children.filter(c=>c.isLight);
  const ambient=lights.find(c=>c.isAmbientLight), directional=lights.find(c=>c.isDirectionalLight);
@@ -92,13 +98,41 @@ try {
  const oldCamera=camera.position.clone();const canvas=renderer.domElement;
  canvas.dispatchEvent(new page.WheelEvent('wheel',{deltaY:100,bubbles:true,cancelable:true}));
  checks.orbit=camera.position.distanceTo(oldCamera)>0;
+ let pendingResizes=0;
+ async function resizeFrame(width,height) {
+  frame.width=width;frame.height=height;
+  const deadline=performance.now()+5000;
+  const wait=async condition=>{
+   while(!condition()) {
+    if(performance.now()>deadline)throw new Error('Gene resize timeout: '+JSON.stringify({expected:{width,height},pendingResizes,frame:frame.getBoundingClientRect().toJSON(),viewport:{width:page.innerWidth,height:page.innerHeight},canvas:{width:canvas.clientWidth,height:canvas.clientHeight}}));
+    await new Promise(r=>setTimeout(r,25));
+   }
+  };
+  // Wait for layout from the parent, whose timers remain active. Chrome can
+  // defer a child frame's native resize event after scrollIntoView(), even
+  // though its viewport has already changed. Exercise the registered handler
+  // explicitly at that viewport instead of depending on event delivery timing.
+  await wait(()=>page.innerWidth===width && page.innerHeight===height);
+  page.dispatchEvent(new page.Event('resize'));
+  await wait(()=>pendingResizes===0 && canvas.clientWidth===width && canvas.clientHeight===height);
+ }
  // Mobile: open morph controls remain within the viewport and can be scrolled.
- frame.width=360;frame.height=640;await new Promise(r=>page.setTimeout(r,100));
+ progress('mobile resize');
+ // A slow renderer resize must not race the layout assertions, even when it
+ // exceeds the former 100 ms delay (notably with Linux's non-overlay scrollbars).
+ const setSize=renderer.setSize;
+ renderer.setSize=function(...args){pendingResizes++;setTimeout(()=>{setSize.apply(this,args);pendingResizes--;},400);return this;};
+ await resizeFrame(360,640);
+ checks.mobileCanvasSize=canvas.clientWidth===360 && canvas.clientHeight===640;
+ renderer.setSize=setSize;
  const rect=gui.domElement.getBoundingClientRect();
+ mobileLayout={rect:rect.toJSON(),width:page.innerWidth,height:page.innerHeight,clientWidth:doc.documentElement.clientWidth,clientHeight:doc.documentElement.clientHeight,canvas:{width:canvas.clientWidth,height:canvas.clientHeight},css:{top:page.getComputedStyle(gui.domElement).top,maxHeight:page.getComputedStyle(gui.domElement).maxHeight},scroll:{x:page.scrollX,y:page.scrollY}};
  checks.mobile=rect.left===0 && rect.bottom===page.innerHeight && rect.height<=page.innerHeight*0.5 && rect.width<=page.innerWidth*0.8;
  const ctrl=controller('メッシュなし').domElement;ctrl.scrollIntoView();const ir=ctrl.getBoundingClientRect();
  checks.mobileMorphReachable=ir.top>=rect.top && ir.bottom<=rect.bottom;
- frame.width=1024;frame.height=768;await new Promise(r=>page.setTimeout(r,100));
+ await resizeFrame(1024,768);
+ checks.desktopCanvasSize=canvas.clientWidth===1024 && canvas.clientHeight===768 && camera.aspect===1024/768;
+ progress('desktop resize complete');
  morphFolder.close();
  checks.noIsolation=page.crossOriginIsolated===false;
  checks.noRuntimeErrors=errors.length===0;
@@ -106,14 +140,15 @@ try {
  frame.remove();
  // Missing PMX or textures must fail before enabling controls.
  for(const missing of ['model','texture']){
+  progress('missing '+missing);
   const f=document.createElement('iframe');const loaded=new Promise(r=>f.onload=r);
   f.src='/examples/webgl_loader_mmd_pmx_gene.html?backend=webgl&missing='+missing+(new URLSearchParams(location.search).has('bullet')?'&bullet='+new URLSearchParams(location.search).get('bullet'):'');document.body.appendChild(f);await loaded;
   const ready=(await f.contentWindow.eval("import('/examples/webgl_loader_mmd_pmx_gene.js')")).ready;
   let rejected=false;try{await ready;}catch{rejected=true;}
   checks['missing_'+missing]=rejected && f.contentDocument.body.dataset.state==='error' && f.contentDocument.getElementById('controls').getAttribute('aria-disabled')==='true';f.remove();
  }
-} catch(error) { document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks,error:error.stack||String(error)})); }
-if(document.getElementById('result').textContent==='pending')document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks}));
+} catch(error) { document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks,mobileLayout,error:error.stack||String(error)})); }
+if(document.getElementById('result').textContent==='pending')document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({checks,mobileLayout}));
 </script>`;
 
 for ( const bullet of [ '', 'legacy' ] ) test( `licensed pinned Gene Light renders and exercises its actual PMX features without cross-origin isolation, Bullet=${bullet || 'default (no query)'}`, { timeout: 180000, skip: process.env.MMD_EXAMPLE_FIXTURES === '1' ? 'Synthetic artifact only; real pinned Gene is checked by test:browser and the Pages build.' : false }, async t => {
@@ -125,9 +160,15 @@ for ( const bullet of [ '', 'legacy' ] ) test( `licensed pinned Gene Light rende
 	const prefix = siteRoot ? '/three-mmd-loader' : '';
 	const app = createExamplesServer();
 	const handler = app.listeners( 'request' )[ 0 ];
+	let stage = 'browser launch';
 	const server = createServer( async ( request, response ) => {
 
-		if ( request.url?.startsWith( '/test' ) ) {
+		if ( request.url?.startsWith( '/test-progress?' ) ) {
+
+			stage = new URL( request.url, 'http://localhost' ).searchParams.get( 'stage' )!;
+			response.writeHead( 204 ).end();
+
+		} else if ( request.url?.startsWith( '/test' ) ) {
 
 			response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness.replaceAll( '/examples/', prefix + '/examples/' ) );
 
@@ -164,9 +205,10 @@ for ( const bullet of [ '', 'legacy' ] ) test( `licensed pinned Gene Light rende
 			assert.equal( ( await response.arrayBuffer() ).byteLength, size, path );
 
 		}
-		const result = await runBrowser<Result>( base + '/test' + ( bullet ? '?bullet=' + bullet : '' ), join( temporary, 'profile' ), 'light', 150000 );
-		assert.equal( result.error, undefined, result.error );
+		const result = await runBrowser<Result>( base + '/test' + ( bullet ? '?bullet=' + bullet : '' ), join( temporary, 'profile' ), 'light', 150000 ).catch( error => { throw new Error( `${String( error )}; last progress: ${stage}` ); } );
 		t.diagnostic( JSON.stringify( result.checks ) );
+		t.diagnostic( JSON.stringify( result.mobileLayout ) );
+		assert.equal( result.error, undefined, result.error );
 		for ( const [ name, passed ] of Object.entries( result.checks ) ) assert.equal( passed, true, name );
 
 	} finally {

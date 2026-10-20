@@ -251,6 +251,14 @@ try {
 		const context = await module.ready;
 		context.renderer.setAnimationLoop( null );
 		const { mesh, helper, camera, effect, renderer, scene } = context;
+		// Model readiness precedes queued Worker startup warmup. Controls and
+		// playback assertions must start after the fixed-time ramp has finished.
+		const startupPhysics = helper.objects.get( mesh )?.physics;
+		const warmupDeadline = performance.now() + 10000;
+		while ( startupPhysics?.workerStatus?.warmupRemaining || startupPhysics?.workerStatus?.inFlight ) {
+			if ( performance.now() > warmupDeadline ) throw new Error( 'Worker startup warmup timeout' );
+			await new Promise( resolve => setTimeout( resolve, 5 ) );
+		}
 		const checks = checkInfo( page, doc );
 		checks.wasmRuntime = suffix === '_pose' || doc.body.dataset.ammoBackend === 'wasm' && page.Ammo.bulletCommit === 'd3afe76132fc76b0f9b2359cbaef47a3766e7fbb';
 		checks.workerRemainsWorker = suffix !== '_worker' || helper.objects.get( mesh ).physics.physicsMode === 'worker';
@@ -342,6 +350,7 @@ try {
 			}
 			const before = mesh.skeleton.bones.map( b => b.position.toArray().concat( b.quaternion.toArray() ) );
 			helper.update( 0.5 );
+			checks.playbackClock = helper.objects.get( mesh ).mixer.time > 0;
 			checks.bonesAnimated = JSON.stringify( before ) !== JSON.stringify( mesh.skeleton.bones.map( b => b.position.toArray().concat( b.quaternion.toArray() ) ) );
 		}
 		effect.render( scene, camera );
@@ -517,6 +526,7 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 			const landing = await fetch( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}${prefix}/` );
 			assert.equal( landing.status, 200 );
 			assert.match( await landing.text(), /url=\.\/examples\// );
+			t.diagnostic( `Local artifact URL: http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}${prefix}/examples/` );
 			const index = await fetch( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}${prefix}/examples/` );
 			assert.equal( index.status, 200 );
 			assert.match( await index.text(), /webgl_loader_mmd_audio.html/ );
