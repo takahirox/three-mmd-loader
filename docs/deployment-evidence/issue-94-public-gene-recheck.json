@@ -1,0 +1,23 @@
+{
+  "checked_at": "2026-10-20T16:24:11.718Z",
+  "reason": "First live Gene run failed loading face.png; independent HTTP request returned 200 image/png and workflow verified its content hash. Recheck actual page with a fresh browser profile.",
+  "result": {
+    "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_pmx_gene.html?release-check=1792513441800",
+    "success": true,
+    "checks": {
+      "ready": true,
+      "rendered": true,
+      "format": "pmx",
+      "physicsMode": "sync",
+      "requestedPhysicsMode": "sync",
+      "bulletBackend": "master-d3afe76132fc",
+      "ammoBackend": "wasm",
+      "finiteBones": true,
+      "runtimePaths": [
+        "https://takahirox.github.io/three-mmd-loader/examples/ammo-runtime.js",
+        "https://takahirox.github.io/three-mmd-loader/examples/vendor/bullet/ammo.js",
+        "https://takahirox.github.io/three-mmd-loader/examples/vendor/bullet/ammo.wasm"
+      ]
+    }
+  }
+}

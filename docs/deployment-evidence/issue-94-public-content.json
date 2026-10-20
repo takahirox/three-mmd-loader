@@ -1,0 +1,57 @@
+{
+  "checked_at": "2026-10-20T16:24:27Z",
+  "commit": "deea1f4f475af94a796f4402bc23fc4f568a9429",
+  "manifest_file_count": 614,
+  "checks": [
+    {
+      "path": "examples/webgl_loader_mmd.js",
+      "status": 200,
+      "content_type": "application/javascript; charset=utf-8",
+      "sha256": "6d84089182bb6bbd8fb2945123d56851ef47174ee076ac74919a7e69d72d4d3e",
+      "success": true
+    },
+    {
+      "path": "examples/webgl_loader_mmd_pmx_gene.js",
+      "status": 200,
+      "content_type": "application/javascript; charset=utf-8",
+      "sha256": "3c8547652bdc0cdbce50760de2584e3bb09e14807388ba110a23558e17363bb2",
+      "success": true
+    },
+    {
+      "path": "examples/webgl_loader_mmd_worker.js",
+      "status": 200,
+      "content_type": "application/javascript; charset=utf-8",
+      "sha256": "9cd5e07a2a479c544b01fe2a8c7e5c2dadecae41b58698063045807ba06434be",
+      "success": true
+    },
+    {
+      "path": "examples/vendor/bullet/ammo.js",
+      "status": 200,
+      "content_type": "application/javascript; charset=utf-8",
+      "sha256": "b859346ea1eb226b5f385633b66432ca542240b73aa14dde9b27e2f0f8997500",
+      "success": true
+    },
+    {
+      "path": "examples/vendor/bullet/ammo.wasm",
+      "status": 200,
+      "content_type": "application/wasm",
+      "sha256": "e1bd8fe1da2c3da1e169305e753bd4def39e1127d724b80996cb2b0e98f6810f",
+      "success": true
+    },
+    {
+      "path": "examples/vendor/bullet/manifest.json",
+      "status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "sha256": "176f66cda3c5cf097521ef5e8dbca39f56da512d271491d4ad75219daf521747",
+      "success": true
+    },
+    {
+      "path": "examples/assets/gene-light/light/face.png",
+      "status": 200,
+      "content_type": "image/png",
+      "sha256": "d30fa6fef9d261bbc09564b374f0fb8f2220e02bace4cae09b74950afc623406",
+      "success": true
+    }
+  ],
+  "success": true
+}

@@ -1,0 +1,57 @@
+{
+  "checked_at": "2026-10-20T16:23:52.603Z",
+  "browser": "headless Google Chrome with SwiftShader",
+  "results": [
+    {
+      "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd.html?release-check=1792513403481",
+      "success": true,
+      "checks": {
+        "ready": true,
+        "rendered": true,
+        "format": "pmd",
+        "physicsMode": "sync",
+        "requestedPhysicsMode": "sync",
+        "bulletBackend": "master-d3afe76132fc",
+        "ammoBackend": "wasm",
+        "finiteBones": true,
+        "runtimePaths": [
+          "https://takahirox.github.io/three-mmd-loader/examples/ammo-runtime.js",
+          "https://takahirox.github.io/three-mmd-loader/examples/vendor/bullet/ammo.js",
+          "https://takahirox.github.io/three-mmd-loader/examples/vendor/bullet/ammo.wasm"
+        ]
+      }
+    },
+    {
+      "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_pmx_gene.html?release-check=1792513413723",
+      "success": false,
+      "error": "Error: Failed to load ./assets/gene-light/light/face.png\n    at manager.onError (https://takahirox.github.io/three-mmd-loader/examples/scene.js:72:31)\n    at LoadingManager.itemError (https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.core.js:44574:11)\n    at HTMLImageElement.onImageError (https://takahirox.github.io/three-mmd-loader/node_modules/three/build/three.core.js:45713:18)"
+    },
+    {
+      "url": "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.html?release-check=1792513419879",
+      "success": true,
+      "checks": {
+        "ready": true,
+        "rendered": true,
+        "format": "pmd",
+        "physicsMode": "worker",
+        "requestedPhysicsMode": "worker",
+        "transport": "transferable",
+        "workerStatus": {
+          "initialized": true,
+          "warmupRemaining": 0,
+          "inFlight": false,
+          "completedSequence": 60
+        },
+        "bulletBackend": "master-d3afe76132fc",
+        "ammoBackend": "wasm",
+        "finiteBones": true,
+        "runtimePaths": [
+          "https://takahirox.github.io/three-mmd-loader/examples/webgl_loader_mmd_worker.js",
+          "https://takahirox.github.io/three-mmd-loader/examples/ammo-runtime.js",
+          "https://takahirox.github.io/three-mmd-loader/examples/vendor/bullet/ammo.js",
+          "https://takahirox.github.io/three-mmd-loader/examples/vendor/bullet/ammo.wasm"
+        ]
+      }
+    }
+  ]
+}
