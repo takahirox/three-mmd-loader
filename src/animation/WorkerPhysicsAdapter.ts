@@ -13,14 +13,15 @@ export class WorkerPhysicsWorld {
 	private options?: WorkerPhysicsOptions;
 	private buffer?: ArrayBuffer | SharedArrayBuffer;
 	private control?: Int32Array;
-	private flight?: { generation: number; sequence: number; models: WorkerPhysicsAdapter[]; warmup: boolean; delta: number };
+	private flight?: { generation: number; sequence: number; models: WorkerPhysicsAdapter[]; warmup?: WorkerPhysicsAdapter; delta: number };
 	private generation = 0;
 	private sequence = 0;
 	lastCompletedSequence = 0;
 	get inFlight() { return Boolean( this.flight ); }
 	private nextId = 0;
 	private delta = 0;
-	private warming = false;
+	private warming?: WorkerPhysicsAdapter;
+	get warmingUp() { return Boolean( this.flight?.warmup || Array.from( this.members.values() ).some( m => m.warmupCycles > 0 ) ); }
 	private paused = false;
 	private failedReason?: string;
 	private stopped = false;
@@ -147,6 +148,7 @@ export class WorkerPhysicsWorld {
 			}
 
 		}
+		flight.warmup?.owner.warmupStepComplete?.( flight.generation === this.generation );
 		this.pumpWarmup();
 
 	}
@@ -156,13 +158,13 @@ export class WorkerPhysicsWorld {
 		if ( this.flight || this.stopped || this.failedReason || this.paused || Array.from( this.members.values() ).some( m => ! m.initialized ) ) return;
 		const member = Array.from( this.members.values() ).find( m => m.warmupCycles > 0 );
 		if ( ! member ) return;
-		member.warmupCycles --; this.delta = 0; this.warming = true;
+		member.warmupCycles --; this.delta = 0; this.warming = member;
 		try {
 
 			if ( member.owner.warmupStep ) member.owner.warmupStep( 1 / 60 );
 			else member.owner.update( 1 / 60 );
 
-		} finally { this.warming = false; }
+		} finally { this.warming = undefined; }
 
 	}
 
@@ -187,6 +189,14 @@ export class WorkerPhysicsWorld {
 	private fail( reason: string ) {
 
 		if ( this.failedReason || this.stopped ) return;
+		// A failed in-flight request has no accepted output. Replay its stage on
+		// the rebuilt world instead of silently consuming a queued warmup cycle.
+		if ( this.flight?.warmup ) {
+
+			this.flight.warmup.warmupCycles ++;
+			this.flight.warmup.owner.warmupStepCancelled?.();
+
+		}
 		this.failedReason = reason; this.close(); this.fallback();
 
 	}
