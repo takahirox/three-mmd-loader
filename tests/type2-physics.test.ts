@@ -60,7 +60,7 @@ for ( const phase of [ 'pre', 'post', 'post-parent' ] ) for ( const pmxAnimation
 			mesh.skeleton.bones[ 3 ].position.set( 2 + frame / 50, -0.3, 0.2 );
 			mesh.skeleton.bones[ 3 ].quaternion.setFromAxisAngle( new Vector3( 0, 1, 0 ), 0.2 );
 			input.getOrigin().setValue( x, 0, 0 );
-			oracle.bodies[ 0 ].body.setCenterOfMassTransform( input ); oracle.bodies[ 0 ].body.getMotionState().setWorldTransform( input );
+			oracle.bodies[ 0 ].body.getMotionState().setWorldTransform( input );
 			oracle.world!.stepSimulation( 1 / 60, 2, 1 / 60 );
 			helper.update( 1 / 60 );
 			for ( const i of [ 0, 1, 2 ] ) {

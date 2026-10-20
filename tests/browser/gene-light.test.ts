@@ -54,6 +54,17 @@ try {
  checks.animationMoves=JSON.stringify(before)!==JSON.stringify(bone('センター').position.toArray());
  helper.enable('physics',true);state.physics.reset();helper.update(1/30);
  checks.physicsSteps=state.physics.bodyResultPhase==='step' && state.physics.bodyResults.length===87;
+ // Controlled high-refresh smoke on the actual model and default runtime.
+ // This only establishes finite short runs, not long-running visual stability.
+ for(const fps of [60,120,144]) {
+  const before=state.mixer.time;
+  for(let i=0;i<12;i++) {
+   helper.update(1/fps);
+   if(!state.physics.bodyResults.every(r=>r.position.concat(r.quaternion).every(Number.isFinite)) || !mesh.skeleton.bones.every(b=>b.position.toArray().concat(b.quaternion.toArray()).every(Number.isFinite)))throw new Error('nonfinite Gene physics at '+fps+' FPS');
+  }
+  checks['finitePhysics'+fps]=true;
+  checks['elapsedTime'+fps]=Math.abs(state.mixer.time-before-12/fps)<1e-8;
+ }
  helper.enable('physics',false);
  const morphFolder=gui.folders[0]; morphFolder.open();
  const blink=mesh.morphTargetDictionary['まばたき'];
