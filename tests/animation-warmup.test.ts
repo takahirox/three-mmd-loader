@@ -388,6 +388,52 @@ for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const shared of [ false,
 
 } );
 
+for ( const format of [ 'pmd', 'pmx' ] as const ) for ( const shared of [ false, true ] ) for ( const backend of [ 'sync', 'worker-ready', 'worker-delayed', 'worker-fallback' ] ) test( `adding with physics disabled resumes current authored pose ${format} shared=${shared} ${backend}`, t => {
+
+	const helper = new MMDAnimationHelper( { sync: false } ), worker = new ManualWorker(), { mesh, clip, animated, target } = fixture( format ); helper.sharedPhysics = shared;
+	const reference = fixture( format ), animationOnly = new MMDAnimationHelper( { sync: false } );
+	animationOnly.add( reference.mesh, { animation: reference.clip, physics: false } );
+	animationOnly.update( 0 );
+	let steps = 0;
+	const step = host.Ammo.btDiscreteDynamicsWorld.prototype.stepSimulation;
+	t.mock.method( host.Ammo.btDiscreteDynamicsWorld.prototype, 'stepSimulation', function ( this: AmmoWorld, ...args: Parameters<AmmoWorld['stepSimulation']> ) {
+
+		steps ++; return step.apply( this, args );
+
+	} );
+	const weights: number[] = [];
+	helper.onBeforePhysics = () => weights.push( helper.objects.get( mesh )!.initialPose?.weight ?? 1 );
+	helper.enable( 'physics', false );
+	helper.add( mesh, { animation: clip, warmup: 3, physicsMode: backend === 'sync' ? 'sync' : 'worker', workerPhysics: worker.options(), gravity: new Vector3() } );
+	try {
+
+		const state = helper.objects.get( mesh )!, physics = state.physics!;
+		assert.ok( state.initialPose === undefined );
+		assert.equal( physics.workerAdapter?.warmupCycles ?? 0, 0 );
+		near( pose( mesh ), pose( reference.mesh ), 1e-4 );
+		for ( let i = 0; i < 60; i ++ ) { helper.update( 1 / 60 ); animationOnly.update( 1 / 60 ); }
+		if ( backend === 'worker-ready' ) finish( worker );
+		if ( backend === 'worker-fallback' ) worker.deliver( { type: 'error', reason: 'disabled startup failure' } );
+		near( [ state.mixer!.time ], [ 1 ] ); near( pose( mesh ), pose( reference.mesh ), 1e-4 );
+		assert.equal( steps, 0 ); assert.deepEqual( weights, [] );
+		const reset = physics.reset.bind( physics ); let resets = 0;
+		t.mock.method( physics, 'reset', () => { resets ++; return reset(); } );
+		helper.enable( 'physics', true );
+		assert.equal( resets, 1 );
+		const expected = target.map( value => value + 0.25 ); // authored time 1
+		if ( physics.workerAdapter ) near( physics.workerAdapter.resetSnapshot.slice( 16 + animated * 7, 19 + animated * 7 ), expected );
+		if ( backend === 'worker-delayed' ) { finish( worker ); assert.equal( steps, 0 ); }
+		helper.update( 1 / 60 );
+		if ( physics.workerAdapter ) finish( worker );
+		assert.equal( steps, 1 ); assert.deepEqual( weights, [ 1 ] );
+		near( [ state.mixer!.time ], [ 1 + 1 / 60 ] );
+		near( ( state.poseLayers?.authored ?? state.backupBones! ).slice( animated * 7, animated * 7 + 3 ), expected.map( value => value + 0.25 / 60 ) );
+		assert.equal( state.initialPose, undefined ); assert.ok( pose( mesh ).every( Number.isFinite ) );
+
+	} finally { helper.remove( mesh ); animationOnly.remove( reference.mesh ); }
+
+} );
+
 for ( const invalid of [ 'nan', 'length', 'incomplete-shared' ] ) for ( const cycles of [ 1, 3 ] ) test( `rejected ${invalid} warmup result replays ${cycles === 1 ? 'final' : 'intermediate'} stage on fallback`, t => {
 
 	if ( invalid === 'incomplete-shared' ) {

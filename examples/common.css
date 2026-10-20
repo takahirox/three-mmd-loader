@@ -4,6 +4,8 @@
 body {
 	background-color: #fff;
 	color: #444;
+	/* A pending canvas resize must not shrink the viewport with scrollbars. */
+	overflow: hidden;
 }
 
 a {

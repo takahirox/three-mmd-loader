@@ -70,7 +70,7 @@ export interface MMDAnimationState {
  */
 class MMDAnimationHelper {
 
-	private cancelledWorkerWarmups = new WeakSet<MMDPhysics>();
+	private cancelledPhysicsWarmups = new WeakSet<MMDPhysics>();
 	private materialMorphControllers = new WeakMap<MMDMesh, MMDMaterialMorphController>();
 	private boneMorphControllers = new WeakMap<MMDMesh, MMDBoneMorphController>();
 
@@ -377,7 +377,7 @@ class MMDAnimationHelper {
 						for ( const member of group.cancelWarmup() ) {
 
 							const mesh = member.owner.mesh as MMDMesh, state = this.objects.get( mesh )!;
-							this.cancelledWorkerWarmups.add( member.owner );
+							this.cancelledPhysicsWarmups.add( member.owner );
 							if ( state.initialPose ) {
 
 								this.boneMorphControllers.get( mesh )?.restore();
@@ -406,7 +406,7 @@ class MMDAnimationHelper {
 					for ( const mesh of this.meshes ) {
 
 						const physics = this.objects.get( mesh )?.physics;
-						if ( physics && this.cancelledWorkerWarmups.delete( physics ) ) physics.reset();
+						if ( physics && this.cancelledPhysicsWarmups.delete( physics ) ) physics.reset();
 
 					}
 					for ( const group of groups ) group.pause( false );
@@ -688,7 +688,11 @@ class MMDAnimationHelper {
 		this._optimizeIK( mesh, this.enabled.physics );
 
 		const animationWarmup = ( objects.mixer || this._getBoneMorphController( mesh ) ) && params.animationWarmup !== false;
-		const cycles = Math.max( 0, Math.floor( params.warmup !== undefined ? params.warmup : 60 ) );
+		// Disabled physics has no startup to settle. Evaluate the full authored
+		// pose now and reset at the current pose on enable, rather than queueing
+		// a fixed-time ramp that animation can outgrow before Worker readiness.
+		const cycles = this.enabled.physics ? Math.max( 0, Math.floor( params.warmup !== undefined ? params.warmup : 60 ) ) : 0;
+		if ( ! this.enabled.physics ) this.cancelledPhysicsWarmups.add( objects.physics );
 		if ( animationWarmup ) {
 
 			// Evaluate only the authored input, without a physics update or IK/grant
