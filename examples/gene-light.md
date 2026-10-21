@@ -109,7 +109,9 @@ standard mobile GUI.
 400×250 preview of this exact permitted scene. It retains the model credit
 above and in the gallery's linked terms. Issue #63 refreshes it with native
 default light intensities, the existing scene camera, and active physics at two
-seconds of the generated animation. To regenerate all gallery previews:
+seconds of the generated animation. Issue #98 retains this 1/1 preview and
+its original capture provenance while explicitly setting both lights to 1 in
+all scenes. To recapture the four Miku previews and verify Gene at runtime:
 
 ```sh
 npm run examples:capture

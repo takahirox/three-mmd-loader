@@ -90,7 +90,9 @@ also select the new default. There is no engine-selection UI.
 No physics parameters are changed. Default fixed step is still `1/60`,
 `maxStepNum=10`; gravity, STOP_ERP, damping, collision policy, poses,
 animation/IK and kinematic control remain in the existing implementation.
-The gallery's retained JPEGs predate the default switch.
+The retained Gene JPEG predates the default switch; Issue #98 recaptures the
+four Miku JPEGs with the default runtime at 1/1 lighting. See the
+[lighting validation record](examples-lighting-validation.md).
 
 The WebIDL surface covers the structural APIs in `src/ammo.ts`, native worlds,
 motion states, sphere/box/capsule shapes, additional damping construction fields,

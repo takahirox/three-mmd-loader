@@ -8,10 +8,10 @@ import { geneLightManifest } from '../scripts/gene-light-assets.ts';
 const ids = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose', 'webgl_loader_mmd_worker', 'webgl_loader_mmd_pmx_gene' ];
 const sha256 = ( bytes: Uint8Array ) => createHash( 'sha256' ).update( bytes ).digest( 'hex' );
 const previousImages: Record<string, string> = {
-	webgl_loader_mmd: '6acd677980a41dd35d5ffade7937dd35e57d0be98dcaecdec5dc2b69bc384ce8',
-	webgl_loader_mmd_audio: '272395631a0018e41a0c0e8b131db99174007ed86d02f11159caf866c9c48d2c',
-	webgl_loader_mmd_pose: '25b27f1face319f6d36ed356a8f7847ec874174bf76c8839d8382eb7287fdfda',
-	webgl_loader_mmd_worker: 'ceb75de73236d773ad4140bba8fbc8cc634f1536a77883cdd6d3b501808b703f',
+	webgl_loader_mmd: '29677c3d3816cbf7ccde248e0dc8ef794463c4fb5a81fa8c444950c12bcf084c',
+	webgl_loader_mmd_audio: 'b090d442aeed0f3f77c709cda1173193ea9175b574365870198cab41dc97c3f7',
+	webgl_loader_mmd_pose: 'a98fa116780426a93f47ffd1b6b831c4efa1b0fd006c9ecfb6d710d6338ce315',
+	webgl_loader_mmd_worker: '4b0b3107c5c62f7ab976afb5d68ba520c09fa68512a8bc67afb5366cce73168f',
 	webgl_loader_mmd_pmx_gene: 'b0ad142b8a7c7e640893a1e07205e9508484fe28c11ffc2382e6c1780ca6da48'
 };
 
@@ -66,7 +66,7 @@ function jpegDimensions( bytes: Buffer ) {
 
 }
 
-test( 'four brighter Miku previews and unchanged Gene preview have valid dimensions, hashes and per-mode provenance', async () => {
+test( 'four 1/1 Miku previews and unchanged Gene preview have valid dimensions, hashes and per-mode provenance', async () => {
 
 	const gallery = await readFile( new URL( '../examples/index.html', import.meta.url ), 'utf8' );
 	const scene = await readFile( new URL( '../examples/scene.ts', import.meta.url ) );
@@ -85,13 +85,13 @@ test( 'four brighter Miku previews and unchanged Gene preview have valid dimensi
 
 		const gene = entry.page.endsWith( '_pmx_gene' );
 		assert.equal( entry.mode, gene ? 'gene' : entry.page.endsWith( '_audio' ) ? 'audio' : entry.page.endsWith( '_pose' ) ? 'pose' : 'animation' );
-		assert.deepEqual( entry.lighting, gene ? { ambient: 1, directional: 1 } : { ambient: 2, directional: 3 } );
+		assert.deepEqual( entry.lighting, { ambient: 1, directional: 1 } );
 		assert.equal( entry.retained, gene );
 		assert.ok( ! Number.isNaN( Date.parse( entry.capturedAt ) ) );
 		assert.match( entry.userAgent, /HeadlessChrome/ );
 		if ( gene ) {
 
-			assert.equal( entry.sha256, previousImages[ entry.page ], 'Issue #66 must preserve the exact Gene JPEG' );
+			assert.equal( entry.sha256, previousImages[ entry.page ], 'Preserve the original 1/1 Gene JPEG' );
 			assert.equal( entry.sceneSha256, 'c99bd2096f6e45a27af9cf9e6cfbb3bcba147b3ff366850d8735bf25fccbfd95', 'Retain Gene original capture provenance' );
 			assert.equal( entry.capturedAt, '2026-10-14T09:29:07.294Z' );
 			assert.equal( entry.checks.defaultLights, true, 'Original Gene capture used native defaults' );
@@ -100,7 +100,7 @@ test( 'four brighter Miku previews and unchanged Gene preview have valid dimensi
 
 			assert.equal( entry.sceneSha256, manifest.sceneSha256 );
 			assert.equal( entry.capturedAt, manifest.capturedAt );
-			assert.equal( entry.previousSha256, previousImages[ entry.page ], 'Record the replaced 1/1 image' );
+			assert.equal( entry.previousSha256, previousImages[ entry.page ], 'Record the replaced Issue #66 2/3 image' );
 			assert.notEqual( entry.sha256, entry.previousSha256, 'Must refresh each Miku capture' );
 
 		}
@@ -121,8 +121,8 @@ test( 'four brighter Miku previews and unchanged Gene preview have valid dimensi
 
 	}
 	assert.equal( new Set( manifest.entries.map( ( entry: { sha256: string } ) => entry.sha256 ) ).size, ids.length, 'Worker must have its own distinct capture' );
-	// Browser checks exercise all modes; ensure Gene still uses native defaults.
-	assert.match( scene.toString(), /new AmbientLight\( 0xffffff, mode === 'gene' \? undefined : 2 \)/ );
-	assert.match( scene.toString(), /new DirectionalLight\( 0xffffff, mode === 'gene' \? undefined : 3 \)/ );
+	// Browser checks exercise all modes; require explicit shared 1/1 lighting.
+	assert.match( scene.toString(), /new AmbientLight\( 0xffffff, 1 \)/ );
+	assert.match( scene.toString(), /new DirectionalLight\( 0xffffff, 1 \)/ );
 
 } );

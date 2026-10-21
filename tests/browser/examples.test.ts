@@ -302,7 +302,7 @@ try {
 		const lights = scene.children.filter( child => child.isLight );
 		const ambient = lights.find( child => child.isAmbientLight );
 		const directional = lights.find( child => child.isDirectionalLight );
-		checks.lightIntensities = lights.length === 2 && ambient.intensity === 2 && directional.intensity === 3;
+		checks.lightIntensities = lights.length === 2 && ambient.intensity === 1 && directional.intensity === 1;
 		checks.lightColors = ambient.color.getHex() === 0xffffff && directional.color.getHex() === 0xffffff;
 		checks.lightDirection = directional.position.toArray().join( ',' ) === '-1,2,1' && directional.target.position.toArray().join( ',' ) === '0,0,0';
 		let guiRect = gui.getBoundingClientRect();

@@ -33,8 +33,8 @@ light/dark colors from the Issue #14 references: Three.js `examples/index.html`
 (blob `eab4263a7a7570bb433cab3048d5735d4782f673`). It is separate from the demo
 stylesheets. The four Miku previews in `screenshots/` replace the original
 official r171 screenshots with local captures of this checkout's real
-model/animation, audio/camera, pose, and Worker scenes with ambient intensity 2
-and directional intensity 3, restored for Issue #66.
+model/animation, audio/camera, pose, and Worker scenes with ambient intensity 1
+and directional intensity 1, updated for Issue #98.
 Their model, texture, motion, camera, and pose sources are pinned to the same
 Three.js commit as the assets below. They depict the credited Miku character
 and retain the applicable character/asset terms; they are not MIT licensed
@@ -151,23 +151,24 @@ audio playback also needs browser audio support.
 ### Gallery thumbnail capture
 
 All five gallery cards use local **400×250 JPEG** captures from their real
-example pages with white `AmbientLight` and `DirectionalLight`. Issue #66
-restores the brighter lighting for the four Miku examples and recaptures their
-previews, including a distinct Worker image. Gene retains native Three.js
-defaults and its exact Issue #63 JPEG bytes.
+example pages with white `AmbientLight` and `DirectionalLight`, both explicitly
+set to intensity **1** in every mode. Issue #98 recaptures the four Miku
+previews, including a distinct Worker image, after the corrected MMD direct
+diffuse lighting in #96/#97. Gene already used 1/1 lighting and retains its
+exact Issue #63 JPEG bytes and historical capture provenance.
 
 | Page / mode | Ambient intensity | Directional intensity | Preview |
 | --- | --- | --- | --- |
-| Model and animation / `animation` | 2 | 3 | Recaptured |
-| Worker Physics / `animation` | 2 | 3 | Recaptured separately |
-| Audio and camera / `audio` | 2 | 3 | Recaptured |
-| Poses / `pose` | 2 | 3 | Recaptured |
-| PMX — Gene (Light) / `gene` | 1 (native default) | 1 (native default) | Retained unchanged |
+| Model and animation / `animation` | 1 | 1 | Recaptured |
+| Worker Physics / `animation` | 1 | 1 | Recaptured separately |
+| Audio and camera / `audio` | 1 | 1 | Recaptured |
+| Poses / `pose` | 1 | 1 | Recaptured |
+| PMX — Gene (Light) / `gene` | 1 | 1 | Retained unchanged |
 
 Camera positions, lighting direction, materials, outlines, and renderer tone
-mapping remain those of the examples. The mixed intensities are intentional
-per-example art direction. This is a preview refresh, not a claim
-of exact MikuMikuDance parity or a separately confirmed visual outcome.
+mapping remain those of the examples. The corrected MMD material/shading
+implementation is unchanged. These captures do not establish visual
+equivalence to MikuMikuDance.
 
 From the repository root with dependencies and Chrome installed:
 
@@ -200,9 +201,9 @@ date, browser, asset source commits, current scene source hash, per-mode light
 intensities, frame/pose state, checks, and image SHA-256s. Each entry records its
 own capture date, browser and scene hash: Gene retains the original Issue #63
 capture provenance and checks, with separate current runtime verification
-checks. Miku entries record the replaced Issue #63 image hashes, retained on
-subsequent recapture. The method reproduces the scene state; JPEG bytes can
-vary with browser/platform versions. Automated tests verify all five gallery
+checks. Miku entries record the replaced Issue #66 2/3 image hashes, retained
+on subsequent recapture at 1/1. The method reproduces the scene state; JPEG
+bytes can vary with browser/platform versions. Automated tests verify all five gallery
 references, image hashes, current scene
 provenance, and decoded 400×250 dimensions in the browser. The static build
 copies the images and manifest; the npm package excludes example assets.
@@ -218,8 +219,8 @@ is a derivative presentation of the unchanged CC BY 4.0 Gene Light model and
 textures, with the credit and separate usage conditions above. Neither image
 set asserts author endorsement or grants additional character/asset rights.
 
-Issue #66's required post-merge workflow and public gallery verification is
-**PENDING**; see [the validation record](https://github.com/takahirox/three-mmd-loader/blob/main/docs/default-lighting-validation.md).
+Issue #98's required post-merge Tests/Pages workflow and deployed-scene verification is
+**PENDING**; see [the validation record](https://github.com/takahirox/three-mmd-loader/blob/main/docs/examples-lighting-validation.md).
 It is not a pre-merge gate.
 
 ### Miku asset sources
@@ -277,8 +278,9 @@ WASM runtime; a main-thread initialization failure displays an error and stops
 setup. There is no asm.js fallback in the Examples.
 
 Changing the default backend does not establish improved stability,
-visual fidelity or universal speed. Existing gallery JPEGs retain
-their original asm.js capture provenance and do not demonstrate WASM parity.
+visual fidelity or universal speed. The four Miku gallery JPEGs are captured
+with the default WASM runtime. Gene retains its original asm.js capture provenance; neither set establishes
+WASM/asm.js visual or motion parity.
 See [consumer initialization and CSP](https://github.com/takahirox/three-mmd-loader/blob/main/README.md#optional-worker-physics) and
 [current validation evidence](https://github.com/takahirox/three-mmd-loader/blob/main/docs/bullet-default.md).
 
