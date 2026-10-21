@@ -35,7 +35,8 @@ try {
   check(backend==='webgl'?renderer.backend.isWebGLBackend:renderer.backend.isWebGPUBackend,'backend mismatch');
   const target=new RenderTarget(64,64);target.texture.colorSpace=LinearSRGBColorSpace;renderer.setRenderTarget(target);
   const scene=new Scene(),camera=new OrthographicCamera(-1,1,1,-1,0.1,10);camera.position.z=4;
-  const light=new DirectionalLight(0xffffff,Math.PI);light.position.z=3;scene.add(light);
+  // Unit direct illumination: the MMD diffuse path has no Lambert 1/pi.
+  const light=new DirectionalLight(0xffffff,1);light.position.z=3;scene.add(light);
   const loader=new MMDLoader();loader.meshBuilder.materialBuilder.textureLoader.load=()=>new DataTexture(new Uint8Array([255,255,255,255]),1,1);
   const mesh=loader.meshBuilder.build(new Parser().parsePmx(new Uint8Array(${JSON.stringify( Array.from( new Uint8Array( sdefPmxBuffer( { uvMorphs: true } ) ) ) )}).buffer,true),'');
   mesh.frustumCulled=false;scene.add(mesh);mesh.skeleton.bones[0].rotation.y=0.3;mesh.skeleton.bones[1].rotation.z=-0.4;

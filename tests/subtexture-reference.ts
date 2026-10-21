@@ -1,6 +1,7 @@
 // Independent coordinate/composition oracle. PMX mode 3 is a multiplicative
 // RGBA texture layer (Nanoem model_color.hlsl, isSphereTextureAsSubTexture).
 // Never call the loader's UV evaluator or construct a TSL graph here.
+import { referenceSampler, srgbToLinear } from './mmd-color-reference.ts';
 import { subtextureTexels } from './fixtures.ts';
 export function referenceSubtexture( weight: number, { flipY = false, repeat = true, offset = [ 0, 0 ], scale = [ 1, 1 ] } = {} ) {
 
@@ -13,6 +14,8 @@ export function referenceSubtexture( weight: number, { flipY = false, repeat = t
 }
 export function referenceSubtextureColor( texel: number[], color = [ 0.8, 0.6, 0.4 ], opacity = 0.8, factor = [ 1, 1, 1, 1 ] ) {
 
-	return [ ...color.map( ( v, i ) => v * texel[ i ] * factor[ i ] ), opacity * texel[ 3 ] * factor[ 3 ] ].map( Math.round );
+	const encode = ( v: number ) => v <= 0.0031308 ? 12.92 * v : 1.055 * v ** ( 1 / 2.4 ) - 0.055;
+	const rgb = referenceSampler( texel.slice( 0, 3 ).map( v => encode( v / 255 ) ), factor ).map( srgbToLinear );
+	return [ ...color.map( ( v, i ) => v * rgb[ i ] * 255 ), opacity * texel[ 3 ] ].map( Math.round );
 
 }

@@ -11,12 +11,17 @@ is ignored by SubTexture.
 The composition is **multiplication of RGB and alpha**, before specular lighting:
 
 ```text
-surface diffuse RGB *= sample.rgb * mmdSphereColor.rgb
-ambient/emissive RGB *= sample.rgb * mmdSphereColor.rgb
-surface alpha       *= sample.a   * mmdSphereColor.a
+surface diffuse RGB *= reconstructed sample RGB
+ambient/emissive RGB *= reconstructed sample RGB
+surface alpha       *= original sample.a
 ```
 
-Sphere alpha factors are applied once. Specular is not tinted by this layer.
+The RGB reconstruction uses the separate source-space `mmdSphereColor` multiply
+and `mmdSphereColorAdd` additive controls, as described in
+[material morphs](material-morphs.md). Control alpha blends RGB against white;
+it never multiplies surface or shadow opacity. Sampled alpha remains unchanged.
+
+SubTexture sample alpha is applied once. Specular is not tinted by this layer.
 Texture RGB uses Three's working color space; alpha remains linear. The base
 color texture, opacity, alpha map and toon factors still participate normally.
 This is not additive composition, alpha-over decals, or the existing mode-1

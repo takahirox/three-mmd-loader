@@ -1409,7 +1409,7 @@ class MaterialBuilder {
 
 			// Keep alpha-capable materials in one blending pipeline for the whole
 			// playback. Classify all direct type 8 targets, including -1, both modes
-			// and sampler alpha factors. Group targets use the same payloads.
+			// and material/edge alpha. Sampler A controls RGB only.
 			for ( const morph of data.morphs ) {
 
 				if ( morph.type !== 8 ) continue;
@@ -1420,10 +1420,7 @@ class MaterialBuilder {
 					for ( const [ index, material ] of materials.entries() ) {
 
 						if ( element.index !== - 1 && element.index !== index ) continue;
-						const changesAlpha = [ element.diffuse[ 3 ], element.edgeColor[ 3 ],
-							...( material.map ? [ element.textureColor[ 3 ] ] : [] ),
-							...( material.matcap ? [ element.sphereTextureColor[ 3 ] ] : [] ),
-							...( material.gradientMap ? [ element.toonColor[ 3 ] ] : [] ) ].some( value => Number.isFinite( value ) && value !== identity );
+						const changesAlpha = [ element.diffuse[ 3 ], element.edgeColor[ 3 ] ].some( value => Number.isFinite( value ) && value !== identity );
 						if ( changesAlpha ) { material.transparent = true; material.side = DoubleSide; }
 
 					}
