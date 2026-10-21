@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { materialPmxBuffer } from '../fixtures.ts';
-import { referenceMaterial } from '../material-morph-reference.ts';
+import { referenceMaterial, referenceSamplerControls } from '../material-morph-reference.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
 const weights = [ [], [ 0, 0.5 ], [ 0, 1 ], [ 0, 0, 0.5 ], [ 0, 0, 1 ], [ 0, 0, 0, 0, 0.5 ], [ 0, 0, 0, 0, 1 ], [ 0, 0.2, 0.1, 0.3, 0.4, 0.2 ], [], [ 0, 0, 2 ], [ 0, 0, 0, 0, 1.6 ] ];
-const cases = weights.map( w => ( { weights: w, expected: [ 0, 1, 2 ].map( i => referenceMaterial( w, i ) ) } ) );
+const cases = weights.map( w => ( { weights: w, expected: [ 0, 1, 2 ].map( i => ( { ...referenceMaterial( w, i ), controls: referenceSamplerControls( w, i ) } ) ) } ) );
 
 test( 'PMX material morph surface RGBA, sampler factors, outlines and zero-alpha shadows render on both TSL backends', { timeout: 180000 }, async t => {
 
@@ -30,6 +30,7 @@ import { Parser } from 'mmd-parser';
 const result={errors:[],backends:[],webgpu:false};
 console.error=(...args)=>result.errors.push(args.map(String).join(' '));
 const check=(v,m)=>{if(!v)throw new Error(m);};
+const sampleRGB=(t,c,n=1)=>t.map((v,i)=>linear(n+(v*c.multiply[i]+c.add[i]-n)*(c.multiply[3]+c.add[3])));
 const linear=v=>v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;
 const cases=${JSON.stringify( cases )};
 function solid(r,g,b,a=255){const t=new DataTexture(new Uint8Array([r,g,b,a]),1,1);t.colorSpace=SRGBColorSpace;t.needsUpdate=true;return t;}
@@ -91,20 +92,21 @@ try {
     for(const c of cases) {
      mesh.morphTargetInfluences.fill(0);c.weights.forEach((w,i)=>mesh.morphTargetInfluences[i]=w);helper.update(0);
      const e=c.expected[index],spec=mode==='specular',lit=['diffuse','map','toon','ambient-toon','all','specular'].includes(mode),ambient=mode.startsWith('ambient')||!lit||mode==='all';
-     light.visible=lit;light.intensity=Math.PI*(spec?0.05:1);
+     light.visible=lit;light.intensity=(spec?0.05:1);
      if(!ambient)m.ambient.setRGB(0,0,0);if(mode.startsWith('ambient'))m.color.setRGB(0,0,0);if(!spec)m.specular.setRGB(0,0,0);
-     const map=m.map?[128/255,192/255,224/255].map(linear):[1,1,1];
-     const toon=m.gradientMap?[128/255,192/255,224/255].map(linear):[1,1,1];
-     let alpha=e.diffuse[3]*(m.map?192/255*e.textureColor[3]:1)*(m.matcap?e.sphereTextureColor[3]:1)*(m.gradientMap?e.toonColor[3]:1);
+     const texel=[128/255,192/255,224/255];
+     const map=m.map?sampleRGB(texel,e.controls.textureColor):[1,1,1];
+     const toon=m.gradientMap?sampleRGB(texel,e.controls.toonColor):[1,1,1];
+     let alpha=e.diffuse[3]*(m.map?192/255:1);
      // Independent equation from docs/material-shading.md; source morph values
      // come from the authored PMX oracle, never the GPU material uniforms.
      let rgb=e.ambient.map((a,i)=>{
       const d=lit&&!mode.startsWith('ambient')?linear(e.diffuse[i])*(spec?0.05:1):0;
-      const r=lit?toon[i]*(m.gradientMap?linear(e.toonColor[i]):1):1;
-      return (d+(ambient?0.5*linear(a):0))*map[i]*(m.map?linear(e.textureColor[i]):1)*r;
+      const r=lit?toon[i]:1;
+      return (d+(ambient?0.5*linear(a):0))*map[i]*r;
      });
-     if(spec)rgb=rgb.map((v,i)=>v+linear(e.specular[i])*0.05*(Math.max(e.shininess,0.0001)*0.5+1)/4);
-     if(m.matcap)rgb=rgb.map((v,i)=>m.matcapCombine===0?v*linear([128/255,192/255,224/255][i])*linear(e.sphereTextureColor[i]):v+linear([128/255,192/255,224/255][i])*linear(e.sphereTextureColor[i])*toon[i]*(m.gradientMap?linear(e.toonColor[i]):1));
+     if(spec)rgb=rgb.map((v,i)=>v+linear(e.specular[i])*0.05);
+     if(m.matcap)rgb=rgb.map((v,i)=>m.matcapCombine===0?v*sampleRGB(texel,e.controls.sphereTextureColor,m.matcapCombine===0?1:0)[i]:v+sampleRGB(texel,e.controls.sphereTextureColor,m.matcapCombine===0?1:0)[i]*toon[i]);
      const expected=[...rgb.map(v=>Math.round(Math.max(0,Math.min(1,v))*alpha*255)),Math.round(alpha*alpha*255)];
      near(center(await pixels()),expected,backend+' '+mode+' material '+index+' weights '+c.weights);samples++;
     }
@@ -144,6 +146,15 @@ try {
   for(const weight of [0,0.5,1,0]) {mesh.morphTargetInfluences.fill(0);mesh.morphTargetInfluences[1]=weight;helper.update(0);const p=await pixels();shadowSamples.push(Array.from(p.slice((64*128+64)*4,(64*128+64)*4+3)));}
   check(shadowSamples[2][0]>shadowSamples[0][0]+100,'zero-alpha caster shadow persists '+JSON.stringify(shadowSamples));
   near(shadowSamples[3],shadowSamples[0],'shadow reset');
+  // RGB-control A=0 must not remove a real opaque caster. Texture alpha and
+  // material opacity still govern the same alpha test in the shadow pass.
+  m.map=m.matcap=m.gradientMap=shared;m.alphaTest=0.5;m.needsUpdate=true;
+  m.mmdTextureColor.w=m.mmdSphereColor.w=m.mmdToonColor.w=1;
+  const realShadow=center(await pixels())[0];
+  m.mmdTextureColor.w=m.mmdSphereColor.w=m.mmdToonColor.w=0;
+  near([center(await pixels())[0]],[realShadow],backend+' RGB control alpha preserves caster');
+  m.opacity=0.4;check(center(await pixels())[0]>realShadow+100,backend+' actual texture/material alpha test');
+  m.map=m.matcap=m.gradientMap=null;m.alphaTest=0;m.needsUpdate=true;helper.update(0);
   const shadowBaseline=await pixels();let invalidShadowCases=0;
   for(const index of [1,2,4,5]) for(const invalid of [NaN,Infinity,-Infinity]) {
    publicWeights[index]=invalid;helper.update(0);const p=await pixels();

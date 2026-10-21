@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { referenceMMDColor, srgbToLinear } from '../mmd-color-reference.ts';
+import { referenceMMDColor, referenceSampler, srgbToLinear } from '../mmd-color-reference.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
 const ambient = [ 1, 0.8, 0.6 ];
@@ -22,7 +22,7 @@ const cases = textures.flatMap( texture => [ 'none', 'direct', 'ramp', 'indirect
 		const sphere = mode === 'none' ? undefined : { mode: mode as 'multiply' | 'add' | 'subtexture', color: sphereColor };
 		const expected = referenceMMDColor( {
 			ambient: ambient.map( srgbToLinear ), diffuse: diffuse.map( srgbToLinear ),
-			texture: texture?.map( v => srgbToLinear( v / 255 ) ), textureFactor: factor, lights,
+			texture: texture ? referenceSampler( texture.map( v => v / 255 ), [ ...factor, 1 ] ).map( srgbToLinear ) : undefined, lights,
 			indirect: lighting === 'indirect' ? [ 0.1, 0.1, 0.1 ] : undefined, sphere
 		} );
 		return { texture, lighting, mode, expected };
@@ -54,8 +54,8 @@ try {
   if(backend==='webgpu')renderer.backend.device.addEventListener('uncapturederror',e=>result.errors.push(e.error.message));
   const target=new RenderTarget(32,32);target.texture.colorSpace=LinearSRGBColorSpace;renderer.setRenderTarget(target);
   const scene=new Scene(),camera=new OrthographicCamera(-1,1,1,-1,0.1,10);camera.position.z=4;
-  const light=new DirectionalLight(0xffffff,Math.PI*0.25);light.position.z=3;
-  const second=new DirectionalLight(0xffffff,Math.PI*0.25);second.position.z=-3;
+  const light=new DirectionalLight(0xffffff,0.25);light.position.z=3;
+  const second=new DirectionalLight(0xffffff,0.25);second.position.z=-3;
   const indirect=new AmbientLight(0xffffff,Math.PI*0.1);scene.add(light,second,indirect);
   const material=new MMDToonMaterial({blending:NoBlending,specular:0x000000});
   material.ambient.setRGB(...${JSON.stringify( ambient )},SRGBColorSpace);material.color.setRGB(...${JSON.stringify( diffuse )},SRGBColorSpace);
@@ -81,7 +81,7 @@ try {
   for(const mode of ['none','multiply','add','subtexture']) {
    material.matcap=mode==='none'?null:sphere;material.matcapMode=mode==='subtexture'?'subtexture':'sphere';material.matcapCombine=mode==='add'?AddOperation:MultiplyOperation;material.needsUpdate=true;
    material.specular.setRGB(0,0,0);const baseline=await pixel();material.specular.setRGB(0.2,0.3,0.4);const lit=await pixel();
-   near(lit.map((v,i)=>v-baseline[i]),[0.2,0.3,0.4].map(v=>v*0.25*(8*0.5+1)/4),backend+' separate specular '+mode);samples++;
+   near(lit.map((v,i)=>v-baseline[i]),[0.2,0.3,0.4].map(v=>v*0.25),backend+' separate specular '+mode);samples++;
   }
   // User emission remains a separate Three channel, including custom nodes.
   light.visible=false;material.map=textures[4];material.matcap=material.gradientMap=null;material.specular.setRGB(0,0,0);material.emissive.setRGB(0.1,0.2,0.3);material.emissiveIntensity=2;material.needsUpdate=true;

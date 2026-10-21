@@ -31,6 +31,9 @@ for ( const morph of materialMorphs ) {
 	void values;
 }
 mesh.material[ 0 ].mmdTextureColor.set( 1, 1, 1, 1 );
+mesh.material[ 0 ].mmdTextureColorAdd.set( 0, 0, 0, 0 );
+mesh.material[ 0 ].mmdSphereColorAdd.set( 0, 0, 0, 0 );
+mesh.material[ 0 ].mmdToonColorAdd.set( 0, 0, 0, 0 );
 const boneMorphs: MMDBoneMorph[] = mesh.geometry.userData.MMD.boneMorphs ?? [];
 for ( const morph of boneMorphs ) mesh.morphTargetInfluences![ morph.index ] = 0.5;
 const groupMorphs: MMDGroupMorph[] = mesh.geometry.userData.MMD.groupMorphs ?? [];

@@ -5,7 +5,7 @@ import { Texture, Vector3 } from 'three';
 import { MMDAnimationHelper, MMDLoader } from '@takahirox/three-mmd';
 import type { MMDMesh } from '@takahirox/three-mmd';
 import { materialPmxBuffer, pmdBuffer, vmdBuffer } from './fixtures.ts';
-import { linear, referenceMaterial } from './material-morph-reference.ts';
+import { linear, referenceMaterial, referenceSamplerControls } from './material-morph-reference.ts';
 
 function setup() {
 
@@ -37,9 +37,13 @@ function check( mesh: MMDMesh, weights = mesh.morphTargetInfluences! ) {
 		near( [ m.opacity, m.shininess ], [ expected.diffuse[ 3 ], expected.shininess ], 1e-5 );
 		near( m.specular.toArray(), expected.specular.map( linear ) );
 		near( m.ambient.toArray(), expected.ambient.map( linear ) );
-		near( m.mmdTextureColor.toArray(), [ ...expected.textureColor.slice( 0, 3 ).map( linear ), expected.textureColor[ 3 ] ] );
-		near( m.mmdSphereColor.toArray(), [ ...expected.sphereTextureColor.slice( 0, 3 ).map( linear ), expected.sphereTextureColor[ 3 ] ] );
-		near( m.mmdToonColor.toArray(), [ ...expected.toonColor.slice( 0, 3 ).map( linear ), expected.toonColor[ 3 ] ] );
+		const controls = referenceSamplerControls( weights, i );
+		for ( const [ key, name ] of [ [ 'textureColor', 'mmdTextureColor' ], [ 'sphereTextureColor', 'mmdSphereColor' ], [ 'toonColor', 'mmdToonColor' ] ] as const ) {
+
+			near( m[ name ].toArray(), controls[ key ].multiply );
+			near( m[ `${name}Add` ].toArray(), controls[ key ].add );
+
+		}
 		const outline = m.userData.outlineParameters;
 		near( outline.color, expected.edgeColor.slice( 0, 3 ) );
 		near( [ outline.alpha, outline.thickness ], [ expected.edgeColor[ 3 ], expected.edgeSize / 300 ] );
@@ -70,14 +74,15 @@ test( 'published parser retains every material channel, original indices and imm
 	assert.ok( Object.isFrozen( base ) && Object.isFrozen( base.diffuse ) );
 	assert.notEqual( base.diffuse, data.materials[ 0 ].diffuse );
 	data.materials[ 0 ].diffuse[ 0 ] = 0; helper.update( 0 ); check( mesh );
-	const clone = mesh.material[ 0 ].clone(); clone.mmdTextureColor.x = 0;
+	const clone = mesh.material[ 0 ].clone(); clone.mmdTextureColor.x = 0; clone.mmdTextureColorAdd.x = 0.5;
+	assert.equal( mesh.material[ 0 ].mmdTextureColorAdd.x, 0 );
 	assert.equal( mesh.material[ 0 ].mmdTextureColor.x, 1 ); assert.equal( clone.map, shared );
 
 } );
 
 for ( const pmxAnimation of [ false, true ] ) {
 
-	test( `all channels match authored equations in PMX order, groups and helper controls (${pmxAnimation})`, () => {
+	test( `all channels match authored equations with independent multiply/add accumulation, groups and helper controls (${pmxAnimation})`, () => {
 
 		const { mesh, shared } = setup(); const helper = new MMDAnimationHelper( { pmxAnimation } );
 		helper.add( mesh, { physics: false } );
@@ -217,12 +222,58 @@ test( 'alpha preclassification uses mode identities and ignores invalid targets/
 		const loader = new MMDLoader(); loader.meshBuilder.materialBuilder.textureLoader.load = () => new Texture();
 		assert.equal( loader.meshBuilder.build( data, '' ).material[ 0 ].transparent, false, 'identity flagged' );
 		e[ channel ][ 3 ] = mode === 0 ? 0 : - 1;
-		const mesh = loader.meshBuilder.build( data, '' ); assert.equal( mesh.material[ 0 ].transparent, true, channel );
+		const opacityChannel = channel === 'diffuse' || channel === 'edgeColor';
+		const mesh = loader.meshBuilder.build( data, '' ); assert.equal( mesh.material[ 0 ].transparent, opacityChannel, channel );
 		assert.equal( mesh.material[ 1 ].transparent, false, 'unrelated target flagged' );
-		e.index = - 1; assert.ok( loader.meshBuilder.build( data, '' ).material[ 1 ].transparent );
+		e.index = - 1; assert.equal( loader.meshBuilder.build( data, '' ).material[ 1 ].transparent, opacityChannel );
 		for ( const index of [ - 2, 120, 0.5, NaN ] ) { e.index = index; assert.ok( loader.meshBuilder.build( data, '' ).material.every( m => ! m.transparent ) ); }
 		e.index = - 1; e.type = 2; assert.ok( loader.meshBuilder.build( data, '' ).material.every( m => ! m.transparent ) );
 
 	}
+
+} );
+
+test( 'multiply/add authored order is immaterial across morphs and repeated elements', () => {
+
+	const { mesh } = setup();
+	const helper = new MMDAnimationHelper(); helper.add( mesh, { physics: false } );
+	for ( const weight of [ -0.5, 0.25, 1, 1.5 ] ) {
+
+		mesh.morphTargetInfluences!.fill( 0 );
+		for ( const i of [ 1, 2, 3, 4, 5 ] ) mesh.morphTargetInfluences![ i ] = weight;
+		helper.update( 0 ); check( mesh );
+		const snapshot = mesh.material.map( m => JSON.stringify( m.userData.MMD.materialMorph ) );
+		mesh.geometry.userData.MMD.materialMorphs!.reverse();
+		for ( const morph of mesh.geometry.userData.MMD.materialMorphs! ) morph.elements.reverse();
+		helper.update( 0 ); check( mesh );
+		mesh.material.forEach( ( m, i ) => {
+
+			const before = JSON.parse( snapshot[ i ] );
+			for ( const key of Object.keys( before ) ) {
+
+				const actual = m.userData.MMD.materialMorph[ key ];
+				near( Array.isArray( actual ) ? actual : [ actual ], Array.isArray( before[ key ] ) ? before[ key ] : [ before[ key ] ] );
+
+			}
+
+		} );
+
+	}
+
+} );
+
+
+test( 'source material RGB is composed before linear conversion; sampler controls stay raw', () => {
+
+	const { mesh } = setup();
+	const helper = new MMDAnimationHelper(); helper.add( mesh, { physics: false } );
+	mesh.morphTargetInfluences![ 1 ] = 0.5; mesh.morphTargetInfluences![ 2 ] = 0.5;
+	helper.update( 0 );
+	const m = mesh.material[ 0 ];
+	// Authored diffuse red: .8 * (1 + (.5 - 1) * .5) + .2 * .5 = .7.
+	near( [ m.color.r, m.opacity ], [ linear( 0.7 ), 0.25 ] );
+	assert.ok( Math.abs( m.color.r - ( linear( 0.8 ) * linear( 0.75 ) + linear( 0.1 ) ) ) > 0.05 );
+	near( m.mmdTextureColor.toArray(), [ 0.75, 1.25, 0.625, 0.75 ] );
+	near( m.mmdTextureColorAdd.toArray(), [ -0.25, -0.125, 0, -0.25 ] );
 
 } );

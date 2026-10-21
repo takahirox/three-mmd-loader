@@ -1,4 +1,4 @@
-import { Color, SRGBColorSpace } from 'three';
+import { SRGBColorSpace } from 'three';
 import type { MMDMaterialValues, MMDMesh } from '../types.js';
 import type { MMDToonMaterial } from '../materials/MMDToonMaterial.js';
 
@@ -25,13 +25,12 @@ export function freezeMaterialValues( source: MMDMaterialValues ): Readonly<MMDM
 export class MMDMaterialMorphController {
 
 	private weights: Float64Array;
-	private color = new Color();
-	private states: ( MMDMaterialValues | undefined )[];
+	private states: ( { value: MMDMaterialValues; multiply: MMDMaterialValues; add: MMDMaterialValues } | undefined )[];
 
 	constructor( private mesh: MMDMesh ) {
 
 		this.weights = new Float64Array( mesh.geometry.morphTargets.length );
-		this.states = mesh.material.map( m => m.userData.MMD?.materialBase ? copyMaterialValues( m.userData.MMD.materialBase ) : undefined );
+		this.states = mesh.material.map( m => m.userData.MMD?.materialBase ? { value: copyMaterialValues( m.userData.MMD.materialBase ), multiply: copyMaterialValues( m.userData.MMD.materialBase ), add: copyMaterialValues( m.userData.MMD.materialBase ) } : undefined );
 
 	}
 
@@ -65,11 +64,12 @@ export class MMDMaterialMorphController {
 		}
 		for ( const [ i, material ] of this.mesh.material.entries() ) {
 
-			const state = this.states[ i ];
-			if ( ! state ) continue;
+			const accumulators = this.states[ i ];
+			if ( ! accumulators ) continue;
+			const { value: state, multiply, add } = accumulators;
 			const base: MMDMaterialValues = material.userData.MMD.materialBase;
-			for ( const key of materialVectorChannels ) for ( let c = 0; c < state[ key ].length; c ++ ) state[ key ][ c ] = base[ key ][ c ];
-			for ( const key of scalarChannels ) state[ key ] = base[ key ];
+			for ( const key of materialVectorChannels ) for ( let c = 0; c < state[ key ].length; c ++ ) { multiply[ key ][ c ] = 1; add[ key ][ c ] = 0; }
+			for ( const key of scalarChannels ) { multiply[ key ] = 1; add[ key ] = 0; }
 			for ( const morph of morphs ) {
 
 				const weight = this.weights[ morph.index ];
@@ -77,25 +77,30 @@ export class MMDMaterialMorphController {
 				for ( const element of morph.elements ) {
 
 					if ( ! Number.isInteger( element.index ) || ( element.index !== - 1 && element.index !== i ) || ( element.type !== 0 && element.type !== 1 ) ) continue;
+					const target = element.type === 0 ? multiply : add;
 					const apply = ( value: number, operand: number ) => {
 
 						const result = element.type === 0 ? value * ( 1 + ( operand - 1 ) * weight ) : value + operand * weight;
 						return Number.isFinite( result ) ? result : value;
 
 					};
-					for ( const key of materialVectorChannels ) for ( let c = 0; c < state[ key ].length; c ++ ) state[ key ][ c ] = apply( state[ key ][ c ], element[ key ][ c ] );
-					for ( const key of scalarChannels ) state[ key ] = apply( state[ key ], element[ key ] );
+					for ( const key of materialVectorChannels ) for ( let c = 0; c < state[ key ].length; c ++ ) target[ key ][ c ] = apply( target[ key ][ c ], element[ key ][ c ] );
+					for ( const key of scalarChannels ) target[ key ] = apply( target[ key ], element[ key ] );
 
 				}
 
 			}
-			this.write( material, state );
+			// PMX: compose only after all independent multiply/add contributions.
+			const compose = ( b: number, m: number, a: number ) => Number.isFinite( b * m + a ) ? b * m + a : b;
+			for ( const key of materialVectorChannels ) for ( let c = 0; c < state[ key ].length; c ++ ) state[ key ][ c ] = compose( base[ key ][ c ], multiply[ key ][ c ], add[ key ][ c ] );
+			for ( const key of scalarChannels ) state[ key ] = compose( base[ key ], multiply[ key ], add[ key ] );
+			this.write( material, state, multiply, add );
 
 		}
 
 	}
 
-	private write( material: MMDToonMaterial, state: MMDMaterialValues ) {
+	private write( material: MMDToonMaterial, state: MMDMaterialValues, multiply: MMDMaterialValues, add: MMDMaterialValues ) {
 
 		material.color.setRGB( state.diffuse[ 0 ], state.diffuse[ 1 ], state.diffuse[ 2 ], SRGBColorSpace );
 		material.opacity = state.diffuse[ 3 ];
@@ -104,11 +109,10 @@ export class MMDMaterialMorphController {
 		material.ambient.setRGB( state.ambient[ 0 ], state.ambient[ 1 ], state.ambient[ 2 ], SRGBColorSpace );
 		for ( const [ key, property ] of samplerChannels ) {
 
-			const factor = material[ property ];
-
-			const values = state[ key ];
-			this.color.setRGB( values[ 0 ], values[ 1 ], values[ 2 ], SRGBColorSpace );
-			factor.set( this.color.r, this.color.g, this.color.b, values[ 3 ] );
+			// Sampler operands stay in PMX source space. Their A controls RGB
+			// interpolation; it is never a surface/shadow opacity multiplier.
+			material[ property ].fromArray( multiply[ key ] );
+			material[ `${property}Add` ].fromArray( add[ key ] );
 
 		}
 		const outline = material.userData.outlineParameters;

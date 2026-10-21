@@ -123,7 +123,7 @@ try {
   check(pm.version===version,'UV/VMD recompiled material');
   const helper=new MMDAnimationHelper();helper.add(mesh,{physics:false});reset();mesh.morphTargetInfluences[3]=1;helper.update(0);pm.ambient.setRGB(0,0,0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;
   const linear=v=>v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;
-  near(center(await pixels()),[0.8*220*linear(0.5),0.6*160*linear(0.25),0.4*60*linear(0.75),0.8*255*0.5].map(Math.round),'material morph sampler');reset();helper.update(0);pm.ambient.setRGB(0,0,0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;
+  near(center(await pixels()),${JSON.stringify( referenceSubtextureColor( [ 220, 160, 60, 255 ], [ 0.8, 0.6, 0.4 ], 0.8, [ 0.5, 0.25, 0.75, 0.5 ] ) )},'material morph sampler');reset();helper.update(0);pm.ambient.setRGB(0,0,0);pm.color.setRGB(0.8,0.6,0.4);pm.opacity=0.8;
   // Shadow opacity must sample the same additional UV1, including partial alpha.
   result.stage=backend+' shadows';pm.lights=true;pm.alphaTest=0.5;pm.needsUpdate=true;mesh.castShadow=true;mesh.position.set(2.25,0,0.7);
   const light=new DirectionalLight(0xffffff,Math.PI);light.position.set(2,0,3);light.castShadow=true;light.shadow.mapSize.set(128,128);Object.assign(light.shadow.camera,{left:-1,right:1,top:1,bottom:-1,near:0.1,far:10});scene.add(light);renderer.shadowMap.enabled=true;
