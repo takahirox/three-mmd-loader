@@ -94,10 +94,34 @@ try {
 			return !navigation.inert && !viewerArea.inert && toggle.getAttribute( 'aria-expanded' ) === 'true' && css( toggle ).display === 'none';
 		}
 		async function settle() { await new Promise( resolve => page.setTimeout( resolve, 30 ) ); }
+		// Navigation polling belongs to the harness: a traversed frame can
+		// suspend/cancel its timers and prevent its own deadline from running.
+		async function pollSelection() { await new Promise( resolve => setTimeout( resolve, 30 ) ); }
 		async function checkSelected( id ) {
-			const module = await viewer.contentWindow.eval( "import('/examples/" + id + ".js')" );
+			const started = performance.now();
+			let context;
+			// History can replace a restored document again after selection matches.
+			// An import in the discarded realm can remain pending forever. Watch
+			// from the harness and start over only when the document actually changes.
+			while ( performance.now() - started < 15000 ) {
+				const current = viewer.contentDocument;
+				let timer;
+				try {
+					context = await Promise.race( [
+						viewer.contentWindow.eval( "import('/examples/" + id + ".js')" ).then( module => module.ready ),
+						new Promise( resolve => { timer = setInterval( () => {
+							if ( viewer.contentDocument !== current || performance.now() - started >= 15000 ) resolve( undefined );
+						}, 30 ); } )
+					] );
+				} catch ( error ) {
+					if ( viewer.contentDocument === current ) throw error;
+				} finally { clearInterval( timer ); }
+				if ( context && viewer.contentDocument === current ) break;
+				context = undefined;
+				await waitForSelection( id );
+			}
+			if ( ! context ) throw new Error( 'Selected example readiness timed out: ' + id + ' at ' + viewer.contentWindow.location.href );
 			progress( 'ready ' + id );
-			const context = await module.ready;
 			context.renderer.setAnimationLoop( null );
 			if ( id === 'webgl_loader_mmd' || id === 'webgl_loader_mmd_worker' ) {
 				const expectedMode = id.endsWith( '_worker' ) ? 'worker' : 'sync';
@@ -123,7 +147,7 @@ try {
 		};
 		for ( const id of ids ) {
 			progress( 'select ' + id );
-						doc.querySelector( '[data-example="' + id + '"] a' ).click();
+			doc.querySelector( '[data-example="' + id + '"] a' ).click();
 			await waitForSelection( id );
 			indexChecks['select_' + id] = await checkSelected( id );
 			indexChecks['highlight_' + id] = css( doc.querySelector( '.selected' ) ).boxShadow === 'rgb(4, 158, 244) 0px 0px 0px 3px' && css( doc.querySelector( '.selected a' ) ).color === 'rgb(4, 158, 244)';
@@ -138,9 +162,9 @@ try {
 			const started = performance.now();
 			while ( performance.now() - started < 15000 ) {
 				if ( page.location.hash === '#' + id && viewer.contentWindow.location.pathname === '/examples/' + id + '.html' && viewer.contentDocument.readyState === 'complete' && doc.querySelector( '.selected' )?.dataset.example === id ) return;
-				await settle();
+				await pollSelection();
 			}
-			throw new Error( 'Gallery selection timed out: ' + id );
+			throw new Error( 'Gallery selection timed out: ' + id + '; hash=' + page.location.hash + '; frame=' + viewer.contentWindow.location.href + '; state=' + viewer.contentDocument.body?.dataset.state );
 		}
 		progress( 'history Back' );
 		page.history.back();
