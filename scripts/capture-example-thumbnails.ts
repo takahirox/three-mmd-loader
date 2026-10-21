@@ -10,7 +10,7 @@ import { createExamplesServer } from './serve-examples.ts';
 import { removeBrowserDirectory, runBrowser } from '../tests/browser/browser.ts';
 
 const ids = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose', 'webgl_loader_mmd_worker', 'webgl_loader_mmd_pmx_gene' ];
-// Issue #66 preserves the Issue #63 Gene preview byte for byte, on every run.
+// Gene already used 1/1 lighting; retain its Issue #63 preview provenance.
 const genePreviewSha256 = 'b0ad142b8a7c7e640893a1e07205e9508484fe28c11ffc2382e6c1780ca6da48';
 const sha256 = ( bytes: Uint8Array ) => createHash( 'sha256' ).update( bytes ).digest( 'hex' );
 interface Capture {
@@ -33,8 +33,8 @@ for ( const file of geneLightManifest.files ) verifyGeneLightFile( file, await r
 // Reject a stale build before capturing any images.
 const sceneSource = await readFile( new URL( '../examples/scene.ts', import.meta.url ) );
 const compiledScene = await readFile( new URL( '../dist/example-modules/scene.js', import.meta.url ), 'utf8' );
-assert.ok( /const ambient = new AmbientLight\(\s*0xffffff, mode === ['"]gene['"] \? undefined : 2\s*\)/.test( compiledScene ), 'Build the current per-mode ambient lighting before capture' );
-assert.ok( /const light = new DirectionalLight\(\s*0xffffff, mode === ['"]gene['"] \? undefined : 3\s*\)/.test( compiledScene ), 'Build the current per-mode directional lighting before capture' );
+assert.ok( /const ambient = new AmbientLight\(\s*0xffffff, 1\s*\)/.test( compiledScene ), 'Build the current 1/1 ambient lighting before capture' );
+assert.ok( /const light = new DirectionalLight\(\s*0xffffff, 1\s*\)/.test( compiledScene ), 'Build the current 1/1 directional lighting before capture' );
 
 const harness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
 const captures = [], errors = [];
@@ -76,7 +76,7 @@ try {
   const checks={
    ready:doc.body.dataset.state==='ready',
    realModel:id.endsWith('_pmx_gene')?mesh.skeleton.bones.length===224:mesh.skeleton.bones.length>100,
-   lightIntensities:lights.length===2 && ambient.intensity===(mode==='gene'?1:2) && directional.intensity===(mode==='gene'?1:3),
+   lightIntensities:lights.length===2 && ambient.intensity===1 && directional.intensity===1,
    lightColors:ambient.color.getHex()===0xffffff && directional.color.getHex()===0xffffff,
    lightDirection:directional.position.toArray().join(',')==='-1,2,1' && directional.target.position.toArray().join(',')==='0,0,0',
    camera:id.endsWith('_audio') || (camera.position.toArray().every((v,i)=>Math.abs(v-[0,12,35][i])<1e-9) && camera.aspect===400/250),
@@ -143,13 +143,14 @@ try {
 		const previous = await readFile( target ).catch( () => null );
 		const bytes = Buffer.from( capture.preview.split( ',' )[ 1 ], 'base64' );
 		await writeFile( target, bytes );
-		// Retain the original replaced image hash across recaptures, which may
-		// legitimately encode exactly the same pixels on the same browser.
-		const original = existingManifest?.entries.find( ( entry: { page: string } ) => entry.page === capture.page );
-		const previousSha256 = existingManifest.version === 2 ? original.previousSha256 : previous ? sha256( previous ) : null;
+		// Record the replaced lighting configuration once; repeated captures at
+		// 1/1 may legitimately encode exactly the same pixels on the same browser.
+		const original = existingManifest.entries.find( ( entry: { page: string } ) => entry.page === capture.page );
+		const previousSha256 = original?.lighting?.ambient === 1 && original?.lighting?.directional === 1
+			? original.previousSha256 : previous ? sha256( previous ) : null;
 		entries.push( { page: capture.page, path, sha256: sha256( bytes ), previousSha256, ...capture.state,
 			capturedAt, sceneSha256: sha256( sceneSource ), userAgent: result.userAgent, retained: false, checks: capture.checks } );
-		console.log( `Captured ${capture.page} (real assets, ambient 2 / directional 3, ${bytes.length} bytes)` );
+		console.log( `Captured ${capture.page} (real assets, ambient 1 / directional 1, ${bytes.length} bytes)` );
 
 	}
 	await writeFile( manifestURL, JSON.stringify( {

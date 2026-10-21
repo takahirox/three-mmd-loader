@@ -1,4 +1,8 @@
-# Mixed example lighting and gallery previews — Issue #66
+# Mixed example lighting and gallery previews — Issue #66 (historical)
+
+Superseded by [Issue #98 validation](examples-lighting-validation.md): all five
+scenes now explicitly use 1/1 lighting. The results and pending items below
+refer only to the earlier Issue #66 implementation.
 
 The shared scene restores ambient intensity 2 and directional intensity 3 for
 Model and animation, Worker Physics, Audio and camera, and Poses. Only
