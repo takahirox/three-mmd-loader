@@ -1,8 +1,9 @@
 # Manual npm releases
 
-The next release candidate is **`@takahirox/three-mmd@0.1.1`**, updating the
-published 0.1.0. See the [0.1.1 release record](releases/0.1.1.md) for exact
-source, registry evidence, changes, local validation and pending post-merge
+The next release candidate is **`@takahirox/three-mmd@0.1.2`**, updating the
+registry-confirmed published 0.1.1. See the
+[0.1.2 release record](releases/0.1.2.md) for exact source, registry evidence,
+changes, local validation and pending post-merge
 checks. The GitHub repository remains `takahirox/three-mmd-loader`; examples
 remain at https://takahirox.github.io/three-mmd-loader/.
 
@@ -54,6 +55,7 @@ npm run test:examples
 MMD_EXAMPLE_SITE=dist/examples MMD_EXAMPLE_FIXTURES=1 npm run test:examples
 npm pack --dry-run --json
 npm publish --dry-run --access public
+git diff --check
 ```
 
 Browser tests require Chrome (`CHROME_BIN` overrides its path). WebGL2 is
@@ -133,15 +135,16 @@ while version-level 404 means that version is absent. Neither proves scope
 ownership or publication permission. A 401/403 is an authorization error;
 DNS, connection and timeout errors leave status unknown. Retry inconsistent
 cached metadata with a fresh temporary npm cache. The historical Issue #45
-404 is superseded by the successful 0.1.0 verification in the release record.
+404 and the 0.1.1 candidate's old availability evidence are superseded by the
+fresh 0.1.1 publication and 0.1.2 availability evidence in the current record.
 If publication is delayed, recheck version availability before publishing.
 
-Users can already install published 0.1.0 with `npm install
+Users can already install published 0.1.1 with `npm install
 @takahirox/three-mmd three@~0.186.0`. To validate this candidate before it is
-published, run `npm pack` and install local `takahirox-three-mmd-0.1.1.tgz` in
+published, run `npm pack` and install local `takahirox-three-mmd-0.1.2.tgz` in
 a consumer alongside the supported Three.js peer.
 
 **Optional after the maintainer publishes:** query `npm view
-@takahirox/three-mmd@0.1.1 version --registry=https://registry.npmjs.org/
+@takahirox/three-mmd@0.1.2 version --registry=https://registry.npmjs.org/
 --prefer-online` to confirm the new registry version. This post-publication
 check and any release tag are outside this task's completion requirements.
