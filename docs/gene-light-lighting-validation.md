@@ -1,6 +1,7 @@
 # Gene Light scene lighting validation — Issue #61
 
-Historical validation for Issue #61. Issue #98 explicitly sets intensity 1
+Historical validation for Issue #61. Issue #102 now selects Gene-only gray
+`0x888888` lights at 1/1; see the [current report](gene-light-overbrightness-investigation.md). Issue #98 explicitly sets intensity 1
 for both lights in all modes and refreshes the four Miku previews; see
 [the current validation record](examples-lighting-validation.md).
 

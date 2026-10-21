@@ -20,7 +20,7 @@ try {
  // can suspend resize events for an iframe scrolled outside the parent viewport.
  frame.style.cssText='position:fixed;left:0;top:0;border:0';
  const loaded = new Promise(resolve => frame.onload=resolve);
- frame.src='/examples/webgl_loader_mmd_pmx_gene.html'+(new URLSearchParams(location.search).has('bullet')?'?bullet='+new URLSearchParams(location.search).get('bullet'):''); document.body.appendChild(frame); await loaded;
+ frame.src='/examples/webgl_loader_mmd_pmx_gene.html'+location.search; document.body.appendChild(frame); await loaded;
  const page=frame.contentWindow, doc=frame.contentDocument;
  page.addEventListener('error', e=>errors.push(e.message));
  page.addEventListener('unhandledrejection', e=>errors.push(String(e.reason)));
@@ -31,7 +31,8 @@ try {
  const lights=scene.children.filter(c=>c.isLight);
  const ambient=lights.find(c=>c.isAmbientLight), directional=lights.find(c=>c.isDirectionalLight);
  checks.defaultLightIntensities=lights.length===2 && ambient.intensity===1 && directional.intensity===1;
- checks.lightColors=ambient.color.getHex()===0xAAAAAA && directional.color.getHex()===0xffffff;
+ checks.backend=new URLSearchParams(location.search).get('backend')==='webgl' || !await page.navigator.gpu?.requestAdapter() ? renderer.backend.isWebGLBackend : renderer.backend.isWebGPUBackend;
+ checks.lightColors=ambient.color.getHex()===0x888888 && directional.color.getHex()===0x888888;
  checks.lightDirection=directional.position.toArray().join(',')==='-1,2,1' && directional.target.position.toArray().join(',')==='0,0,0';
  const state=helper.objects.get(mesh), data=mesh.geometry.userData.MMD;
  checks.wasmRuntime=doc.body.dataset.ammoBackend==='wasm';
@@ -205,11 +206,13 @@ for ( const bullet of [ '', 'legacy' ] ) test( `licensed pinned Gene Light rende
 			assert.equal( ( await response.arrayBuffer() ).byteLength, size, path );
 
 		}
-		const result = await runBrowser<Result>( base + '/test' + ( bullet ? '?bullet=' + bullet : '' ), join( temporary, 'profile' ), 'light', 150000 ).catch( error => { throw new Error( `${String( error )}; last progress: ${stage}` ); } );
-		t.diagnostic( JSON.stringify( result.checks ) );
-		t.diagnostic( JSON.stringify( result.mobileLayout ) );
-		assert.equal( result.error, undefined, result.error );
-		for ( const [ name, passed ] of Object.entries( result.checks ) ) assert.equal( passed, true, name );
+		for ( const backend of [ 'webgl', 'auto' ] ) {
+			const result = await runBrowser<Result>( base + '/test?backend=' + backend + ( bullet ? '&bullet=' + bullet : '' ), join( temporary, 'profile-' + backend ), 'light', 150000 ).catch( error => { throw new Error( `${String( error )}; last progress: ${stage}` ); } );
+			t.diagnostic( JSON.stringify( result.checks ) );
+			t.diagnostic( JSON.stringify( result.mobileLayout ) );
+			assert.equal( result.error, undefined, result.error );
+			for ( const [ name, passed ] of Object.entries( result.checks ) ) assert.equal( passed, true, backend + ': ' + name );
+		}
 
 	} finally {
 

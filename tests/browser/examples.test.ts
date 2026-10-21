@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import { createExamplesServer } from '../../scripts/serve-examples.ts';
 import { cameraVmdBuffer, pmdBuffer, vmdBuffer } from '../fixtures.ts';
 
-interface BrowserResult { page?: string; checks?: Record<string, boolean>; error?: string }
+interface BrowserResult { page?: string; backend?: string; checks?: Record<string, boolean>; error?: string }
 // Load the real pages in an iframe, then use their module's ready promise to
 // exercise rendered scenes and their controls. No alternate app code path.
 const harness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
@@ -50,7 +50,7 @@ async function resizeFrame( frame, width, height, expectedState ) {
 	const started = performance.now();
 	const page = frame.contentWindow;
 	while ( page.innerWidth !== width || page.innerHeight !== height || !expectedState() ) {
-		if ( performance.now() - started >= 5000 ) throw new Error( 'Frame resize timed out: expected ' + width + 'x' + height + ' with matching layout/accessibility state; got ' + page.innerWidth + 'x' + page.innerHeight + ' at ' + page.location.pathname );
+		if ( performance.now() - started >= ${process.env.MMD_EXAMPLE_SITE || process.env.MMD_EXAMPLE_ASSETS === '1' ? 15000 : 5000} ) throw new Error( 'Frame resize timed out: expected ' + width + 'x' + height + ' with matching layout/accessibility state; got ' + page.innerWidth + 'x' + page.innerHeight + ' at ' + page.location.pathname );
 		await new Promise( resolve => setTimeout( resolve, 25 ) );
 	}
 	progress( 'resized ' + width + 'x' + height + ': ' + frame.contentWindow.location.pathname );
@@ -260,13 +260,13 @@ try {
 		indexChecks.mobileInitialList = initialMobile.contentDocument.getElementById( 'panel' ).classList.contains( 'open' ) && initialMobile.contentDocument.getElementById( 'expandButton' ).getAttribute( 'aria-expanded' ) === 'true';
 		initialMobile.remove();
 	}
-	for ( const suffix of [ '', '_audio', '_pose', '_worker' ] ) {
+	for ( const backend of [ 'webgl', 'auto' ] ) for ( const suffix of [ '', '_audio', '_pose', '_worker' ] ) {
 		progress( 'scene ' + suffix );
 		const frame = document.createElement( 'iframe' );
 		frame.width = 1024;
 		frame.height = 768;
 		const loaded = new Promise( resolve => frame.onload = resolve );
-		frame.src = '/examples/webgl_loader_mmd' + suffix + '.html?backend=webgl';
+		frame.src = '/examples/webgl_loader_mmd' + suffix + '.html?backend=' + backend;
 		document.body.appendChild( frame );
 		await loaded;
 		const page = frame.contentWindow;
@@ -379,11 +379,11 @@ try {
 		}
 		effect.render( scene, camera );
 		checks.render = renderer.info.render.calls > 0 && doc.body.dataset.state === 'ready';
-		checks.shaders = renderer.info.render.drawCalls > 0 && renderer.backend.isWebGLBackend;
+		checks.shaders = renderer.info.render.drawCalls > 0 && ( backend === 'webgl' || ! await page.navigator.gpu?.requestAdapter() ? renderer.backend.isWebGLBackend : renderer.backend.isWebGPUBackend );
 		// A runtime failure must also disable controls that already exist.
 		renderer.debug.onShaderError();
 		checks.failureDisablesGUI = doc.body.dataset.state === 'error' && gui.getAttribute( 'aria-disabled' ) === 'true' && [...gui.querySelectorAll( '.controller input, .controller select, .controller button' )].every( input => input.disabled );
-		results.push( { page: suffix || 'animation', checks } );
+		results.push( { page: backend + ' ' + ( suffix || 'animation' ), backend: renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL2', checks } );
 		renderer.dispose();
 		frame.remove();
 	}
@@ -568,7 +568,8 @@ test( 'example pages match Three.js layout, resize, render, and preserve interac
 
 		} );
 		t.diagnostic( `Light example validation: ${Math.round( performance.now() - started )} ms (budget ${timeoutMs} ms)` );
-		assert.equal( results.length, 8, JSON.stringify( results ) );
+		assert.equal( results.length, 12, JSON.stringify( results ) );
+		t.diagnostic( JSON.stringify( results.filter( result => result.backend ).map( result => ( { page: result.page, backend: result.backend } ) ) ) );
 		const darkResults = await runBrowser<BrowserResult[]>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/test-dark`, join( temporary, 'profile-dark' ), 'dark' );
 		assert.equal( darkResults.length, 1, JSON.stringify( darkResults ) );
 		for ( const result of [ ...results, ...darkResults ] ) {

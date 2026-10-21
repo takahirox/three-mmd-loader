@@ -98,7 +98,7 @@ The [provenance and inspection record](./gene-light.md) documents the pre-merge
 rights review, exact asset selection, and measured lightweight PMX features.
 Use the animation/IK/grant/physics/debug toggles and open **Morph weights** for
 vertex, group, UV, and material sliders. The asset has no SDEF or bone morphs.
-The Issue #100 preview is a rendering of this permitted scene, with
+The Issue #102 preview is a rendering of this permitted scene, with
 credit above;
 it is separate from the four Miku previews and retains CC BY 4.0 attribution.
 
@@ -151,26 +151,27 @@ audio playback also needs browser audio support.
 ### Gallery thumbnail capture
 
 All five gallery cards use local **400×250 JPEG** captures from their real
-example pages. Issue #100 trials `new AmbientLight( 0xAAAAAA, 1 )` in the shared
-scene initializer for Model and animation, Worker Physics, Audio and camera,
-Poses, and PMX — Gene (Light), with no scene-specific override. The white
-`DirectionalLight( 0xffffff, 1 )` remains at `(-1, 2, 1)`; both intensities stay
-**1**, preserving Issue #98. All five previews are recaptured with these colors,
-including Gene and a distinct Worker capture.
+example pages. Issue #102 selects `new AmbientLight( 0x888888, 1 )` and
+`new DirectionalLight( 0x888888, 1 )` explicitly for `mode === 'gene'`.
+These are 24-bit RGB grays, decoded by Three into linear working colors.
+All four Miku PMD pages retain Issue #100's ambient `0xAAAAAA` and white
+directional `0xffffff`, both at intensity **1**. Directional position/target,
+cameras and other scene settings are unchanged. Only Gene's preview is refreshed;
+the Miku JPEGs and their original capture entries remain unchanged.
 
-This is an ambient **color-only trial**. The maintainer will visually review
-the published Examples, especially Gene Light PMX, and decide whether to keep
-or revise the color. The captures make no claim of visual preference, improved
-MMD fidelity, or a fix for PMX white clipping. Human visual judgment is not a
-pre-merge acceptance gate.
+This is a demo light-color trial. The [material and rendered contribution
+investigation](https://github.com/takahirox/three-mmd-loader/blob/main/docs/gene-light-overbrightness-investigation.md) records measured
+causes and remaining uncertainty. It does not establish native MMD parity or
+claim that changing lights repairs library shading. The maintainer will judge
+the published visual result; no aesthetic sign-off is a pre-merge gate.
 
 | Page / mode | Ambient color / intensity | Directional color / intensity | Preview |
 | --- | --- | --- | --- |
-| Model and animation / `animation` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured |
-| Worker Physics / `animation` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured separately |
-| Audio and camera / `audio` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured |
-| Poses / `pose` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured |
-| PMX — Gene (Light) / `gene` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured |
+| Model and animation / `animation` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Retained from #100 |
+| Worker Physics / `animation` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Retained from #100 |
+| Audio and camera / `audio` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Retained from #100 |
+| Poses / `pose` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Retained from #100 |
+| PMX — Gene (Light) / `gene` | `0x888888` / 1 | `0x888888` / 1 | Refreshed for #102 |
 
 Camera positions, lighting direction, materials, outlines, and renderer tone
 mapping remain those of the examples. The corrected MMD material/shading
@@ -180,11 +181,12 @@ equivalence to MikuMikuDance.
 From the repository root with dependencies and Chrome installed:
 
 ```sh
-npm run examples:capture
+npm run examples:capture -- --gene
 ```
 
 Set `CHROME_BIN` if Chrome is outside the platform's usual install path. The
-command compiles the checkout, obtains the pinned real assets using
+`--gene` command refreshes only Gene (omit the option to recapture all five). It
+compiles the checkout, obtains the pinned real assets using
 `examples:assets`, and runs `scripts/capture-example-thumbnails.ts` against a
 temporary loopback server. It verifies every Miku Git blob and every Gene
 hash before loading; `MMD_EXAMPLE_FIXTURES=1` is rejected. No fixture or private
@@ -204,9 +206,11 @@ and runtime-error checks before any image is replaced.
 [`screenshots/manifest.json`](./screenshots/manifest.json) records the capture
 date, browser, asset source commits, current scene source hash, per-mode light
 colors and intensities, frame/pose state, checks, and image SHA-256s. Each entry
-records its own capture date, browser and scene hash. All five entries record
-the replaced white-ambient image hashes (Miku from Issue #98, Gene from #63),
-retained on subsequent recapture with the same gray/white colors at 1/1.
+records its own capture date, browser and scene hash. Retained Miku entries keep
+those original values; `retainedSceneReview` identifies the current source and
+explains the Gene-only change. Tests prove the old and current source differ only
+in the two Gene color selections. Gene records the replaced #100 image hash;
+Miku retains its original replaced white-ambient hashes.
 The method reproduces the scene state; JPEG bytes can vary with browser/platform
 versions. Automated tests verify all five gallery references, image hashes,
 current scene provenance, and decoded 400×250 dimensions in the browser. The static build
@@ -435,8 +439,8 @@ as the TSL rendering suite. `npm run test:examples` runs the examples and Gene L
 checks the index and scene DOM, computed typography/colors/spacing, overlay
 positioning, link behavior, per-mode light colors and intensities, desktop/mobile GUI
 placement, viewport canvas sizing,
-and resizing from desktop to mobile and back. It renders with the WebGL2 TSL
-backend, exercises animation/IK/physics/outline
+and resizing from desktop to mobile and back. It exercises WebGL2 and automatic backend selection (native WebGPU when
+available), exercises animation/IK/physics/outline
 controls, advances model and camera animation, starts decoded audio through
 Play, applies/resets VPD poses, and verifies loading/runtime error status and
 disabled controls. Generated PMD/VMD/VPD and silent WAV fixtures

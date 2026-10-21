@@ -6,6 +6,530 @@
   "vertices": 28646,
   "faces": 47106,
   "materials": 13,
+  "materialRecords": [
+    {
+      "index": 0,
+      "name": "髪",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/hair2.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 9367
+    },
+    {
+      "index": 1,
+      "name": "手肌",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/arm.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 7328
+    },
+    {
+      "index": 2,
+      "name": "アンダー",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/bottoms.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 12214
+    },
+    {
+      "index": 3,
+      "name": "顔",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/face.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 6696
+    },
+    {
+      "index": 4,
+      "name": "目",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/eye.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 960
+    },
+    {
+      "index": 5,
+      "name": "星目",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/extra.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 64
+    },
+    {
+      "index": 6,
+      "name": "ぐるぐる目",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/eye2.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 704
+    },
+    {
+      "index": 7,
+      "name": "トップス",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/top.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 7778
+    },
+    {
+      "index": 8,
+      "name": "頬薄赤",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.753000020980835,
+        0.753000020980835,
+        0.753000020980835
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/extra.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 384
+    },
+    {
+      "index": 9,
+      "name": "青ざめ",
+      "diffuse": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/pale.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 1362
+    },
+    {
+      "index": 10,
+      "name": "頬斜線",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/extra.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 55
+    },
+    {
+      "index": 11,
+      "name": "頬照り",
+      "diffuse": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "ambient": [
+        0.7529411911964417,
+        0.7529411911964417,
+        0.7529411911964417
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/extra.png",
+      "sphere": null,
+      "sphereMode": 0,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 192
+    },
+    {
+      "index": 12,
+      "name": "イライラ",
+      "diffuse": [
+        0.3333333134651184,
+        0.5058823823928833,
+        0.5803921818733215,
+        0
+      ],
+      "ambient": [
+        0.3333333134651184,
+        0.5058823823928833,
+        0.5803921818733215
+      ],
+      "specular": [
+        0,
+        0,
+        0
+      ],
+      "shininess": 5,
+      "texture": "light/iraira.png",
+      "sphere": null,
+      "sphereMode": 1,
+      "toonFlag": 0,
+      "toonIndex": -1,
+      "toon": "toon00.bmp",
+      "faceCount": 2
+    }
+  ],
+  "materialMorphs": [
+    {
+      "name": "青ざめ",
+      "demoDefaultWeight": 0,
+      "elements": [
+        {
+          "index": 9,
+          "type": 1,
+          "diffuse": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 0,
+          "ambient": [
+            0,
+            0,
+            0
+          ],
+          "edgeColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "edgeSize": 0,
+          "textureColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "sphereTextureColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "toonColor": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "どんより",
+      "demoDefaultWeight": 0,
+      "elements": [
+        {
+          "index": 9,
+          "type": 1,
+          "diffuse": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 0,
+          "ambient": [
+            0,
+            0,
+            0
+          ],
+          "edgeColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "edgeSize": 0,
+          "textureColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "sphereTextureColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "toonColor": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "いらいら",
+      "demoDefaultWeight": 0,
+      "elements": [
+        {
+          "index": 12,
+          "type": 1,
+          "diffuse": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 0,
+          "ambient": [
+            0,
+            0,
+            0
+          ],
+          "edgeColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "edgeSize": 0,
+          "textureColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "sphereTextureColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "toonColor": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  ],
   "textures": [
     "light/hair2.png",
     "light/arm.png",
