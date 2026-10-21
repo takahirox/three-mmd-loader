@@ -16,11 +16,14 @@ Install the package alongside the supported Three.js version:
 npm install @takahirox/three-mmd three@~0.186.0
 ```
 
-Release candidate **0.1.1** updates the published 0.1.0 with pinned Bullet
-WASM, animation startup and physics integration improvements, and unified
-PMD/PMX physics policy. Rare severe PMD physics instability remains **under
-investigation**; this release does not claim to resolve it. See the
-[release record](docs/releases/0.1.1.md) for source and validation evidence.
+Release candidate **0.1.2** updates the registry-confirmed published 0.1.1
+with corrected PMX material morph multiply/add composition, texture/sphere/toon
+RGB blend controls that preserve sampled alpha, and MMD-oriented direct diffuse
+and specular lighting. It retains the optional pinned Bullet WASM and classic
+Worker physics. Rare severe PMD physics instability remains **under
+investigation**; native MMD rendering parity is unverified. See the
+[release record](docs/releases/0.1.2.md) for source, registry and validation
+evidence. This candidate has not been published by this task.
 
 Use native ES module imports, either from the package root or from addon-style
 subpaths:
@@ -214,10 +217,13 @@ audio/camera animation, and VPD poses. MMD modules come from this checkout.
 The asset setup downloads the former r171 example assets and their notices
 for the examples; these assets have separate terms and are excluded from Git
 and the npm package. The deployed site includes the assets and their notices.
-All five demos, including Worker Physics and Gene Light PMX, share the
-Issue #100 trial of ambient color `0xAAAAAA` at intensity **1**; directional
-light stays white at intensity **1**. This color trial awaits maintainer visual
-review and makes no claim of improved MMD fidelity or resolved PMX white clipping.
+The four PMD demos retain ambient color `0xAAAAAA` and white directional light,
+both at intensity **1** (Issue #100). Gene Light PMX uses `0x888888` for both
+lights at intensity **1** (Issue #102); see the
+[measured overbrightness investigation](docs/gene-light-overbrightness-investigation.md).
+These Examples/research changes are excluded from the npm runtime. Maintainer
+visual review remains optional; native MMD fidelity and resolved PMX white
+clipping are not established.
 See the examples guide for credits, manual setup, and checks.
 
 The published artifact contains compiled native ES modules and TypeScript
@@ -227,8 +233,8 @@ and the browser/example commands build the package first; `npm pack` builds it
 through `prepack`. Manual `npm publish` also runs strict type checks and the
 offline Node/package regression tests before uploading. See the
 [release guide](docs/releases.md) for maintainer prerequisites and dry-runs.
-Validate the 0.1.1 candidate before publication by installing the local
-`takahirox-three-mmd-0.1.1.tgz` produced by `npm pack`. TypeScript consumers
+Validate the 0.1.2 candidate before publication by installing the local
+`takahirox-three-mmd-0.1.2.tgz` produced by `npm pack`. TypeScript consumers
 should install matching Three.js types
 with `npm install --save-dev @types/three@~0.186.0`. Root and documented `.js`
 subpath imports resolve to the same API in both JavaScript and TypeScript.
