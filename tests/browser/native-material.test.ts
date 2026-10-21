@@ -91,10 +91,11 @@ try{
    material[name].fromArray(c.multiply);material[name+'Add'].fromArray(c.add);material.needsUpdate=true;
    near(await pixel(),c.expected,backend+' sampler '+JSON.stringify(c));tex.dispose();samples++;
   }
-  // Output conversion is a separate renderer step, checked explicitly.
+  // Use the renderer's output pass with async GPU readback, avoiding canvas presentation timing.
+  // Keep the target's linear storage: outputColorSpace alone must encode the independently expected sRGB bytes.
   material.map=material.matcap=material.gradientMap=null;material.color.setRGB(0.2,0.1,0.05);material.opacity=1;material.needsUpdate=true;
-  renderer.setRenderTarget(null);renderer.outputColorSpace=SRGBColorSpace;await new Promise(requestAnimationFrame);renderer.render(scene,camera);
-  const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');ctx.drawImage(renderer.domElement,0,0);near(Array.from(ctx.getImageData(0,0,1,1).data),[0.2,0.1,0.05].map(encode),backend+' output sRGB');
+  renderer.setRenderTarget(null);renderer.setOutputRenderTarget(target);renderer.outputColorSpace=SRGBColorSpace;
+  near(await pixel(),[...[0.2,0.1,0.05].map(encode),1],backend+' output sRGB');
   result.backends.push({backend,samples});ramp.dispose();material.dispose();geometry.dispose();target.dispose();renderer.dispose();
  }
 }catch(e){result.errors.push(e.stack||String(e));}
