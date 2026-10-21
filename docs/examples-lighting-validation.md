@@ -1,5 +1,9 @@
 # Examples lighting validation — Issue #98
 
+Historical #98 record. Its 1/1 intensities remain current; #100 changed PMD
+ambient to 0xAAAAAA and #102 selects Gene-only 0x888888 colors for both lights.
+See the [current investigation and validation](gene-light-overbrightness-investigation.md).
+
 All five demo pages now explicitly construct a white `AmbientLight` and white
 `DirectionalLight` at intensity **1** in `examples/scene.ts`: Model and animation,
 Worker Physics, Audio and camera, Poses, and PMX — Gene (Light). The Worker page

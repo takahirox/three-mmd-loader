@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "capturedAt": "2026-10-21T09:17:55.314Z",
+  "capturedAt": "2026-10-21T14:07:08.623Z",
   "method": "npm run examples:capture",
   "backend": "WebGL2 / Chrome SwiftShader",
   "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
@@ -8,7 +8,7 @@
   "height": 250,
   "pixelRatio": 1,
   "jpegQuality": 0.9,
-  "sceneSha256": "d9fcaaf6f193179c734097ecd9813e84a4650c1e3cc94a7e9f0081aa3328444d",
+  "sceneSha256": "86563f714cd6577f56681dbb72a4cca8052fdfa3fb7d2932a3c86264a9b86115",
   "sources": {
     "miku": {
       "repository": "mrdoob/three.js",
@@ -18,6 +18,12 @@
       "repository": "mmdagent-ex/gene",
       "commit": "c7eace43dffaccff6ad0597433ef85fa57c91e03"
     }
+  },
+  "retainedSceneReview": {
+    "issue": 102,
+    "sceneSha256": "86563f714cd6577f56681dbb72a4cca8052fdfa3fb7d2932a3c86264a9b86115",
+    "previousSceneSha256": "d9fcaaf6f193179c734097ecd9813e84a4650c1e3cc94a7e9f0081aa3328444d",
+    "note": "Only Gene light colors changed; four Miku images and capture entries retained unchanged."
   },
   "entries": [
     {
@@ -151,8 +157,8 @@
     {
       "page": "webgl_loader_mmd_pmx_gene",
       "path": "webgl_loader_mmd_pmx_gene.jpg",
-      "sha256": "6e7c9e9527cdc72e5bea0a10d9ceafe2a9fbd5b8601394a1b17d19e5d712525f",
-      "previousSha256": "b0ad142b8a7c7e640893a1e07205e9508484fe28c11ffc2382e6c1780ca6da48",
+      "sha256": "5f169367eab7060928ad4e19e397fd85fd283d701973d10d97e3be1cb2c317bb",
+      "previousSha256": "6e7c9e9527cdc72e5bea0a10d9ceafe2a9fbd5b8601394a1b17d19e5d712525f",
       "time": 2,
       "pose": null,
       "physicsMode": "sync",
@@ -160,11 +166,11 @@
       "lighting": {
         "ambient": 1,
         "directional": 1,
-        "ambientColor": "0xAAAAAA",
-        "directionalColor": "0xffffff"
+        "ambientColor": "0x888888",
+        "directionalColor": "0x888888"
       },
-      "capturedAt": "2026-10-21T09:17:55.314Z",
-      "sceneSha256": "d9fcaaf6f193179c734097ecd9813e84a4650c1e3cc94a7e9f0081aa3328444d",
+      "capturedAt": "2026-10-21T14:07:08.623Z",
+      "sceneSha256": "86563f714cd6577f56681dbb72a4cca8052fdfa3fb7d2932a3c86264a9b86115",
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
       "retained": false,
       "checks": {

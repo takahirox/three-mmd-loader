@@ -1,5 +1,8 @@
 # Examples gray ambient color trial — Issue #100
 
+Historical #100 record. Issue #102 supersedes the Gene colors only; see the
+[current investigation and validation](gene-light-overbrightness-investigation.md).
+
 All five demos share `new AmbientLight( 0xAAAAAA, 1 )` in `examples/scene.ts`:
 Model and animation, Worker Physics, Audio and camera, Poses, and PMX — Gene
 (Light). There is no scene-specific override. Both light intensities remain

@@ -1,0 +1,4160 @@
+{
+  "method": "npm run build && npm run examples:assets && node --import tsx scripts/measure-example-lighting.ts",
+  "implementation": {
+    "three": "0.186.1",
+    "files": {
+      "examples/scene.ts": "86563f714cd6577f56681dbb72a4cca8052fdfa3fb7d2932a3c86264a9b86115",
+      "src/materials/MMDToonMaterial.ts": "8d7895685f0383d450346940f2fbc3162779495a67ae55ecb782dd11b49499d9",
+      "src/loaders/MMDLoader.ts": "7e28ee2ad66c156c48341aa8b96ba20937a965f095fdd2604bcd77963e196ed1",
+      "scripts/measure-example-lighting.ts": "b4705a26765a9c78f05cf71e149a494f17b178b745898f087629746e93722b5e"
+    }
+  },
+  "gene": {
+    "commit": "c7eace43dffaccff6ad0597433ef85fa57c91e03",
+    "sha256": "7ce1902e0c834a79db7070c50dcb6444d73d734f6725cad35ea25aa2dbeca4b3",
+    "materials": [
+      {
+        "index": 0,
+        "name": "髪",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/hair2.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 9367
+      },
+      {
+        "index": 1,
+        "name": "手肌",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/arm.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 7328
+      },
+      {
+        "index": 2,
+        "name": "アンダー",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/bottoms.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 12214
+      },
+      {
+        "index": 3,
+        "name": "顔",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/face.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 6696
+      },
+      {
+        "index": 4,
+        "name": "目",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/eye.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 960
+      },
+      {
+        "index": 5,
+        "name": "星目",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/extra.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 64
+      },
+      {
+        "index": 6,
+        "name": "ぐるぐる目",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/eye2.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 704
+      },
+      {
+        "index": 7,
+        "name": "トップス",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/top.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 7778
+      },
+      {
+        "index": 8,
+        "name": "頬薄赤",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.753000020980835,
+          0.753000020980835,
+          0.753000020980835
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/extra.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 384
+      },
+      {
+        "index": 9,
+        "name": "青ざめ",
+        "diffuse": [
+          1,
+          1,
+          1,
+          0
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/pale.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 1362
+      },
+      {
+        "index": 10,
+        "name": "頬斜線",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/extra.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 55
+      },
+      {
+        "index": 11,
+        "name": "頬照り",
+        "diffuse": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient": [
+          0.7529411911964417,
+          0.7529411911964417,
+          0.7529411911964417
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/extra.png",
+        "sphere": null,
+        "sphereMode": 0,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 192
+      },
+      {
+        "index": 12,
+        "name": "イライラ",
+        "diffuse": [
+          0.3333333134651184,
+          0.5058823823928833,
+          0.5803921818733215,
+          0
+        ],
+        "ambient": [
+          0.3333333134651184,
+          0.5058823823928833,
+          0.5803921818733215
+        ],
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "shininess": 5,
+        "texture": "light/iraira.png",
+        "sphere": null,
+        "sphereMode": 1,
+        "toonFlag": 0,
+        "toonIndex": -1,
+        "toon": "toon00.bmp",
+        "faceCount": 2
+      }
+    ],
+    "materialMorphs": [
+      {
+        "name": "青ざめ",
+        "demoDefaultWeight": 0,
+        "elements": [
+          {
+            "index": 9,
+            "type": 1,
+            "diffuse": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "specular": [
+              0,
+              0,
+              0
+            ],
+            "shininess": 0,
+            "ambient": [
+              0,
+              0,
+              0
+            ],
+            "edgeColor": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "edgeSize": 0,
+            "textureColor": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sphereTextureColor": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "toonColor": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "name": "どんより",
+        "demoDefaultWeight": 0,
+        "elements": [
+          {
+            "index": 9,
+            "type": 1,
+            "diffuse": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "specular": [
+              0,
+              0,
+              0
+            ],
+            "shininess": 0,
+            "ambient": [
+              0,
+              0,
+              0
+            ],
+            "edgeColor": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "edgeSize": 0,
+            "textureColor": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sphereTextureColor": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "toonColor": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "name": "いらいら",
+        "demoDefaultWeight": 0,
+        "elements": [
+          {
+            "index": 12,
+            "type": 1,
+            "diffuse": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "specular": [
+              0,
+              0,
+              0
+            ],
+            "shininess": 0,
+            "ambient": [
+              0,
+              0,
+              0
+            ],
+            "edgeColor": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "edgeSize": 0,
+            "textureColor": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sphereTextureColor": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "toonColor": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "miku": {
+    "commit": "2898f5b1ba10b1e94174c0a62d072f5f7b80442c",
+    "gitBlob": "5c88504144bd180083a7c5dce0b67d0fdb2f1a61",
+    "materials": [
+      {
+        "diffuse": [
+          0.13300000131130219,
+          0.6159999966621399,
+          0.7099999785423279,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.06650000065565109,
+          0.30799999833106995,
+          0.35499998927116394
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 1,
+        "faceCount": 2425,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0,
+          0.5680000185966492,
+          0.5680000185966492,
+          1
+        ],
+        "shininess": 10,
+        "specular": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "ambient": [
+          0,
+          0.35499998927116394,
+          0.35499998927116394
+        ],
+        "toonIndex": 2,
+        "edgeFlag": 1,
+        "faceCount": 7667,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.800000011920929,
+          0.7120000123977661,
+          0.6240000128746033,
+          1
+        ],
+        "shininess": 6,
+        "specular": [
+          0.15000000596046448,
+          0.15000000596046448,
+          0.15000000596046448
+        ],
+        "ambient": [
+          0.5,
+          0.4449999928474426,
+          0.38999998569488525
+        ],
+        "toonIndex": 1,
+        "edgeFlag": 1,
+        "faceCount": 3950,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.1599999964237213,
+          0.1599999964237213,
+          0.1599999964237213,
+          1
+        ],
+        "shininess": 15,
+        "specular": [
+          0.4000000059604645,
+          0.4000000059604645,
+          0.4000000059604645
+        ],
+        "ambient": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ],
+        "toonIndex": 2,
+        "edgeFlag": 1,
+        "faceCount": 2222,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.5648000240325928,
+          0.5648000240325928,
+          0.5648000240325928,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0.15000000596046448,
+          0.15000000596046448,
+          0.15000000596046448
+        ],
+        "ambient": [
+          0.3529999852180481,
+          0.3529999852180481,
+          0.3529999852180481
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 1,
+        "faceCount": 1219,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.47040000557899475,
+          0.800000011920929,
+          0.6528000235557556,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.2939999997615814,
+          0.5,
+          0.40799999237060547
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 1,
+        "faceCount": 618,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.6539999842643738,
+          0.6539999842643738,
+          0.6539999842643738,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.4000000059604645,
+          0.4000000059604645,
+          0.4000000059604645
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 144,
+        "fileName": "eyeM2.bmp"
+      },
+      {
+        "diffuse": [
+          0.11599999666213989,
+          0.11599999666213989,
+          0.11599999666213989,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0.3799999952316284,
+          0.3799999952316284,
+          0.3799999952316284
+        ],
+        "ambient": [
+          0.07249999791383743,
+          0.07249999791383743,
+          0.07249999791383743
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 2810,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.7936000227928162,
+          0.18479999899864197,
+          0.25760000944137573,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.4959999918937683,
+          0.11550000309944153,
+          0.16099999845027924
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 36,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.5776000022888184,
+          0.6304000020027161,
+          0.1632000058889389,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.3610000014305115,
+          0.39399999380111694,
+          0.10199999809265137
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 36,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.5928000211715698,
+          0.6808000206947327,
+          0.800000011920929,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.37049999833106995,
+          0.4255000054836273,
+          0.5
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 8,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0,
+          0,
+          0
+        ],
+        "toonIndex": 1,
+        "edgeFlag": 0,
+        "faceCount": 370,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.7024000287055969,
+          0.10000000149011612,
+          0.12240000069141388,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.4390000104904175,
+          0.0625,
+          0.07649999856948853
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 72,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.20720000565052032,
+          0.13840000331401825,
+          0.08160000294446945,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.12950000166893005,
+          0.08649999648332596,
+          0.050999999046325684
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 112,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.800000011920929,
+          0.3799999952316284,
+          0.41440001130104065,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.5,
+          0.23749999701976776,
+          0.2590000033378601
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 72,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.800000011920929,
+          0.800000011920929,
+          0.800000011920929,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0.18000000715255737,
+          0.18000000715255737,
+          0.18000000715255737
+        ],
+        "ambient": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 888,
+        "fileName": ""
+      },
+      {
+        "diffuse": [
+          0.0820000022649765,
+          0.3840000033378601,
+          0.4429999887943268,
+          1
+        ],
+        "shininess": 5,
+        "specular": [
+          0,
+          0,
+          0
+        ],
+        "ambient": [
+          0.04100000113248825,
+          0.19200000166893005,
+          0.2214999943971634
+        ],
+        "toonIndex": 0,
+        "edgeFlag": 0,
+        "faceCount": 312,
+        "fileName": ""
+      }
+    ],
+    "toonTextures": [
+      {
+        "fileName": "toon01.bmp"
+      },
+      {
+        "fileName": "toon02.bmp"
+      },
+      {
+        "fileName": "toon03.bmp"
+      },
+      {
+        "fileName": "toon04.bmp"
+      },
+      {
+        "fileName": "toon05.bmp"
+      },
+      {
+        "fileName": "toon06.bmp"
+      },
+      {
+        "fileName": "toon07.bmp"
+      },
+      {
+        "fileName": "toon08.bmp"
+      },
+      {
+        "fileName": "toon09.bmp"
+      },
+      {
+        "fileName": "toon10.bmp"
+      }
+    ]
+  },
+  "models": [
+    {
+      "page": "webgl_loader_mmd_pmx_gene",
+      "backend": "WebGL2 / SwiftShader",
+      "camera": [
+        0,
+        11.999999999999996,
+        35
+      ],
+      "target": [
+        0,
+        10,
+        0
+      ],
+      "size": [
+        256,
+        256
+      ],
+      "pose": "rest; physics and animation disabled; all morph weights zero",
+      "toneMapping": 0,
+      "outputColorSpace": "srgb",
+      "materialState": [
+        {
+          "index": 0,
+          "name": "髪",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              0,
+              27,
+              35
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              174.609637260437,
+              185.93425273895264,
+              195.64424991607666
+            ],
+            "visibleTexels": 1048576
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 1,
+          "name": "手肌",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              241,
+              185,
+              158
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              251.6407527923584,
+              216.26990509033203,
+              199.86043453216553
+            ],
+            "visibleTexels": 1048576
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 2,
+          "name": "アンダー",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              0,
+              0,
+              0
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              94.90451240539551,
+              100.67602062225342,
+              93.8933515548706
+            ],
+            "visibleTexels": 1048576
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 3,
+          "name": "顔",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              32,
+              0,
+              0
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              236.66894054412842,
+              202.15510845184326,
+              185.96466541290283
+            ],
+            "visibleTexels": 1048576
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 4,
+          "name": "目",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              0,
+              0,
+              0
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              154.5124225616455,
+              171.57490062713623,
+              189.31330394744873
+            ],
+            "visibleTexels": 1048576
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 5,
+          "name": "星目",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              227,
+              143,
+              0
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              250.10996652807435,
+              227.79640780149427,
+              175.58000116087604
+            ],
+            "visibleTexels": 982017
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 6,
+          "name": "ぐるぐる目",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              0,
+              0,
+              0
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              164.09532737731934,
+              164.94789028167725,
+              165.81818103790283
+            ],
+            "visibleTexels": 1048576
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 7,
+          "name": "トップス",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              0,
+              0,
+              0
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              158.13352584838867,
+              164.79321765899658,
+              162.9373426437378
+            ],
+            "visibleTexels": 1048576
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 8,
+          "name": "頬薄赤",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5272072692748282,
+            0.5272072692748282,
+            0.5272072692748282
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              227,
+              143,
+              0
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              250.10996652807435,
+              227.79640780149427,
+              175.58000116087604
+            ],
+            "visibleTexels": 982017
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 9,
+          "name": "青ざめ",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 0,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              0,
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0,
+              0
+            ],
+            "mean": [
+              0,
+              0,
+              0
+            ],
+            "visibleTexels": 943374
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 10,
+          "name": "頬斜線",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              227,
+              143,
+              0
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              250.10996652807435,
+              227.79640780149427,
+              175.58000116087604
+            ],
+            "visibleTexels": 982017
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 11,
+          "name": "頬照り",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "ambient": [
+            0.5271151487546937,
+            0.5271151487546937,
+            0.5271151487546937
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              227,
+              143,
+              0
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              250.10996652807435,
+              227.79640780149427,
+              175.58000116087604
+            ],
+            "visibleTexels": 982017
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 12,
+          "name": "イライラ",
+          "color": [
+            0.09084170002028363,
+            0.21952622738395278,
+            0.29613829876365594
+          ],
+          "ambient": [
+            0.09084170002028363,
+            0.21952622738395278,
+            0.29613829876365594
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 0,
+          "baseTexture": {
+            "width": 1024,
+            "height": 1024,
+            "colorSpace": "srgb",
+            "min": [
+              0,
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0,
+              0
+            ],
+            "mean": [
+              0,
+              0,
+              0
+            ],
+            "visibleTexels": 269920
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              255,
+              255,
+              255
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              255,
+              255,
+              255
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        }
+      ],
+      "measurements": [
+        {
+          "case": "white",
+          "settings": {
+            "name": "white",
+            "colors": [
+              16777215,
+              16777215
+            ]
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.730102,
+              0.735836,
+              0.728264
+            ],
+            "peak": 1.581913,
+            "overRangePixels": 2667,
+            "overRangePercent": 50.141004,
+            "channelHistogram": [
+              6736,
+              269,
+              208,
+              1218,
+              7526,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              163.303252,
+              167.408911,
+              167.283324
+            ],
+            "peak": 255,
+            "overRangePixels": 2639,
+            "overRangePercent": 49.614589,
+            "channelHistogram": [
+              28,
+              5528,
+              1251,
+              392,
+              1320,
+              7438
+            ]
+          }
+        },
+        {
+          "case": "current",
+          "settings": {
+            "name": "current",
+            "colors": [
+              11184810,
+              16777215
+            ]
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.642244,
+              0.647288,
+              0.640628
+            ],
+            "peak": 1.391557,
+            "overRangePixels": 2376,
+            "overRangePercent": 44.670051,
+            "channelHistogram": [
+              6776,
+              269,
+              236,
+              2123,
+              6553,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              160.035721,
+              164.140816,
+              163.986652
+            ],
+            "peak": 255,
+            "overRangePixels": 2339,
+            "overRangePercent": 43.974431,
+            "channelHistogram": [
+              119,
+              5805,
+              935,
+              440,
+              2212,
+              6446
+            ]
+          }
+        },
+        {
+          "case": "gray",
+          "settings": {
+            "name": "gray",
+            "colors": [
+              8947848,
+              8947848
+            ]
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.271447,
+              0.273579,
+              0.270764
+            ],
+            "peak": 0.588173,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              7030,
+              318,
+              4008,
+              4601,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              114.845836,
+              117.283512,
+              117.093063
+            ],
+            "peak": 202,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              3641,
+              3048,
+              586,
+              4972,
+              3710,
+              0
+            ]
+          }
+        },
+        {
+          "case": "bothLightsZero",
+          "settings": {
+            "name": "bothLightsZero",
+            "sceneAmbient": false,
+            "directional": false
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.121644,
+              0.122599,
+              0.121338
+            ],
+            "peak": 0.263604,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              7298,
+              6492,
+              2167,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              78.156984,
+              79.909569,
+              79.768754
+            ],
+            "peak": 140,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              6551,
+              380,
+              3861,
+              5165,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "sceneAmbientOnly",
+          "settings": {
+            "name": "sceneAmbientOnly",
+            "directional": false,
+            "materialAmbient": false,
+            "specular": false
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.059056,
+              0.05952,
+              0.058908
+            ],
+            "peak": 0.127953,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              10234,
+              5723,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              54.35533,
+              55.552359,
+              55.4279
+            ],
+            "peak": 100,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              6752,
+              586,
+              8619,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "materialAmbientOnly",
+          "settings": {
+            "name": "materialAmbientOnly",
+            "sceneAmbient": false,
+            "directional": false,
+            "diffuse": false,
+            "specular": false
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.121644,
+              0.122599,
+              0.121338
+            ],
+            "peak": 0.263604,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              7298,
+              6492,
+              2167,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              78.156984,
+              79.909569,
+              79.768754
+            ],
+            "peak": 140,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              6551,
+              380,
+              3861,
+              5165,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "directionalDiffuseOnly",
+          "settings": {
+            "name": "directionalDiffuseOnly",
+            "sceneAmbient": false,
+            "materialAmbient": false,
+            "specular": false
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.461544,
+              0.465169,
+              0.460382
+            ],
+            "peak": 1,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              6865,
+              261,
+              443,
+              8388,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              146.706336,
+              149.760293,
+              149.513818
+            ],
+            "peak": 255,
+            "overRangePixels": 146,
+            "overRangePercent": 2.744877,
+            "channelHistogram": [
+              461,
+              6048,
+              444,
+              806,
+              8052,
+              146
+            ]
+          }
+        },
+        {
+          "case": "directSpecularOnly",
+          "settings": {
+            "name": "directSpecularOnly",
+            "sceneAmbient": false,
+            "materialAmbient": false,
+            "diffuse": false
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0,
+              0,
+              0
+            ],
+            "peak": 0,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              15957,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              0,
+              0,
+              0
+            ],
+            "peak": 0,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              15957,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "directSpecularPowerZero",
+          "settings": {
+            "name": "directSpecularPowerZero",
+            "sceneAmbient": false,
+            "materialAmbient": false,
+            "diffuse": false,
+            "powerZero": true
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0,
+              0,
+              0
+            ],
+            "peak": 0,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              15957,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              0,
+              0,
+              0
+            ],
+            "peak": 0,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              15957,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "noMaterialAmbient",
+          "settings": {
+            "name": "noMaterialAmbient",
+            "materialAmbient": false
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.5206,
+              0.524689,
+              0.51929
+            ],
+            "peak": 1.127953,
+            "overRangePixels": 1548,
+            "overRangePercent": 29.103215,
+            "channelHistogram": [
+              6829,
+              249,
+              324,
+              4686,
+              3869,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              153.007332,
+              156.695055,
+              156.36473
+            ],
+            "peak": 255,
+            "overRangePixels": 1506,
+            "overRangePercent": 28.313593,
+            "channelHistogram": [
+              256,
+              6140,
+              532,
+              601,
+              4574,
+              3854
+            ]
+          }
+        },
+        {
+          "case": "noSceneAmbient",
+          "settings": {
+            "name": "noSceneAmbient",
+            "sceneAmbient": false
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.583188,
+              0.587768,
+              0.58172
+            ],
+            "peak": 1.263603,
+            "overRangePixels": 2071,
+            "overRangePercent": 38.93589,
+            "channelHistogram": [
+              6804,
+              257,
+              255,
+              3090,
+              5551,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              157.13292,
+              161.12916,
+              160.893213
+            ],
+            "peak": 255,
+            "overRangePixels": 2043,
+            "overRangePercent": 38.409475,
+            "channelHistogram": [
+              162,
+              6028,
+              711,
+              484,
+              3026,
+              5546
+            ]
+          }
+        },
+        {
+          "case": "noDirectional",
+          "settings": {
+            "name": "noDirectional",
+            "directional": false
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.1807,
+              0.182119,
+              0.180245
+            ],
+            "peak": 0.391557,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              7132,
+              1347,
+              7478,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              94.746381,
+              96.823463,
+              96.638654
+            ],
+            "peak": 168,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              5893,
+              896,
+              1079,
+              8089,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "noSpecular",
+          "settings": {
+            "name": "noSpecular",
+            "specular": false
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.642244,
+              0.647288,
+              0.640628
+            ],
+            "peak": 1.391557,
+            "overRangePixels": 2376,
+            "overRangePercent": 44.670051,
+            "channelHistogram": [
+              6776,
+              269,
+              236,
+              2123,
+              6553,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              160.035721,
+              164.140816,
+              163.986652
+            ],
+            "peak": 255,
+            "overRangePixels": 2339,
+            "overRangePercent": 43.974431,
+            "channelHistogram": [
+              119,
+              5805,
+              935,
+              440,
+              2212,
+              6446
+            ]
+          }
+        },
+        {
+          "case": "noSphere",
+          "settings": {
+            "name": "noSphere",
+            "noSphere": true
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.642244,
+              0.647288,
+              0.640628
+            ],
+            "peak": 1.391557,
+            "overRangePixels": 2376,
+            "overRangePercent": 44.670051,
+            "channelHistogram": [
+              6776,
+              269,
+              236,
+              2123,
+              6553,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              160.035721,
+              164.140816,
+              163.986652
+            ],
+            "peak": 255,
+            "overRangePixels": 2339,
+            "overRangePercent": 43.974431,
+            "channelHistogram": [
+              119,
+              5805,
+              935,
+              440,
+              2212,
+              6446
+            ]
+          }
+        },
+        {
+          "case": "neutralToon",
+          "settings": {
+            "name": "neutralToon",
+            "neutralToon": true
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              0.642244,
+              0.647288,
+              0.640628
+            ],
+            "peak": 1.391557,
+            "overRangePixels": 2376,
+            "overRangePercent": 44.670051,
+            "channelHistogram": [
+              6776,
+              269,
+              236,
+              2123,
+              6553,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              160.035721,
+              164.140816,
+              163.986652
+            ],
+            "peak": 255,
+            "overRangePixels": 2339,
+            "overRangePercent": 43.974431,
+            "channelHistogram": [
+              119,
+              5805,
+              935,
+              440,
+              2212,
+              6446
+            ]
+          }
+        },
+        {
+          "case": "neutralBaseTextureRGB",
+          "settings": {
+            "name": "neutralBaseTextureRGB",
+            "neutralBaseRGB": true
+          },
+          "linear": {
+            "pixels": 5319,
+            "meanRGB": [
+              1.391511,
+              1.391511,
+              1.391511
+            ],
+            "peak": 1.391557,
+            "overRangePixels": 5319,
+            "overRangePercent": 100,
+            "channelHistogram": [
+              0,
+              0,
+              0,
+              0,
+              15957,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 5319,
+            "meanRGB": [
+              254.912954,
+              254.912954,
+              254.912954
+            ],
+            "peak": 255,
+            "overRangePixels": 5307,
+            "overRangePercent": 99.774394,
+            "channelHistogram": [
+              3,
+              0,
+              0,
+              0,
+              33,
+              15921
+            ]
+          }
+        }
+      ],
+      "ablationMaxDelta": {
+        "noSpecular": 0,
+        "noSphere": 0,
+        "neutralToon": 0
+      },
+      "sourceToLoadedParametersMatch": true,
+      "formerDiffuseDividedByPiCounterfactual": {
+        "pixels": 5319,
+        "meanRGB": [
+          0.327614,
+          0.330187,
+          0.326789
+        ],
+        "peak": 0.709867,
+        "overRangePixels": 0,
+        "overRangePercent": 0,
+        "channelHistogram": [
+          6965,
+          309,
+          1935,
+          6748,
+          0,
+          0
+        ]
+      },
+      "maxIsolationSumError": 1.1920928955078125e-7,
+      "maxRepeatError": 0
+    },
+    {
+      "page": "webgl_loader_mmd_pose",
+      "backend": "WebGL2 / SwiftShader",
+      "camera": [
+        0,
+        11.999999999999996,
+        35
+      ],
+      "target": [
+        0,
+        10,
+        0
+      ],
+      "size": [
+        256,
+        256
+      ],
+      "pose": "rest; physics and animation disabled; all morph weights zero",
+      "toneMapping": 0,
+      "outputColorSpace": "srgb",
+      "materialState": [
+        {
+          "index": 0,
+          "name": "",
+          "color": [
+            0.015928428935875805,
+            0.33754224929005744,
+            0.46236133817175834
+          ],
+          "ambient": [
+            0.005586980677512338,
+            0.07726271980505629,
+            0.10348450477556158
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 1,
+          "name": "",
+          "color": [
+            0,
+            0.2824655187146868,
+            0.2824655187146868
+          ],
+          "ambient": [
+            0,
+            0.10348450477556158,
+            0.10348450477556158
+          ],
+          "specular": [
+            0.050876088164650994,
+            0.050876088164650994,
+            0.050876088164650994
+          ],
+          "shininess": 10,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              154,
+              154,
+              154
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              204.5,
+              204.5,
+              204.5
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 2,
+          "name": "",
+          "color": [
+            0.6038273590529664,
+            0.4652677893271825,
+            0.3472814410147478
+          ],
+          "ambient": [
+            0.2140411404715882,
+            0.16661806723098768,
+            0.1259673780128379
+          ],
+          "specular": [
+            0.01960664987992319,
+            0.01960664987992319,
+            0.01960664987992319
+          ],
+          "shininess": 6,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              245,
+              225,
+              225
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              250,
+              240,
+              240
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 3,
+          "name": "",
+          "color": [
+            0.021980946197639795,
+            0.021980946197639795,
+            0.021980946197639795
+          ],
+          "ambient": [
+            0.010022825802910867,
+            0.010022825802910867,
+            0.010022825802910867
+          ],
+          "specular": [
+            0.13286832572150142,
+            0.13286832572150142,
+            0.13286832572150142
+          ],
+          "shininess": 15,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              154,
+              154,
+              154
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              204.5,
+              204.5,
+              204.5
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 4,
+          "name": "",
+          "color": [
+            0.2789959569972653,
+            0.2789959569972653,
+            0.2789959569972653
+          ],
+          "ambient": [
+            0.10227711062104954,
+            0.10227711062104954,
+            0.10227711062104954
+          ],
+          "specular": [
+            0.01960664987992319,
+            0.01960664987992319,
+            0.01960664987992319
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 5,
+          "name": "",
+          "color": [
+            0.18765937786463271,
+            0.6038273590529664,
+            0.38368910859126715
+          ],
+          "ambient": [
+            0.07030320445358666,
+            0.2140411404715882,
+            0.13854423473267335
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 6,
+          "name": "",
+          "color": [
+            0.38525212080007876,
+            0.38525212080007876,
+            0.38525212080007876
+          ],
+          "ambient": [
+            0.13286832572150142,
+            0.13286832572150142,
+            0.13286832572150142
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": {
+            "width": 128,
+            "height": 128,
+            "colorSpace": "srgb",
+            "min": [
+              0,
+              38,
+              46
+            ],
+            "max": [
+              77,
+              154,
+              165
+            ],
+            "mean": [
+              57.153076171875,
+              126.199951171875,
+              136.36962890625
+            ],
+            "visibleTexels": 16384
+          },
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 7,
+          "name": "",
+          "color": [
+            0.012687753758495597,
+            0.012687753758495597,
+            0.012687753758495597
+          ],
+          "ambient": [
+            0.0062721801414232625,
+            0.0062721801414232625,
+            0.0062721801414232625
+          ],
+          "specular": [
+            0.11928018447467378,
+            0.11928018447467378,
+            0.11928018447467378
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 8,
+          "name": "",
+          "color": [
+            0.5930364545458328,
+            0.028564861421121194,
+            0.053971894795417495
+          ],
+          "ambient": [
+            0.2103574602727136,
+            0.012598900198021006,
+            0.022227114773935634
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 9,
+          "name": "",
+          "color": [
+            0.2930246465906202,
+            0.3551893538635745,
+            0.022774325104087546
+          ],
+          "ambient": [
+            0.10715639486781857,
+            0.12870200150239344,
+            0.010336017830863744
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 10,
+          "name": "",
+          "color": [
+            0.31020757288944956,
+            0.42113138302225084,
+            0.6038273590529664
+          ],
+          "ambient": [
+            0.11312355568745,
+            0.15144615425367533,
+            0.2140411404715882
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 11,
+          "name": "",
+          "color": [
+            0,
+            0,
+            0
+          ],
+          "ambient": [
+            0,
+            0,
+            0
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              245,
+              225,
+              225
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              250,
+              240,
+              240
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 12,
+          "name": "",
+          "color": [
+            0.4514138277112329,
+            0.010022825802910867,
+            0.013857432697999099
+          ],
+          "ambient": [
+            0.1618597243338949,
+            0.005155668396761913,
+            0.006754852842391087
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 13,
+          "name": "",
+          "color": [
+            0.03539260823950388,
+            0.017048636143104305,
+            0.007400751086888168
+          ],
+          "ambient": [
+            0.015225984921948295,
+            0.008053961078053734,
+            0.004026504269406566
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 14,
+          "name": "",
+          "color": [
+            0.6038273590529664,
+            0.11928018447467378,
+            0.14318500089834502
+          ],
+          "ambient": [
+            0.2140411404715882,
+            0.04601465552942944,
+            0.05455383216739123
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 15,
+          "name": "",
+          "color": [
+            0.6038273590529664,
+            0.6038273590529664,
+            0.6038273590529664
+          ],
+          "ambient": [
+            0.2140411404715882,
+            0.2140411404715882,
+            0.2140411404715882
+          ],
+          "specular": [
+            0.02721178293388976,
+            0.02721178293388976,
+            0.02721178293388976
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        },
+        {
+          "index": 16,
+          "name": "",
+          "color": [
+            0.007452868785084596,
+            0.12192954505276746,
+            0.165023006842906
+          ],
+          "ambient": [
+            0.003174278797287097,
+            0.03066668213370144,
+            0.04020336466753383
+          ],
+          "specular": [
+            0,
+            0,
+            0
+          ],
+          "shininess": 5,
+          "opacity": 1,
+          "baseTexture": null,
+          "toon": {
+            "width": 32,
+            "height": 32,
+            "colorSpace": "srgb",
+            "min": [
+              205,
+              205,
+              205
+            ],
+            "max": [
+              255,
+              255,
+              255
+            ],
+            "mean": [
+              230,
+              230,
+              230
+            ],
+            "visibleTexels": 1024
+          },
+          "sphere": false
+        }
+      ],
+      "measurements": [
+        {
+          "case": "white",
+          "settings": {
+            "name": "white",
+            "colors": [
+              16777215,
+              16777215
+            ]
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.10866,
+              0.337295,
+              0.330583
+            ],
+            "peak": 0.922007,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13408,
+              1885,
+              13225,
+              2391,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              54.894885,
+              145.255945,
+              144.267495
+            ],
+            "peak": 246,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              4929,
+              7040,
+              2749,
+              14141,
+              2050,
+              0
+            ]
+          }
+        },
+        {
+          "case": "current",
+          "settings": {
+            "name": "current",
+            "colors": [
+              11184810,
+              16777215
+            ]
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.095365,
+              0.292629,
+              0.286747
+            ],
+            "peak": 0.807065,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13442,
+              2184,
+              13563,
+              1720,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              51.9439,
+              135.901194,
+              134.9703
+            ],
+            "peak": 232,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              6198,
+              5943,
+              2946,
+              14349,
+              1473,
+              0
+            ]
+          }
+        },
+        {
+          "case": "gray",
+          "settings": {
+            "name": "gray",
+            "colors": [
+              8947848,
+              8947848
+            ]
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.035997,
+              0.112332,
+              0.109884
+            ],
+            "peak": 0.307671,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              15626,
+              14495,
+              788,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              30.163642,
+              86.661167,
+              86.032515
+            ],
+            "peak": 151,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              11447,
+              2223,
+              16079,
+              1160,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "bothLightsZero",
+          "settings": {
+            "name": "bothLightsZero",
+            "sceneAmbient": false,
+            "directional": false
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.012264,
+              0.038856,
+              0.0378
+            ],
+            "peak": 0.107021,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              30300,
+              609,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              15.478987,
+              50.302727,
+              49.841988
+            ],
+            "peak": 92,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13582,
+              3667,
+              13660,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "sceneAmbientOnly",
+          "settings": {
+            "name": "sceneAmbientOnly",
+            "directional": false,
+            "materialAmbient": false,
+            "specular": false
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.008937,
+              0.030024,
+              0.029466
+            ],
+            "peak": 0.077262,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              30909,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              12.569543,
+              43.796467,
+              43.425507
+            ],
+            "peak": 80,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13545,
+              15575,
+              1789,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "materialAmbientOnly",
+          "settings": {
+            "name": "materialAmbientOnly",
+            "sceneAmbient": false,
+            "directional": false,
+            "diffuse": false,
+            "specular": false
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.012264,
+              0.038856,
+              0.0378
+            ],
+            "peak": 0.107021,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              30300,
+              609,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              15.478987,
+              50.302727,
+              49.841988
+            ],
+            "peak": 92,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13582,
+              3667,
+              13660,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "directionalDiffuseOnly",
+          "settings": {
+            "name": "directionalDiffuseOnly",
+            "sceneAmbient": false,
+            "materialAmbient": false,
+            "specular": false
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.067064,
+              0.216649,
+              0.21238
+            ],
+            "peak": 0.603827,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              15244,
+              477,
+              14400,
+              788,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              36.735223,
+              116.9835,
+              116.153936
+            ],
+            "peak": 204,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              7174,
+              6217,
+              2590,
+              14305,
+              623,
+              0
+            ]
+          }
+        },
+        {
+          "case": "directSpecularOnly",
+          "settings": {
+            "name": "directSpecularOnly",
+            "sceneAmbient": false,
+            "materialAmbient": false,
+            "diffuse": false
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.0071,
+              0.0071,
+              0.0071
+            ],
+            "peak": 0.132813,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              30675,
+              234,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              13.784723,
+              13.784723,
+              13.784723
+            ],
+            "peak": 102,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              26424,
+              3945,
+              540,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "directSpecularPowerZero",
+          "settings": {
+            "name": "directSpecularPowerZero",
+            "sceneAmbient": false,
+            "materialAmbient": false,
+            "diffuse": false,
+            "powerZero": true
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.063317,
+              0.063317,
+              0.063317
+            ],
+            "peak": 0.132868,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              23403,
+              7506,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              66.128797,
+              66.128797,
+              66.128797
+            ],
+            "peak": 102,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              1626,
+              5043,
+              24240,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "noMaterialAmbient",
+          "settings": {
+            "name": "noMaterialAmbient",
+            "materialAmbient": false
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.083101,
+              0.253773,
+              0.248947
+            ],
+            "peak": 0.700044,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13468,
+              2249,
+              13579,
+              1613,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              49.003882,
+              127.268077,
+              126.415704
+            ],
+            "peak": 218,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              6268,
+              6044,
+              3133,
+              14388,
+              1076,
+              0
+            ]
+          }
+        },
+        {
+          "case": "noSceneAmbient",
+          "settings": {
+            "name": "noSceneAmbient",
+            "sceneAmbient": false
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.086428,
+              0.262605,
+              0.257281
+            ],
+            "peak": 0.729803,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13459,
+              2258,
+              13579,
+              1613,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              49.809279,
+              129.019509,
+              128.141512
+            ],
+            "peak": 222,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              6269,
+              5989,
+              3151,
+              14361,
+              1139,
+              0
+            ]
+          }
+        },
+        {
+          "case": "noDirectional",
+          "settings": {
+            "name": "noDirectional",
+            "directional": false
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.021201,
+              0.068879,
+              0.067266
+            ],
+            "peak": 0.184282,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              28518,
+              2391,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              20.942638,
+              68.32903,
+              67.758808
+            ],
+            "peak": 120,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13319,
+              693,
+              16897,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "case": "noSpecular",
+          "settings": {
+            "name": "noSpecular",
+            "specular": false
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.088265,
+              0.285529,
+              0.279647
+            ],
+            "peak": 0.78811,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13829,
+              1797,
+              13563,
+              1720,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              42.205183,
+              133.396875,
+              132.458604
+            ],
+            "peak": 230,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              7043,
+              6294,
+              1767,
+              14347,
+              1458,
+              0
+            ]
+          }
+        },
+        {
+          "case": "noSphere",
+          "settings": {
+            "name": "noSphere",
+            "noSphere": true
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.095365,
+              0.292629,
+              0.286747
+            ],
+            "peak": 0.807065,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13442,
+              2184,
+              13563,
+              1720,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              51.9439,
+              135.901194,
+              134.9703
+            ],
+            "peak": 232,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              6198,
+              5943,
+              2946,
+              14349,
+              1473,
+              0
+            ]
+          }
+        },
+        {
+          "case": "neutralToon",
+          "settings": {
+            "name": "neutralToon",
+            "neutralToon": true
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.098682,
+              0.313861,
+              0.307845
+            ],
+            "peak": 0.807065,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13430,
+              542,
+              14943,
+              1994,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              53.378822,
+              141.656605,
+              140.750946
+            ],
+            "peak": 232,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              4882,
+              7231,
+              1696,
+              15366,
+              1734,
+              0
+            ]
+          }
+        },
+        {
+          "case": "neutralBaseTextureRGB",
+          "settings": {
+            "name": "neutralBaseTextureRGB",
+            "neutralBaseRGB": true
+          },
+          "linear": {
+            "pixels": 10303,
+            "meanRGB": [
+              0.096648,
+              0.293751,
+              0.287832
+            ],
+            "peak": 0.807065,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              13371,
+              2168,
+              13578,
+              1792,
+              0,
+              0
+            ]
+          },
+          "displaySRGB8": {
+            "pixels": 10303,
+            "meanRGB": [
+              52.294671,
+              136.172086,
+              135.22838
+            ],
+            "peak": 232,
+            "overRangePixels": 0,
+            "overRangePercent": 0,
+            "channelHistogram": [
+              6186,
+              5918,
+              2925,
+              14376,
+              1504,
+              0
+            ]
+          }
+        }
+      ],
+      "ablationMaxDelta": {
+        "noSpecular": 0.13281315006315708,
+        "noSphere": 0,
+        "neutralToon": 0.2768765091896057
+      },
+      "sourceToLoadedParametersMatch": true,
+      "formerDiffuseDividedByPiCounterfactual": {
+        "pixels": 10303,
+        "meanRGB": [
+          0.049648,
+          0.144941,
+          0.141969
+        ],
+        "peak": 0.395442,
+        "overRangePixels": 0,
+        "overRangePercent": 0,
+        "channelHistogram": [
+          14981,
+          14295,
+          1633,
+          0,
+          0,
+          0
+        ]
+      },
+      "maxIsolationSumError": 6.274785846471786e-8,
+      "maxRepeatError": 0
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36"
+}

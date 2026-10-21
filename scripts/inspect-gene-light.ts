@@ -41,6 +41,16 @@ export async function inspectGeneLight( directory = geneLightDirectory ) {
 		parser: 'mmd-parser 1.1.4', commit: geneLightManifest.commit, model: 'Gene_light.pmx',
 		modelSha256: geneLightManifest.files.find( file => file.path === 'Gene_light.pmx' )!.sha256,
 		vertices: model.vertices.length, faces: model.faces.length, materials: model.materials.length,
+		materialRecords: model.materials.map( ( material, index ) => ( {
+			index, name: material.name, diffuse: material.diffuse, ambient: material.ambient,
+			specular: material.specular, shininess: material.shininess,
+			texture: textures[ material.textureIndex ] ?? null,
+			sphere: textures[ material.envTextureIndex ] ?? null, sphereMode: material.envFlag,
+			toonFlag: material.toonFlag, toonIndex: material.toonIndex,
+			toon: material.toonIndex === - 1 ? 'toon00.bmp' : material.toonFlag === 0 ? textures[ material.toonIndex ] ?? null : `toon${String( material.toonIndex + 1 ).padStart( 2, '0' )}.bmp`,
+			faceCount: material.faceCount
+		} ) ),
+		materialMorphs: model.morphs.filter( morph => morph.type === 8 ).map( morph => ( { name: morph.name, demoDefaultWeight: 0, elements: morph.elements } ) ),
 		textures, additionalUV: model.metadata.additionalUvNum,
 		skinning: count( model.vertices, v => v.type, [ 0, 1, 2, 3 ] ),
 		bones: {

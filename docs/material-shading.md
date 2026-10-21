@@ -124,3 +124,13 @@ record their links/results, confirm that SHA's Pages publication and served
 Examples assets, and smoke-test public PMD and Gene Light PMX material/animation
 startup. Those checks belong after merge. Optional maintainer comparison with
 native MMD is not a pre-merge or completion gate.
+
+## Gene Light demo investigation (Issue #102)
+
+The [pinned-model and rendered contribution report](gene-light-overbrightness-investigation.md)
+compares all 13 shipped Gene materials with Miku PMD, isolates scene ambient,
+authored ambient, direct diffuse/specular and texture/toon effects, and separates
+linear HDR values from canvas sRGB clipping. Gene's two demo lights now use
+`0x888888` at intensity 1; Miku retains `0xAAAAAA`/`0xffffff` at 1/1. This trial
+changes no library material, loader or renderer code. Native MMD parity remains
+unverified; publication and maintainer visual follow-up remain pending.

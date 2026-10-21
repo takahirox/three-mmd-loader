@@ -9,7 +9,9 @@ import { geneLightDirectory, geneLightManifest, verifyGeneLightFile } from './ge
 import { createExamplesServer } from './serve-examples.ts';
 import { removeBrowserDirectory, runBrowser } from '../tests/browser/browser.ts';
 
-const ids = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose', 'webgl_loader_mmd_worker', 'webgl_loader_mmd_pmx_gene' ];
+const allIds = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose', 'webgl_loader_mmd_worker', 'webgl_loader_mmd_pmx_gene' ];
+const geneOnly = process.argv.includes( '--gene' );
+const ids = geneOnly ? [ 'webgl_loader_mmd_pmx_gene' ] : allIds;
 const sha256 = ( bytes: Uint8Array ) => createHash( 'sha256' ).update( bytes ).digest( 'hex' );
 interface Capture {
 	page: string;
@@ -31,8 +33,8 @@ for ( const file of geneLightManifest.files ) verifyGeneLightFile( file, await r
 // Reject a stale build before capturing any images.
 const sceneSource = await readFile( new URL( '../examples/scene.ts', import.meta.url ) );
 const compiledScene = await readFile( new URL( '../dist/example-modules/scene.js', import.meta.url ), 'utf8' );
-assert.ok( /const ambient = new AmbientLight\(\s*0xAAAAAA, 1\s*\)/.test( compiledScene ), 'Build the current gray ambient lighting at intensity 1 before capture' );
-assert.ok( /const light = new DirectionalLight\(\s*0xffffff, 1\s*\)/.test( compiledScene ), 'Build the current 1/1 directional lighting before capture' );
+assert.ok( /const ambient = new AmbientLight\(\s*mode === [\'"]gene[\'"] \? 0x888888 : 0xAAAAAA, 1\s*\)/.test( compiledScene ), 'Build the current gray ambient lighting at intensity 1 before capture' );
+assert.ok( /const light = new DirectionalLight\(\s*mode === [\'"]gene[\'"] \? 0x888888 : 0xffffff, 1\s*\)/.test( compiledScene ), 'Build the current 1/1 directional lighting before capture' );
 
 const harness = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre><script type="module">
 const captures = [], errors = [];
@@ -75,7 +77,7 @@ try {
    ready:doc.body.dataset.state==='ready',
    realModel:id.endsWith('_pmx_gene')?mesh.skeleton.bones.length===224:mesh.skeleton.bones.length>100,
    lightIntensities:lights.length===2 && ambient.intensity===1 && directional.intensity===1,
-   lightColors:ambient.color.getHex()===0xAAAAAA && directional.color.getHex()===0xffffff,
+   lightColors:ambient.color.getHex()===(mode==='gene'?0x888888:0xAAAAAA) && directional.color.getHex()===(mode==='gene'?0x888888:0xffffff),
    lightDirection:directional.position.toArray().join(',')==='-1,2,1' && directional.target.position.toArray().join(',')==='0,0,0',
    camera:id.endsWith('_audio') || (camera.position.toArray().every((v,i)=>Math.abs(v-[0,12,35][i])<1e-9) && camera.aspect===400/250),
    outlines:effect.enabled,
@@ -103,6 +105,19 @@ const server = createServer( ( request, response ) => {
 const temporary = await mkdtemp( join( tmpdir(), 'mmd-thumbnail-capture-' ) );
 const manifestURL = new URL( '../examples/screenshots/manifest.json', import.meta.url );
 const existingManifest = JSON.parse( await readFile( manifestURL, 'utf8' ) );
+if ( geneOnly ) {
+
+	const previousPMDSource = sha256( Buffer.from( sceneSource.toString()
+		.replace( "mode === 'gene' ? 0x888888 : 0xAAAAAA", '0xAAAAAA' )
+		.replace( "mode === 'gene' ? 0x888888 : 0xffffff", '0xffffff' ) ) );
+	for ( const entry of existingManifest.entries.filter( ( entry: { mode: string } ) => entry.mode !== 'gene' ) ) {
+
+		assert.ok( [ sha256( sceneSource ), previousPMDSource ].includes( entry.sceneSha256 ), 'Retained Miku source must match or differ only in Gene light colors; otherwise recapture all' );
+		assert.equal( sha256( await readFile( new URL( '../examples/screenshots/' + entry.path, import.meta.url ) ) ), entry.sha256, 'Retained Miku capture integrity' );
+
+	}
+
+}
 try {
 
 	await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
@@ -115,7 +130,7 @@ try {
 		for ( const [ check, passed ] of Object.entries( capture.checks ) ) assert.equal( passed, true, `${capture.page}: ${check}` );
 
 	}
-	const entries = [];
+	const entries: { page: string; [key: string]: unknown }[] = [];
 	const capturedAt = new Date().toISOString();
 	for ( const capture of result.captures ) {
 
@@ -124,14 +139,14 @@ try {
 		const previous = await readFile( target ).catch( () => null );
 		const bytes = Buffer.from( capture.preview.split( ',' )[ 1 ], 'base64' );
 		await writeFile( target, bytes );
-		// Preserve the replaced white-ambient image hash on repeat gray captures;
+		// Preserve the replaced image hash when colors/intensities are unchanged;
 		// JPEG bytes may vary with browser/platform versions.
 		const original = existingManifest.entries.find( ( entry: { page: string } ) => entry.page === capture.page );
 		const previousSha256 = original?.lighting?.ambientColor === capture.state.lighting.ambientColor && original?.lighting?.directionalColor === capture.state.lighting.directionalColor && original?.lighting?.ambient === 1 && original?.lighting?.directional === 1
 			? original.previousSha256 : previous ? sha256( previous ) : null;
 		entries.push( { page: capture.page, path, sha256: sha256( bytes ), previousSha256, ...capture.state,
 			capturedAt, sceneSha256: sha256( sceneSource ), userAgent: result.userAgent, retained: false, checks: capture.checks } );
-		console.log( `Captured ${capture.page} (real assets, ambient 0xAAAAAA / directional 0xffffff, intensities 1/1, ${bytes.length} bytes)` );
+		console.log( `Captured ${capture.page} (real assets, ambient ${capture.state.lighting.ambientColor} / directional ${capture.state.lighting.directionalColor}, intensities 1/1, ${bytes.length} bytes)` );
 
 	}
 	await writeFile( manifestURL, JSON.stringify( {
@@ -140,7 +155,11 @@ try {
 		width: 400, height: 250, pixelRatio: 1, jpegQuality: 0.9,
 		sceneSha256: sha256( sceneSource ),
 		sources: { miku: { repository: 'mrdoob/three.js', commit: assetManifest.commit }, gene: { repository: geneLightManifest.repository, commit: geneLightManifest.commit } },
-		entries
+		// Retained entries keep their real capture source, date, browser and bytes.
+		retainedSceneReview: geneOnly ? { issue: 102, sceneSha256: sha256( sceneSource ),
+			previousSceneSha256: existingManifest.retainedSceneReview?.previousSceneSha256 ?? existingManifest.sceneSha256,
+			note: 'Only Gene light colors changed; four Miku images and capture entries retained unchanged.' } : undefined,
+		entries: allIds.map( id => entries.find( entry => entry.page === id ) ?? existingManifest.entries.find( ( entry: { page: string } ) => entry.page === id ) )
 	}, null, 2 ) + '\n' );
 
 } finally {
