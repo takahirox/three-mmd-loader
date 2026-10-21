@@ -59,8 +59,9 @@ The four Miku JPEG previews in `examples/screenshots/` are local renderings
 of the real example scenes, replacing the three original previews copied from
 [`examples/screenshots/` at Three.js r171](https://github.com/mrdoob/three.js/tree/2898f5b1ba10b1e94174c0a62d072f5f7b80442c/examples/screenshots)
 and adding a separate Worker Physics capture for Issue #63. The replacement
-images were recaptured for Issue #98 at ambient intensity 1 and directional
-intensity 1, and derive from unchanged Miku/MMD assets at that pinned commit.
+images were recaptured for Issue #100 with ambient color `0xAAAAAA` and
+white directional light, both at intensity 1, and derive from unchanged
+Miku/MMD assets at that pinned commit.
 Character © Crypton Future Media;
 model/texture MMD / Yu Higuchi; WAVEFILE motion hino; camera doramata,
 customized by Takahiro; Pose 1 KEITEL. The audio scene uses LamazeP's music
@@ -125,8 +126,10 @@ of the generated animation, replacing the earlier custom-framed preview.
 The changed presentation is a CC BY 4.0 derivative, separately from the MIT
 code license; the model and textures remain unchanged. Capture provenance is
 in `examples/screenshots/manifest.json` and the linked examples README.
-Issue #98 retains this Gene preview byte for byte with its original 1/1
-lighting provenance; the four Miku previews are recaptured at 1/1 lighting.
+Issue #98 retained the Issue #63 Gene preview. Issue #100 recaptures all five
+previews, including Gene, with ambient color `0xAAAAAA` and white directional
+light at intensities 1/1. This changes only the rendered presentation, with
+no claim of visual preference or additional asset rights.
 
 CG-CA Gene (c) 2023 by Nagoya Institute of Technology, Moonshot R&D Goal 1 Avatar Symbiotic Society
 

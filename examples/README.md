@@ -33,8 +33,8 @@ light/dark colors from the Issue #14 references: Three.js `examples/index.html`
 (blob `eab4263a7a7570bb433cab3048d5735d4782f673`). It is separate from the demo
 stylesheets. The four Miku previews in `screenshots/` replace the original
 official r171 screenshots with local captures of this checkout's real
-model/animation, audio/camera, pose, and Worker scenes with ambient intensity 1
-and directional intensity 1, updated for Issue #98.
+model/animation, audio/camera, pose, and Worker scenes with ambient color
+`0xAAAAAA` and white directional light, both at intensity 1, updated for Issue #100.
 Their model, texture, motion, camera, and pose sources are pinned to the same
 Three.js commit as the assets below. They depict the credited Miku character
 and retain the applicable character/asset terms; they are not MIT licensed
@@ -98,7 +98,7 @@ The [provenance and inspection record](./gene-light.md) documents the pre-merge
 rights review, exact asset selection, and measured lightweight PMX features.
 Use the animation/IK/grant/physics/debug toggles and open **Morph weights** for
 vertex, group, UV, and material sliders. The asset has no SDEF or bone morphs.
-The retained Issue #63 preview is a rendering of this permitted scene, with
+The Issue #100 preview is a rendering of this permitted scene, with
 credit above;
 it is separate from the four Miku previews and retains CC BY 4.0 attribution.
 
@@ -151,19 +151,26 @@ audio playback also needs browser audio support.
 ### Gallery thumbnail capture
 
 All five gallery cards use local **400×250 JPEG** captures from their real
-example pages with white `AmbientLight` and `DirectionalLight`, both explicitly
-set to intensity **1** in every mode. Issue #98 recaptures the four Miku
-previews, including a distinct Worker image, after the corrected MMD direct
-diffuse lighting in #96/#97. Gene already used 1/1 lighting and retains its
-exact Issue #63 JPEG bytes and historical capture provenance.
+example pages. Issue #100 trials `new AmbientLight( 0xAAAAAA, 1 )` in the shared
+scene initializer for Model and animation, Worker Physics, Audio and camera,
+Poses, and PMX — Gene (Light), with no scene-specific override. The white
+`DirectionalLight( 0xffffff, 1 )` remains at `(-1, 2, 1)`; both intensities stay
+**1**, preserving Issue #98. All five previews are recaptured with these colors,
+including Gene and a distinct Worker capture.
 
-| Page / mode | Ambient intensity | Directional intensity | Preview |
+This is an ambient **color-only trial**. The maintainer will visually review
+the published Examples, especially Gene Light PMX, and decide whether to keep
+or revise the color. The captures make no claim of visual preference, improved
+MMD fidelity, or a fix for PMX white clipping. Human visual judgment is not a
+pre-merge acceptance gate.
+
+| Page / mode | Ambient color / intensity | Directional color / intensity | Preview |
 | --- | --- | --- | --- |
-| Model and animation / `animation` | 1 | 1 | Recaptured |
-| Worker Physics / `animation` | 1 | 1 | Recaptured separately |
-| Audio and camera / `audio` | 1 | 1 | Recaptured |
-| Poses / `pose` | 1 | 1 | Recaptured |
-| PMX — Gene (Light) / `gene` | 1 | 1 | Retained unchanged |
+| Model and animation / `animation` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured |
+| Worker Physics / `animation` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured separately |
+| Audio and camera / `audio` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured |
+| Poses / `pose` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured |
+| PMX — Gene (Light) / `gene` | `0xAAAAAA` / 1 | `0xffffff` / 1 | Recaptured |
 
 Camera positions, lighting direction, materials, outlines, and renderer tone
 mapping remain those of the examples. The corrected MMD material/shading
@@ -189,23 +196,20 @@ and physics, then samples two seconds at 1/60-second steps with IK, physics,
 and outlines enabled. Worker steps are awaited and sync fallback fails capture.
 Audio/camera uses its authored VMD camera and dance at two seconds, before the
 music's 5.33-second delay; Poses selects KEITEL's **Pose 1** with IK enabled.
-Gene is verified using its locally authored demonstration animation at two
-seconds; its image is never overwritten. A fixed SHA-256 guard rejects changes
-to the retained image before capture and checks it again afterward.
+Gene uses its locally authored demonstration animation at two seconds.
 Only the canvas is encoded, so controls and text are outside the image.
 All captures must pass readiness, model, light, camera, rendering, backend,
 and runtime-error checks before any image is replaced.
 
 [`screenshots/manifest.json`](./screenshots/manifest.json) records the capture
 date, browser, asset source commits, current scene source hash, per-mode light
-intensities, frame/pose state, checks, and image SHA-256s. Each entry records its
-own capture date, browser and scene hash: Gene retains the original Issue #63
-capture provenance and checks, with separate current runtime verification
-checks. Miku entries record the replaced Issue #66 2/3 image hashes, retained
-on subsequent recapture at 1/1. The method reproduces the scene state; JPEG
-bytes can vary with browser/platform versions. Automated tests verify all five gallery
-references, image hashes, current scene
-provenance, and decoded 400×250 dimensions in the browser. The static build
+colors and intensities, frame/pose state, checks, and image SHA-256s. Each entry
+records its own capture date, browser and scene hash. All five entries record
+the replaced white-ambient image hashes (Miku from Issue #98, Gene from #63),
+retained on subsequent recapture with the same gray/white colors at 1/1.
+The method reproduces the scene state; JPEG bytes can vary with browser/platform
+versions. Automated tests verify all five gallery references, image hashes,
+current scene provenance, and decoded 400×250 dimensions in the browser. The static build
 copies the images and manifest; the npm package excludes example assets.
 
 Miku images derive from the credited Three.js r171 MMD assets below: model
@@ -214,13 +218,13 @@ WAVEFILE motion by hino; the audio card's camera by doramata, customized by
 Takahiro; and Pose 1 by KEITEL. The audio example also uses LamazeP's music,
 which is not embedded in the JPEG. These captures replace upstream-derived
 previews and preserve the character guidelines and individual asset terms,
-separately from the repository's MIT code license. Gene's retained rendering
+separately from the repository's MIT code license. Gene's rendering
 is a derivative presentation of the unchanged CC BY 4.0 Gene Light model and
 textures, with the credit and separate usage conditions above. Neither image
 set asserts author endorsement or grants additional character/asset rights.
 
-Issue #98's required post-merge Tests/Pages workflow and deployed-scene verification is
-**PENDING**; see [the validation record](https://github.com/takahirox/three-mmd-loader/blob/main/docs/examples-lighting-validation.md).
+Issue #100's required post-merge Tests/Pages workflow and deployed-scene verification is
+**PENDING**; see [the validation record](https://github.com/takahirox/three-mmd-loader/blob/main/docs/examples-gray-ambient-validation.md).
 It is not a pre-merge gate.
 
 ### Miku asset sources
@@ -278,9 +282,9 @@ WASM runtime; a main-thread initialization failure displays an error and stops
 setup. There is no asm.js fallback in the Examples.
 
 Changing the default backend does not establish improved stability,
-visual fidelity or universal speed. The four Miku gallery JPEGs are captured
-with the default WASM runtime. Gene retains its original asm.js capture provenance; neither set establishes
-WASM/asm.js visual or motion parity.
+visual fidelity or universal speed. All five gallery JPEGs are captured
+with the default WASM runtime; these captures do not establish WASM/asm.js
+visual or motion parity.
 See [consumer initialization and CSP](https://github.com/takahirox/three-mmd-loader/blob/main/README.md#optional-worker-physics) and
 [current validation evidence](https://github.com/takahirox/three-mmd-loader/blob/main/docs/bullet-default.md).
 
@@ -429,7 +433,7 @@ without a deployed site or human visual confirmation.
 The browser suite requires Google Chrome, with the same `CHROME_BIN` override
 as the TSL rendering suite. `npm run test:examples` runs the examples and Gene Light checks. It serves the actual pages and repository modules in headless Chrome,
 checks the index and scene DOM, computed typography/colors/spacing, overlay
-positioning, link behavior, per-mode light intensities, desktop/mobile GUI
+positioning, link behavior, per-mode light colors and intensities, desktop/mobile GUI
 placement, viewport canvas sizing,
 and resizing from desktop to mobile and back. It renders with the WebGL2 TSL
 backend, exercises animation/IK/physics/outline

@@ -31,7 +31,7 @@ try {
  const lights=scene.children.filter(c=>c.isLight);
  const ambient=lights.find(c=>c.isAmbientLight), directional=lights.find(c=>c.isDirectionalLight);
  checks.defaultLightIntensities=lights.length===2 && ambient.intensity===1 && directional.intensity===1;
- checks.lightColors=ambient.color.getHex()===0xffffff && directional.color.getHex()===0xffffff;
+ checks.lightColors=ambient.color.getHex()===0xAAAAAA && directional.color.getHex()===0xffffff;
  checks.lightDirection=directional.position.toArray().join(',')==='-1,2,1' && directional.target.position.toArray().join(',')==='0,0,0';
  const state=helper.objects.get(mesh), data=mesh.geometry.userData.MMD;
  checks.wasmRuntime=doc.body.dataset.ammoBackend==='wasm';
