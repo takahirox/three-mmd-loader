@@ -214,6 +214,10 @@ audio/camera animation, and VPD poses. MMD modules come from this checkout.
 The asset setup downloads the former r171 example assets and their notices
 for the examples; these assets have separate terms and are excluded from Git
 and the npm package. The deployed site includes the assets and their notices.
+All five demos, including Worker Physics and Gene Light PMX, share the
+Issue #100 trial of ambient color `0xAAAAAA` at intensity **1**; directional
+light stays white at intensity **1**. This color trial awaits maintainer visual
+review and makes no claim of improved MMD fidelity or resolved PMX white clipping.
 See the examples guide for credits, manual setup, and checks.
 
 The published artifact contains compiled native ES modules and TypeScript

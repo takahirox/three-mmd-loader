@@ -7,11 +7,12 @@ import { geneLightManifest } from '../scripts/gene-light-assets.ts';
 
 const ids = [ 'webgl_loader_mmd', 'webgl_loader_mmd_audio', 'webgl_loader_mmd_pose', 'webgl_loader_mmd_worker', 'webgl_loader_mmd_pmx_gene' ];
 const sha256 = ( bytes: Uint8Array ) => createHash( 'sha256' ).update( bytes ).digest( 'hex' );
+// White-ambient captures replaced by the Issue #100 gray-color trial.
 const previousImages: Record<string, string> = {
-	webgl_loader_mmd: '29677c3d3816cbf7ccde248e0dc8ef794463c4fb5a81fa8c444950c12bcf084c',
-	webgl_loader_mmd_audio: 'b090d442aeed0f3f77c709cda1173193ea9175b574365870198cab41dc97c3f7',
-	webgl_loader_mmd_pose: 'a98fa116780426a93f47ffd1b6b831c4efa1b0fd006c9ecfb6d710d6338ce315',
-	webgl_loader_mmd_worker: '4b0b3107c5c62f7ab976afb5d68ba520c09fa68512a8bc67afb5366cce73168f',
+	webgl_loader_mmd: 'd7966b61e8e16643aec1e5a164805cad57dd32d0b03227cf3bab088afab9dd9c',
+	webgl_loader_mmd_audio: 'e09d2c05f7a53a5104a84fa51ab2e12dcd9eb3b67a5df0888dd6f6f6b480d683',
+	webgl_loader_mmd_pose: 'b76a680af57ccc2073315387896c0644e71363270017f99f1e2c9a6202fef36e',
+	webgl_loader_mmd_worker: '57d15431ae755eca501ab5b66b64cef7bed121e91218cfbc3157c3f315eb6f13',
 	webgl_loader_mmd_pmx_gene: 'b0ad142b8a7c7e640893a1e07205e9508484fe28c11ffc2382e6c1780ca6da48'
 };
 
@@ -66,7 +67,7 @@ function jpegDimensions( bytes: Buffer ) {
 
 }
 
-test( 'four 1/1 Miku previews and unchanged Gene preview have valid dimensions, hashes and per-mode provenance', async () => {
+test( 'all five gray-ambient previews have valid dimensions, hashes and per-mode provenance', async () => {
 
 	const gallery = await readFile( new URL( '../examples/index.html', import.meta.url ), 'utf8' );
 	const scene = await readFile( new URL( '../examples/scene.ts', import.meta.url ) );
@@ -85,25 +86,16 @@ test( 'four 1/1 Miku previews and unchanged Gene preview have valid dimensions, 
 
 		const gene = entry.page.endsWith( '_pmx_gene' );
 		assert.equal( entry.mode, gene ? 'gene' : entry.page.endsWith( '_audio' ) ? 'audio' : entry.page.endsWith( '_pose' ) ? 'pose' : 'animation' );
-		assert.deepEqual( entry.lighting, { ambient: 1, directional: 1 } );
-		assert.equal( entry.retained, gene );
+		assert.deepEqual( entry.lighting, { ambient: 1, directional: 1, ambientColor: '0xAAAAAA', directionalColor: '0xffffff' } );
+		assert.equal( entry.retained, false );
 		assert.ok( ! Number.isNaN( Date.parse( entry.capturedAt ) ) );
 		assert.match( entry.userAgent, /HeadlessChrome/ );
-		if ( gene ) {
+		assert.equal( entry.sceneSha256, manifest.sceneSha256 );
+		assert.equal( entry.capturedAt, manifest.capturedAt );
+		assert.equal( entry.userAgent, manifest.userAgent );
+		assert.equal( entry.previousSha256, previousImages[ entry.page ], 'Record the replaced white-ambient image' );
+		assert.notEqual( entry.sha256, entry.previousSha256, 'Must refresh every capture for the gray-color trial' );
 
-			assert.equal( entry.sha256, previousImages[ entry.page ], 'Preserve the original 1/1 Gene JPEG' );
-			assert.equal( entry.sceneSha256, 'c99bd2096f6e45a27af9cf9e6cfbb3bcba147b3ff366850d8735bf25fccbfd95', 'Retain Gene original capture provenance' );
-			assert.equal( entry.capturedAt, '2026-10-14T09:29:07.294Z' );
-			assert.equal( entry.checks.defaultLights, true, 'Original Gene capture used native defaults' );
-
-		} else {
-
-			assert.equal( entry.sceneSha256, manifest.sceneSha256 );
-			assert.equal( entry.capturedAt, manifest.capturedAt );
-			assert.equal( entry.previousSha256, previousImages[ entry.page ], 'Record the replaced Issue #66 2/3 image' );
-			assert.notEqual( entry.sha256, entry.previousSha256, 'Must refresh each Miku capture' );
-
-		}
 		assert.equal( entry.path, entry.page + '.jpg' );
 		const card = gallery.split( `data-example="${entry.page}"` )[ 1 ].split( 'class="card"' )[ 0 ];
 		assert.ok( card.includes( `href="./${entry.page}.html"` ), entry.page );
@@ -116,13 +108,13 @@ test( 'four 1/1 Miku previews and unchanged Gene preview have valid dimensions, 
 		assert.equal( entry.physicsMode, entry.page.endsWith( '_pose' ) ? null : entry.page.endsWith( '_worker' ) ? 'worker' : 'sync' );
 		assert.equal( entry.time, entry.page.endsWith( '_pose' ) ? 0 : 2 );
 		assert.equal( entry.pose, entry.page.endsWith( '_pose' ) ? 1 : null );
-		const checks = gene ? entry.verificationChecks : entry.checks;
+		const checks = entry.checks;
 		for ( const check of [ 'ready', 'realModel', 'lightIntensities', 'lightColors', 'lightDirection', 'camera', 'outlines', 'physics', 'render', 'noRuntimeErrors' ] ) assert.equal( checks[ check ], true, `${entry.page}: ${check}` );
 
 	}
 	assert.equal( new Set( manifest.entries.map( ( entry: { sha256: string } ) => entry.sha256 ) ).size, ids.length, 'Worker must have its own distinct capture' );
-	// Browser checks exercise all modes; require explicit shared 1/1 lighting.
-	assert.match( scene.toString(), /new AmbientLight\( 0xffffff, 1 \)/ );
+	// Browser checks exercise all modes; require shared gray ambient at 1/1.
+	assert.match( scene.toString(), /new AmbientLight\( 0xAAAAAA, 1 \)/ );
 	assert.match( scene.toString(), /new DirectionalLight\( 0xffffff, 1 \)/ );
 
 } );
