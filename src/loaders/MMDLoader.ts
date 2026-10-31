@@ -1,3 +1,4 @@
+import { resolveMMDResourcePath } from './MMDResourcePath.js';
 import { installMMDUVUpdates } from '../animation/MMDUVMorphController.js';
 import { copyMaterialValues, freezeMaterialValues } from '../animation/MMDMaterialMorphController.js';
 import { protectMMDMorphWeights } from '../animation/MMDMorphWeights.js';
@@ -1492,7 +1493,7 @@ class MaterialBuilder {
 
 		} else {
 
-			fullPath = this.resourcePath + filePath;
+			fullPath = resolveMMDResourcePath( this.resourcePath, filePath );
 
 		}
 
@@ -1501,7 +1502,7 @@ class MaterialBuilder {
 			const cached = textures[ fullPath ];
 			if ( onError ) {
 
-				if ( cached.failed ) onError( new Error( `THREE.MMDLoader: Failed texture ${filePath}` ) );
+				if ( cached.failed ) onError( new Error( `THREE.MMDLoader: Failed texture ${fullPath}` ) );
 				else cached.errorCallbacks?.push( onError );
 
 			}
@@ -1513,7 +1514,7 @@ class MaterialBuilder {
 
 		if ( loader === null ) {
 
-			loader = ( filePath.slice( - 4 ).toLowerCase() === '.tga' )
+			loader = ( fullPath.split( /[?#]/, 1 )[ 0 ].slice( - 4 ).toLowerCase() === '.tga' )
 				? this._getTGALoader()
 				: this.textureLoader;
 
