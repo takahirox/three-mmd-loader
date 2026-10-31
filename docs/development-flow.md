@@ -28,6 +28,30 @@ For example, when deployment is triggered by merge, validate the code and config
 
 Use the [Issue template](../.github/ISSUE_TEMPLATE/issue.md) to record both stages, and apply the [review guidelines](review-guidelines.md#check-acceptance-and-verification) when assessing acceptance and validation.
 
+Choose applicable validation using the [testing and CI principles](#testing-and-ci-principles).
+
+### Testing and CI Principles
+
+**Detect the required failures at the lightest appropriate layer, without redundant execution.** Preserve required correctness, regressions and meaningful integration coverage when redistributing checks.
+
+1. **Prefer the lightest meaningful test layer.** Use focused Node tests for calculations, branches and broad data combinations. Reserve Chrome/rendering, real Ammo, Worker, real-model and packaged-consumer checks for behavior and boundaries that need them. `npm test` includes integration and package checks; it is not entirely a lightweight unit suite. Add assertions that catch concrete defects rather than mirror implementation.
+2. **Choose combinations deliberately.** Cover distinct PMD/PMX, material, physics, renderer and example paths with representative cases. Expand combinations exhaustively where interactions require them, rather than multiplying every model, format, state and backend. Retain required regressions, WebGL2 rendering and the existing capability-gated native WebGPU assertions.
+3. **Match validation to the change.** Use the change-specific checks below for fast feedback, then complete applicable full regression validation before merge. Configured required CI and Issue acceptance criteria remain mandatory; this guidance does not change workflow selection or waive gates. Keep optional checks explicit and record genuinely post-merge-only verification separately, following the acceptance guidance above.
+4. **Reuse work and eliminate duplicate execution.** Reuse compiled output, generated fixtures and verified asset downloads with keys covering relevant source, lockfile, toolchain and platform inputs, and isolation that prevents stale results or private-asset leakage. npm lifecycle hooks currently rebuild for several commands. Both workflows use push/PR triggers and repeat some checks: future CI work should avoid equivalent execution for the same revision while preserving their distinct fixture/public-asset coverage. Cancel superseded validation when safe; preserve Pages deployment/rollback ordering (currently serialized without cancellation). Measure resource use before increasing parallelism; browser suites currently run with concurrency one.
+5. **Review test value and added cost together.** Identify the additional defect a test detects, assurance already supplied by existing coverage, and execution/maintenance cost. Watch repeated Chrome/renderer startup, compiler builds, isolated package installs, large model downloads, long physics loops and Cartesian-product growth. Reduce redundant setup or cases while retaining meaningful assertions and required coverage.
+6. **Maintain an execution-time budget.** No measured normal-CI baseline or repository-wide time target is documented yet. During actual test/CI performance work, establish a baseline and target from representative runs, monitor growth and investigate overruns. Track elapsed feedback time, summed runner/computation time and queue time separately. Revisit validation structure and duplication before adding resources or weakening coverage. Existing physics benchmarks and individual historical test timings are not a normal-CI budget; this policy adds no benchmark, hardware or merge gate.
+
+Use these checks according to the affected behavior:
+
+| Change | Relevant validation |
+| --- | --- |
+| Documentation only | Check Markdown structure, links/anchors, consistency and `git diff --check`; application builds and browser suites are not needed solely for prose. |
+| Example UI | Relevant Node checks and Chrome example checks (`npm run test:examples`); validate the built site under the project path when affected. |
+| Core/runtime | `npm run typecheck`, `npm test`, and applicable legacy Ammo (`npm run test:legacy`), browser/rendering (`npm run test:browser`), Worker and package regressions. |
+| CI/build/release | Validate changed configuration, builds, artifact contents and applicable suites; use packaging/publication dry-runs as described in the [release guide](releases.md#automated-checks-before-merge). |
+
+The [Tests workflow](../.github/workflows/tests.yml) runs regression checks, generated-fixture site validation and npm dry-runs. The [Pages workflow](../.github/workflows/examples-pages.yml) builds and tests the public-asset site before deployment, including on PRs to `main`. These local/build checks are pre-merge work; public-site verification after a merge-triggered deployment is post-merge work. See the [examples guide](../examples/README.md#deployment) for reproduction and ordering. Optional private-model inspection and human visual/listening checks remain optional unless the Issue justifies requiring them.
+
 ## 2. Create a Pull Request for the Issue
 
 Implementation should be proposed through a Pull Request associated with the Issue.
