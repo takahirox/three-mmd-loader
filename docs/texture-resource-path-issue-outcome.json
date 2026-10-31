@@ -1,0 +1,27 @@
+{
+  "repository": "takahirox/three-mmd-loader",
+  "issue": 106,
+  "issue_url": "https://github.com/takahirox/three-mmd-loader/issues/106",
+  "initial_state": "closed",
+  "state_changed": false,
+  "closed": true,
+  "state_reason": "completed",
+  "pr": {
+    "number": 107,
+    "url": "https://github.com/takahirox/three-mmd-loader/pull/107",
+    "head_sha": "9cbcafd612a627dc5cca30033608b6d616896c7b"
+  },
+  "merged": true,
+  "merge_commit": "a05444db048c7329a56e34501193f0fe1845aa59",
+  "outcome_comment_url": "https://github.com/takahirox/three-mmd-loader/issues/106#issuecomment-6540329253",
+  "verification": {
+    "issue_state_read_back": "closed",
+    "outcome_comment_read_back": true,
+    "github_pr_merge_confirmed": true
+  },
+  "post_merge_evidence": "docs/texture-resource-path-merge-verification.json",
+  "follow_up": [
+    "Corrected npm release and downstream migration remain separate work",
+    "Physical Android verification remains tracked in takahirox/mmd-gltf#73"
+  ]
+}
