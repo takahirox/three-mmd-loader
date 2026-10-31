@@ -1246,13 +1246,17 @@ class MaterialBuilder {
 
 					for ( const fileName of material.fileName.split( '*' ) ) {
 
-						const extension = fileName.slice( - 4 ).toLowerCase();
+						if ( ! fileName ) continue;
+
+						// Classify the same canonical pathname used for loading, preserving the source name.
+						const fullPath = resolveMMDResourcePath( this.resourcePath, fileName );
+						const extension = fullPath.split( /[?#]/, 1 )[ 0 ].slice( - 4 ).toLowerCase();
 						if ( extension === '.sph' || extension === '.spa' ) {
 
 							params.matcap = this._loadTexture( fileName, textures );
 							params.matcapCombine = extension === '.sph' ? MultiplyOperation : AddOperation;
 
-						} else if ( fileName ) {
+						} else {
 
 							params.map = this._loadTexture( fileName, textures );
 

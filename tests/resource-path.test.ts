@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { pmdBuffer, pmxBuffer } from './fixtures.ts';
-import { DataTexture, LoadingManager, Texture } from 'three';
+import { AddOperation, DataTexture, LoadingManager, MultiplyOperation, Texture } from 'three';
 import { Parser } from 'mmd-parser';
 import { MMDLoader } from '../src/loaders/MMDLoader.ts';
 import { resolveMMDResourcePath as resolve } from '../src/loaders/MMDResourcePath.ts';
@@ -101,6 +101,36 @@ test('every PMX texture family rejects unsafe paths before its handler lookup', 
     assert.equal(seen.length, index);
     assert.ok(seen.every(path => path.startsWith('/uka/tex/')));
     assert.deepEqual(data.textures, textureNames);
+  }
+});
+
+test('PMD classifies canonical sphere paths while retaining the base map and source names', () => {
+  for (const extension of ['sph', 'spa']) {
+    for (const sphereName of [`t/s.${extension}`, `t/s%2e${extension}`, `t/s.${extension}/.`, `t\\s.${extension}`, `t/s.${extension.toUpperCase()}`]) {
+      for (const sphereFirst of [false, true]) {
+        const fileName = (sphereFirst ? [sphereName, 't/b.png'] : ['t/b.png', sphereName]).join('*');
+        const bytes = pmdBuffer({ textureFileName: fileName, toonFileName: 't/toon.png' });
+        const originalBytes = bytes.slice(0);
+        const data = new Parser().parsePmd(bytes, true), original = structuredClone(data);
+        assert.equal(data.materials[0].fileName, fileName);
+        const loader = new MMDLoader(), loaded = new Map<string, Texture>();
+        loader.meshBuilder.materialBuilder.textureLoader.load = path => {
+          const texture = new Texture<HTMLImageElement>();
+          loaded.set(path, texture);
+          return texture;
+        };
+        const mesh = loader.meshBuilder.build(data, '/models/'), material = mesh.material[0];
+        const spherePath = `/models/t/s.${sphereName.endsWith(extension.toUpperCase()) ? extension.toUpperCase() : extension}`;
+        assert.equal(loaded.size, 3, fileName);
+        assert.ok(loaded.has('/models/t/b.png'), fileName);
+        assert.ok(loaded.has(spherePath), fileName);
+        assert.equal(material.map, loaded.get('/models/t/b.png'), fileName);
+        assert.equal(material.matcap, loaded.get(spherePath), fileName);
+        assert.equal(material.matcapCombine, extension === 'sph' ? MultiplyOperation : AddOperation, fileName);
+        assert.deepEqual(data, original);
+        assert.deepEqual(bytes, originalBytes);
+      }
+    }
   }
 });
 

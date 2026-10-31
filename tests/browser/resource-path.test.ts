@@ -10,6 +10,7 @@ import { removeBrowserDirectory, runBrowser } from './browser.ts';
 const names: [ string, string, string ] = [ 'tex\\base.png', 'tex//part/../sphere.png', 'tex\\custom/toon.png' ];
 const portableNames = [ 'tex\\hair.png', './tex//hair.png', 'tex/./hair.png', 'tex\\日本 語😀.png', 'tex/a%20b%23c.png', 'tex/a b#c.png', 'tex/%25FF.png', 'tex/100%25ab.png' ];
 const unsafeNames = [ '..\\escape.png', 'tex/../../escape.png', '%252e%252e/escape.png', 'tex/%2fescape.png', 'tex/%255cescape.png', 'tex/%2500.png', 'tex/bad%zz.png' ];
+const pmdSphereNames = [ 't\\s.sph', 't/s%2esph', 't/s.sph/.', 't\\s.spa', 't/s%2espa', 't/s.spa/.' ];
 
 test( 'canonical texture requests, real image decoding, cached failures and retry in Chrome', { timeout: 60000 }, async () => {
 
@@ -17,7 +18,7 @@ test( 'canonical texture requests, real image decoding, cached failures and retr
 "mmd-parser":"/node_modules/mmd-parser/build/mmdparser.module.mjs","three":"/node_modules/three/build/three.module.js",
 "three/webgpu":"/node_modules/three/build/three.webgpu.js","three/tsl":"/node_modules/three/build/three.tsl.js",
 "three/addons/":"/node_modules/three/examples/jsm/"}}</script><pre id="result">pending</pre><script type="module">
-import { LoadingManager, TextureLoader } from 'three';
+import { AddOperation, LoadingManager, MultiplyOperation, TextureLoader } from 'three';
 import { MMDLoader } from '/dist/index.js';
 const result={errors:[],handlers:[],modifiers:[],failures:[],families:0,decoded:0};
 const check=(value,message)=>{if(!value)throw new Error(message);};
@@ -82,10 +83,16 @@ try {
   check(material.userData.MMD.envFlag===flag,'sphere mode');result.families++;
   mesh.geometry.dispose();mesh.material.forEach(m=>m.dispose());
  }
- const m=new LoadingManager(),ready=new Promise(resolve=>m.onLoad=resolve),l=new MMDLoader(m);
- const mesh=await l.loadAsync('/models/pmd/model.pmd');await ready;
- decoded(mesh.material[0].map);decoded(mesh.material[0].matcap);decoded(mesh.material[0].gradientMap);result.families++;
- mesh.geometry.dispose();mesh.material.forEach(m=>m.dispose());
+ for(let i=0;i<${pmdSphereNames.length};i++) {
+  const m=new LoadingManager(),ready=new Promise(resolve=>m.onLoad=resolve),l=new MMDLoader(m);
+  const mesh=await l.loadAsync('/models/pmd'+i+'/model.pmd');await ready;
+  const material=mesh.material[0],extension=i<3?'sph':'spa';
+  decoded(material.map);decoded(material.matcap);decoded(material.gradientMap);result.families++;
+  check(material.map.image.src.endsWith('/models/pmd'+i+'/t/b.png'),'PMD base map retained');
+  check(material.matcap.image.src.endsWith('/models/pmd'+i+'/t/s.'+extension),'PMD canonical sphere map');
+  check(material.matcapCombine===(i<3?MultiplyOperation:AddOperation),'PMD sphere combine mode');
+  mesh.geometry.dispose();mesh.material.forEach(m=>m.dispose());
+ }
 }catch(error){result.errors.push(error.stack||String(error));}
 document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(result));
 </script>`;
@@ -121,7 +128,8 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 		}
 		if ( path.endsWith( '/model.pmd' ) ) {
 
-			response.writeHead( 200 ).end( Buffer.from( pmdBuffer( { textureFileName: 't\\b.png*t\\s.sph', toonFileName: 't\\toon.png' } ) ) ); return;
+			const sphereName = pmdSphereNames[ Number( path.match( /pmd(\d)/ )![ 1 ] ) ];
+			response.writeHead( 200 ).end( Buffer.from( pmdBuffer( { textureFileName: 't/b.png*' + sphereName, toonFileName: 't\\toon.png' } ) ) ); return;
 
 		}
 		if ( path.endsWith( '/network.png' ) ) { requests.push( { url, status: 0 } ); response.destroy(); return; }
@@ -137,7 +145,7 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
 		const result = await runBrowser<{ errors: string[]; handlers: string[]; modifiers: string[]; failures: string[]; families: number; decoded: number }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/`, profile );
 		assert.deepEqual( result.errors, [] );
-		assert.equal( result.families, 4 );
+		assert.equal( result.families, 3 + pmdSphereNames.length );
 		assert.ok( result.decoded >= 25 );
 		assert.deepEqual( result.failures, [ 'missing', 'decode', 'network', 'retry' ] );
 		for ( const url of [ '/models/direct/tex/hair.png', '/models/direct/tex/%E6%97%A5%E6%9C%AC%20%E8%AA%9E%F0%9F%98%80.png', '/models/direct/tex/a%20b%23c.png', '/models/direct/tex/%25FF.png', '/models/direct/tex/100%25ab.png', '/models/direct/tex/handler.png', '/models/direct/tex/image.TGA' ] ) {
@@ -153,7 +161,12 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 			assert.deepEqual( requests.filter( request => request.url === url ), [ { url, status: 200 } ] );
 
 		}
-		for ( const name of [ 't/b.png', 't/s.sph', 't/toon.png' ] ) assert.ok( requests.some( request => request.url === `/models/pmd/${name}` && request.status === 200 ) );
+		for ( let i = 0; i < pmdSphereNames.length; i ++ ) for ( const name of [ 't/b.png', i < 3 ? 't/s.sph' : 't/s.spa', 't/toon.png' ] ) {
+
+			const url = `/models/pmd${i}/${name}`;
+			assert.deepEqual( requests.filter( request => request.url === url ), [ { url, status: 200 } ] );
+
+		}
 		assert.deepEqual( requests.filter( request => request.url.endsWith( '/retry.png' ) ).map( request => request.status ), [ 404, 200 ] );
 		assert.deepEqual( requests.filter( request => request.url.endsWith( '/missing.png' ) ).map( request => request.status ), [ 404 ] );
 		assert.deepEqual( requests.filter( request => request.url.endsWith( '/decode.png' ) ).map( request => request.status ), [ 200 ] );
