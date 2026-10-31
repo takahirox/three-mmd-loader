@@ -1,0 +1,365 @@
+{
+  "repository": "takahirox/three-mmd-loader",
+  "source_issue": 106,
+  "source_issue_state_immediately_before_merge": "open",
+  "pr": {
+    "number": 107,
+    "url": "https://github.com/takahirox/three-mmd-loader/pull/107",
+    "head_sha": "9cbcafd612a627dc5cca30033608b6d616896c7b"
+  },
+  "merged": true,
+  "merge_method": "merge",
+  "merge_commit": "a05444db048c7329a56e34501193f0fe1845aa59",
+  "merge_parents": [
+    "f60cf735896375f2ea67d084bb1ecf41ca9742a6",
+    "9cbcafd612a627dc5cca30033608b6d616896c7b"
+  ],
+  "expected_head_enforced_by_merge_api": true,
+  "pre_merge": {
+    "review_node": "approved",
+    "github_mergeable_state": "clean",
+    "required_checks_or_reviews_bypassed": false,
+    "pr_tests_run": 41177041304,
+    "pr_examples_run": 41177041330,
+    "both_workflows": "success"
+  },
+  "post_merge": {
+    "status": "passed",
+    "tests_run": 41178123997,
+    "examples_run": 41178124070,
+    "required": [
+      "Latest Tests and Deploy browser examples attempts pass for the exact merge SHA",
+      "Pages setup and deployment artifacts confirm successful configuration and publication",
+      "Public manifest SHA and all required HTTP/hash checks pass"
+    ],
+    "tests_status": "success",
+    "examples_status": "success",
+    "tests_url": "https://github.com/takahirox/three-mmd-loader/actions/runs/41178123997",
+    "examples_url": "https://github.com/takahirox/three-mmd-loader/actions/runs/41178124070",
+    "pages_setup": {
+      "success": true,
+      "run_id": "41178124070",
+      "commit": "a05444db048c7329a56e34501193f0fe1845aa59",
+      "checked_at": "2026-10-31T06:53:02.150Z",
+      "repository": "takahirox/three-mmd-loader",
+      "mode": "--check",
+      "created": false,
+      "never_published": false,
+      "build_type": "workflow",
+      "environment": "github-pages",
+      "branch": "main",
+      "page_url": "https://takahirox.github.io/three-mmd-loader/"
+    },
+    "previous_site_backup": {
+      "success": true,
+      "mode": "backup",
+      "page_url": "https://takahirox.github.io/three-mmd-loader/",
+      "run_id": "41178124070",
+      "checked_at": "2026-10-31T06:53:21.128Z",
+      "exists": true,
+      "commit": "f60cf735896375f2ea67d084bb1ecf41ca9742a6",
+      "checks_total": 616,
+      "checks_passed": 616
+    },
+    "public_deployment": {
+      "success": true,
+      "mode": "verify",
+      "page_url": "https://takahirox.github.io/three-mmd-loader/",
+      "deployment_url": "https://takahirox.github.io/three-mmd-loader/",
+      "expected_commit": "a05444db048c7329a56e34501193f0fe1845aa59",
+      "run_id": "41178124070",
+      "checked_at": "2026-10-31T06:53:32.133Z",
+      "deployment_outcome": "success",
+      "commit": "a05444db048c7329a56e34501193f0fe1845aa59",
+      "attempts": 1,
+      "checks_total": 618,
+      "checks_passed": 618
+    },
+    "independent_public_manifest": {
+      "http_status": 200,
+      "commit": "a05444db048c7329a56e34501193f0fe1845aa59",
+      "files": 615
+    },
+    "evidence_artifacts": [
+      {
+        "name": "pages-setup-evidence",
+        "id": 13033684667,
+        "sha256": "97b7369e43cd1a099a1af62e75050ebc46b4319151e3d8ff6440d0e476adf3dd"
+      },
+      {
+        "name": "pages-deployment-evidence",
+        "id": 13033744509,
+        "sha256": "a28b51d5a094c7977b09889ad876972f9d5e7d1205f89b819dec94bd333be83c"
+      }
+    ],
+    "workflow_results": [
+      {
+        "attempt": 1,
+        "conclusion": "success",
+        "databaseId": 41178123997,
+        "headSha": "a05444db048c7329a56e34501193f0fe1845aa59",
+        "jobs": [
+          {
+            "name": "test",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/setup-node@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm ci",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm run typecheck",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm test",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm run test:legacy",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm run test:browser",
+                "conclusion": "success"
+              },
+              {
+                "name": "Build generated example fixtures (validation only)",
+                "conclusion": "success"
+              },
+              {
+                "name": "Validate the fixture site under the existing Pages path",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm pack --dry-run",
+                "conclusion": "success"
+              },
+              {
+                "name": "Validate npm release lifecycle (dry-run only, no upload)",
+                "conclusion": "success"
+              },
+              {
+                "name": "Post Run actions/setup-node@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Complete job",
+                "conclusion": "success"
+              }
+            ]
+          }
+        ],
+        "status": "completed",
+        "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/41178123997",
+        "workflowName": "Tests"
+      },
+      {
+        "attempt": 1,
+        "conclusion": "success",
+        "databaseId": 41178124070,
+        "headSha": "a05444db048c7329a56e34501193f0fe1845aa59",
+        "jobs": [
+          {
+            "name": "build",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/setup-node@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm ci",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm test",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm run build:examples",
+                "conclusion": "success"
+              },
+              {
+                "name": "Validate the built site under the project path",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/upload-pages-artifact@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Post Run actions/setup-node@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Complete job",
+                "conclusion": "success"
+              }
+            ]
+          },
+          {
+            "name": "setup",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/setup-node@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm ci --ignore-scripts",
+                "conclusion": "success"
+              },
+              {
+                "name": "Verify unattended main deployment configuration",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/upload-artifact@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Post Run actions/setup-node@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Complete job",
+                "conclusion": "success"
+              }
+            ]
+          },
+          {
+            "name": "deploy",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/setup-node@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run npm ci --ignore-scripts",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/configure-pages@v5",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/download-artifact@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Extract the already validated candidate",
+                "conclusion": "success"
+              },
+              {
+                "name": "Verify and back up the current public site",
+                "conclusion": "success"
+              },
+              {
+                "name": "Run actions/upload-pages-artifact@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Deploy to GitHub Pages",
+                "conclusion": "success"
+              },
+              {
+                "name": "Verify deployment result, public commit, and all examples content",
+                "conclusion": "success"
+              },
+              {
+                "name": "Restore the previous working site on deployment or validation failure",
+                "conclusion": "skipped"
+              },
+              {
+                "name": "Verify the restored public site",
+                "conclusion": "skipped"
+              },
+              {
+                "name": "Persist machine-readable deployment and rollback evidence",
+                "conclusion": "success"
+              },
+              {
+                "name": "Fail the run if the candidate did not pass public verification",
+                "conclusion": "success"
+              },
+              {
+                "name": "Post Run actions/setup-node@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "conclusion": "success"
+              },
+              {
+                "name": "Complete job",
+                "conclusion": "success"
+              }
+            ]
+          }
+        ],
+        "status": "completed",
+        "url": "https://github.com/takahirox/three-mmd-loader/actions/runs/41178124070",
+        "workflowName": "Deploy browser examples"
+      }
+    ],
+    "verified_at": "2026-10-31T06:55:56.767599+00:00"
+  },
+  "follow_up": [
+    "A corrected npm release and downstream migration remain separate work",
+    "Physical Android verification remains separately tracked in takahirox/mmd-gltf#73"
+  ]
+}
