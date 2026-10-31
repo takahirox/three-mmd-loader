@@ -1,3 +1,4 @@
+import { resolveMMDResourcePath } from './MMDResourcePath.js';
 import { installMMDUVUpdates } from '../animation/MMDUVMorphController.js';
 import { copyMaterialValues, freezeMaterialValues } from '../animation/MMDMaterialMorphController.js';
 import { protectMMDMorphWeights } from '../animation/MMDMorphWeights.js';
@@ -1245,13 +1246,17 @@ class MaterialBuilder {
 
 					for ( const fileName of material.fileName.split( '*' ) ) {
 
-						const extension = fileName.slice( - 4 ).toLowerCase();
+						if ( ! fileName ) continue;
+
+						// Classify the same canonical pathname used for loading, preserving the source name.
+						const fullPath = resolveMMDResourcePath( this.resourcePath, fileName );
+						const extension = fullPath.split( /[?#]/, 1 )[ 0 ].slice( - 4 ).toLowerCase();
 						if ( extension === '.sph' || extension === '.spa' ) {
 
 							params.matcap = this._loadTexture( fileName, textures );
 							params.matcapCombine = extension === '.sph' ? MultiplyOperation : AddOperation;
 
-						} else if ( fileName ) {
+						} else {
 
 							params.map = this._loadTexture( fileName, textures );
 
@@ -1492,7 +1497,7 @@ class MaterialBuilder {
 
 		} else {
 
-			fullPath = this.resourcePath + filePath;
+			fullPath = resolveMMDResourcePath( this.resourcePath, filePath );
 
 		}
 
@@ -1501,7 +1506,7 @@ class MaterialBuilder {
 			const cached = textures[ fullPath ];
 			if ( onError ) {
 
-				if ( cached.failed ) onError( new Error( `THREE.MMDLoader: Failed texture ${filePath}` ) );
+				if ( cached.failed ) onError( new Error( `THREE.MMDLoader: Failed texture ${fullPath}` ) );
 				else cached.errorCallbacks?.push( onError );
 
 			}
@@ -1513,7 +1518,7 @@ class MaterialBuilder {
 
 		if ( loader === null ) {
 
-			loader = ( filePath.slice( - 4 ).toLowerCase() === '.tga' )
+			loader = ( fullPath.split( /[?#]/, 1 )[ 0 ].slice( - 4 ).toLowerCase() === '.tga' )
 				? this._getTGALoader()
 				: this.textureLoader;
 

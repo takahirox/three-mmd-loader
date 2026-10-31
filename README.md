@@ -190,6 +190,9 @@ including VMD playback and a private local inspection viewer.
 
 PMX [UV and additional UV morphs](docs/uv-morphs.md) support direct/group weights, VMD playback and TSL vec4 channel access.
 
+PMD/PMX [texture resource paths](docs/texture-resource-paths.md) normalize relative
+filenames before cache lookup, handler selection and loading.
+
 Development and validation:
 
 ```sh

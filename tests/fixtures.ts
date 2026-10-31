@@ -99,7 +99,7 @@ export function materialPmxBuffer( { allAdd = false }: { allAdd?: boolean } = {}
 
 const vertices = [ [ 0, 0, 1 ], [ 1, 0, 1 ], [ 0, 1, 1 ] ];
 
-export function pmdBuffer( { twoBones = false, probePosition = [ 0, 0, 0 ] }: { twoBones?: boolean; probePosition?: number[] } = {} ) {
+export function pmdBuffer( { twoBones = false, probePosition = [ 0, 0, 0 ], textureFileName = '', toonFileName = '' }: { twoBones?: boolean; probePosition?: number[]; textureFileName?: string; toonFileName?: string } = {} ) {
 
 	const w = new Writer();
 	w.text( 'Pmd', 3 ).f32( 1 ).text( 'triangle', 20 ).text( '', 256 );
@@ -112,13 +112,13 @@ export function pmdBuffer( { twoBones = false, probePosition = [ 0, 0, 0 ] }: { 
 	w.u32( 3 ).u16( 0 ).u16( 1 ).u16( 2 );
 	w.u32( 1 ); // material
 	w.f32( 0.8, 0.6, 0.4, 1, 30, 0.1, 0.1, 0.1, 0.2, 0.2, 0.2 );
-	w.u8( 255 ).u8( 1 ).u32( 3 ).text( '', 20 );
+	w.u8( toonFileName ? 0 : 255 ).u8( 1 ).u32( 3 ).text( textureFileName, 20 );
 	w.u16( twoBones ? 2 : 1 ); // bones
 	w.text( 'root', 20 ).u16( 65535 ).u16( 0 ).u8( 0 ).u16( 0 ).f32( 0, 0, 0 );
 	if ( twoBones ) w.text( 'probe', 20 ).u16( 0 ).u16( 0 ).u8( 0 ).u16( 0 ).f32( ...probePosition );
 	w.u16( 0 ).u16( 0 ); // IK, morphs
 	w.u8( 0 ).u8( 0 ).u32( 0 ).u8( 0 ); // display frames, English header
-	for ( let i = 0; i < 10; i ++ ) w.text( '', 100 ); // toon texture names
+	for ( let i = 0; i < 10; i ++ ) w.text( i === 0 ? toonFileName : '', 100 ); // toon texture names
 	w.u32( 0 ).u32( 0 ); // rigid bodies, constraints
 	return w.buffer();
 
@@ -178,7 +178,7 @@ export function linkedCollisionBuffer( format: 'pmd' | 'pmx', { linked = true, m
 
 }
 
-export function pmxBuffer( { additionalUvMorphs = false, twoBones = false, probePosition = [ 0, 0, 0 ] }: { additionalUvMorphs?: boolean; twoBones?: boolean; probePosition?: number[] } = {} ) {
+export function pmxBuffer( { additionalUvMorphs = false, twoBones = false, probePosition = [ 0, 0, 0 ], textureNames, envFlag = 1 }: { additionalUvMorphs?: boolean; twoBones?: boolean; probePosition?: number[]; textureNames?: [ string, string, string ]; envFlag?: number } = {} ) {
 
 	const w = new Writer();
 	w.text( 'PMX ', 4 ).f32( 2 ).u8( 8 );
@@ -198,12 +198,14 @@ export function pmxBuffer( { additionalUvMorphs = false, twoBones = false, probe
 
 	}
 	w.u32( 3 ).u8( 0 ).u8( 1 ).u8( 2 );
-	w.u32( 0 ); // textures
+	w.u32( textureNames?.length ?? 0 );
+	for ( const name of textureNames ?? [] ) w.text( name );
 	w.u32( 1 ); // material
 	w.text( 'material' ).text( '' );
 	w.f32( 0.8, 0.6, 0.4, 1, 0.1, 0.1, 0.1, 30, 0.2, 0.2, 0.2 );
 	w.u8( 0x11 ).f32( 0, 0, 0, 1, 1 ); // double sided, outline
-	w.u8( 255 ).u8( 255 ).u8( 0 ).u8( 1 ).u8( 0 ); // no map/matcap, shared toon
+	if ( textureNames ) w.u8( 0 ).u8( 1 ).u8( envFlag ).u8( 0 ).u8( 2 );
+	else w.u8( 255 ).u8( 255 ).u8( 0 ).u8( 1 ).u8( 0 ); // no map/matcap, shared toon
 	w.text( '' ).u32( 3 );
 	w.u32( twoBones ? 2 : 1 ); // bones
 	w.text( 'root' ).text( '' ).f32( 0, 0, 0 ).u8( 255 ).u32( 0 ).u16( 0 );
