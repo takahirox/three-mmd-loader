@@ -32,6 +32,10 @@ For a merge-triggered deployment, review the code and configuration, local build
 
 Follow the [development flow](development-flow.md#pre-merge-acceptance-and-post-merge-verification) and the [Issue template](../.github/ISSUE_TEMPLATE/issue.md) to keep the two stages explicit.
 
+Apply the [testing and CI principles](development-flow.md#testing-and-ci-principles). For new or expanded checks, assess additional defect coverage, duplication of existing assurance, and execution/maintenance cost together. Ask:
+
+> Does this change provide sufficient confidence with the lightest appropriate validation, without redundant execution?
+
 ## Check for Unnecessary Work
 
 Verify that the Pull Request does not go beyond what the Issue requires without a clear reason.

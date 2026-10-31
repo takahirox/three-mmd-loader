@@ -269,7 +269,7 @@ including rendering, animation, controls, audio playback, and VPD poses.
 Source provenance and licenses are recorded in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).
 
-See the [development flow](docs/development-flow.md) and [review guidelines](docs/review-guidelines.md) for contribution guidance.
+See the [development flow](docs/development-flow.md), [testing and CI principles](docs/development-flow.md#testing-and-ci-principles), and [review guidelines](docs/review-guidelines.md) for contribution guidance.
 
 PMX rotation/translation grants, including local grants and physics phase
 ordering and layered authored/body/post-physics composition, are documented in
