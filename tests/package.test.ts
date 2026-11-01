@@ -81,7 +81,7 @@ test( 'packed npm package installs and imports in an isolated consumer', { timeo
 		assert.ok( files.includes( 'LICENSE' ) );
 		assert.ok( files.includes( 'THIRD_PARTY_NOTICES.md' ) );
 		assert.ok( files.includes( 'README.md' ) );
-		for ( const path of [ 'dist/animation/MMDPhysicsWorker.js', 'dist/vendor/bullet/ammo.js', 'dist/vendor/bullet/ammo.wasm', 'dist/vendor/bullet/manifest.json' ] ) assert.ok( files.includes( path ), `Missing runtime: ${path}` );
+		for ( const path of [ 'dist/loaders/MMDResourcePath.js', 'dist/loaders/MMDResourcePath.d.ts', 'dist/animation/MMDPhysicsWorker.js', 'dist/vendor/bullet/ammo.js', 'dist/vendor/bullet/ammo.wasm', 'dist/vendor/bullet/manifest.json' ] ) assert.ok( files.includes( path ), `Missing runtime: ${path}` );
 		// Allow runtime JS/declarations, pinned Bullet assets and npm metadata/legal files.
 		// This also excludes assets, caches, archives, viewers, CI output and tokens.
 		for ( const path of files ) assert.match( path,
@@ -136,6 +136,31 @@ for ( const name of [ 'MMDParser', 'Parser', 'CharsetEncoder' ] ) assert.ok( ! (
 await assert.rejects( import( '@takahirox/three-mmd/libs/mmdparser.module.js' ), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' } );
 const loader = new entry.MMDLoader();
 assert.ok( loader._getParser() instanceof Parser );
+// Exercise the installed loader's internal import and cache, without source aliases.
+const builder = loader.meshBuilder.materialBuilder.setResourcePath('/models/');
+const requests = [], handlers = [], cache = {};
+let fail;
+builder.textureLoader.load = (url, _loaded, _progress, onError) => {
+  requests.push(url); fail = onError; return new Texture();
+};
+loader.manager.getHandler = url => { handlers.push(url); return null; };
+const first = builder._loadTexture('tex' + String.fromCharCode(92) + 'a b.png', cache);
+assert.equal(builder._loadTexture('./tex//part/../a%20b.png', cache), first);
+assert.deepEqual(requests, ['/models/tex/a%20b.png']);
+assert.deepEqual(handlers, requests);
+const failures = [];
+builder._loadTexture('tex/a b.png', cache, {}, undefined, error => failures.push(error));
+const decodeError = new Error('decode failed'); fail(decodeError);
+assert.equal(failures[0], decodeError);
+builder._loadTexture('tex/a%20b.png', cache, {}, undefined, error => failures.push(error));
+assert.match(String(failures[1]), /models\\/tex\\/a%20b.png/);
+for (const unsafe of ['../escape.png', 'tex/%252e%252e/escape.png', 'tex/%255c.png', 'tex/bad%zz.png']) {
+  assert.throws(() => builder._loadTexture(unsafe, cache), /Unsafe relative texture path/);
+}
+assert.equal(requests.length, 1);
+assert.equal(handlers.length, 1);
+loader.manager.getHandler = () => null;
+builder.setResourcePath('');
 loader.meshBuilder.materialBuilder.textureLoader.load = () => new Texture();
 const pmxBytes = readFileSync( 'model.pmx' );
 const pmx = new Parser().parsePmx( pmxBytes.buffer.slice( pmxBytes.byteOffset, pmxBytes.byteOffset + pmxBytes.byteLength ) );

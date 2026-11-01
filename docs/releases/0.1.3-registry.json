@@ -1,0 +1,88 @@
+[
+  {
+    "checked_at": "2026-11-01T08:17:12.052548+00:00",
+    "url": "https://registry.npmjs.org/@takahirox%2fthree-mmd?release_check=1793521032052546000",
+    "request_headers": {
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache",
+      "Accept": "application/json"
+    },
+    "http_status": 200,
+    "response_headers": {
+      "Date": "Sun, 01 Nov 2026 08:17:12 GMT",
+      "Cache-Control": "public, max-age=300",
+      "Age": null,
+      "CF-Cache-Status": "MISS",
+      "ETag": "\"df58efb0393ea97e01dd9252150ea885\""
+    },
+    "versions": [
+      "0.0.0-stage",
+      "0.1.0",
+      "0.1.1",
+      "0.1.2"
+    ],
+    "dist_tags": {
+      "latest": "0.1.2"
+    },
+    "time": {
+      "created": "2026-10-09T23:39:54.687Z",
+      "modified": "2026-10-21T22:20:05.426Z",
+      "0.0.0-stage": "2026-10-09T23:39:54.687Z",
+      "0.1.0": "2026-10-09T23:40:50.618Z",
+      "0.1.1": "2026-10-20T21:40:46.747Z",
+      "0.1.2": "2026-10-21T22:20:05.231Z"
+    }
+  },
+  {
+    "checked_at": "2026-11-01T08:17:12.533852+00:00",
+    "url": "https://registry.npmjs.org/@takahirox%2fthree-mmd/0.1.2?release_check=1793521032533837000",
+    "request_headers": {
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache",
+      "Accept": "application/json"
+    },
+    "http_status": 200,
+    "response_headers": {
+      "Date": "Sun, 01 Nov 2026 08:17:12 GMT",
+      "Cache-Control": null,
+      "Age": null,
+      "CF-Cache-Status": "DYNAMIC",
+      "ETag": null
+    },
+    "version": "0.1.2",
+    "gitHead": "5ae203246ccffd86a3e8fb7be0e34b9559c33a46",
+    "dist": {
+      "shasum": "bcd17a3af628bdf91190772abcaee41dfea6aa7a",
+      "tarball": "https://registry.npmjs.org/@takahirox/three-mmd/-/three-mmd-0.1.2.tgz",
+      "fileCount": 61,
+      "integrity": "sha512-DEpo6GgPknMy62WN1bQUPTqXtx45Rzyh0YZpd8O94MBBFNb7x5fhfhqXLOv6/8slJnjrj8v4ZLcT3OYI9nd3Tg==",
+      "signatures": [
+        {
+          "sig": "MEQCIBsJ9T13ly8Sqt4ckoSYNzjfsSjFTbH3wdCqpByNuF7ZAiBmjd5J22306LAaiYHEsQe3YKOEgww6upN2QkioIIgjYg==",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        },
+        {
+          "sig": "MEYCIQCgni87IRtukZirp8xwCowiKyWa8VcpOARX/8YHP5E5WQIhAJYN5oq/i4CxNCHOYk5E7CUhFRhlC3t0yyfjPTKGr/ac",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        }
+      ],
+      "unpackedSize": 1736318
+    }
+  },
+  {
+    "checked_at": "2026-11-01T08:17:12.804640+00:00",
+    "url": "https://registry.npmjs.org/@takahirox%2fthree-mmd/0.1.3?release_check=1793521032804631000",
+    "request_headers": {
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache",
+      "Accept": "application/json"
+    },
+    "http_status": 404,
+    "response_headers": {
+      "Date": "Sun, 01 Nov 2026 08:17:13 GMT",
+      "Age": null,
+      "CF-Cache-Status": null
+    },
+    "body": "\"version not found: 0.1.3\""
+  }
+]
