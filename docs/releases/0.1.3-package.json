@@ -1,0 +1,487 @@
+{
+  "candidate_package_source_commit": "30b40d2f5079368836dd190115b2533525a5d17f",
+  "pack": {
+    "id": "@takahirox/three-mmd@0.1.3",
+    "name": "@takahirox/three-mmd",
+    "version": "0.1.3",
+    "filename": "takahirox-three-mmd-0.1.3.tgz",
+    "size": 420134,
+    "unpackedSize": 1739891,
+    "shasum": "d354f0d9d2f29bfaf4801589f10e61937d264886",
+    "integrity": "sha512-/7WB/Wq8ME6QYrY5PEYXkXPvkGZj/wNfCfCruHPLdvOqLzj3Sfrq7C5jcao+bD1FVWq++glE2zSytFNJW60vcQ==",
+    "entryCount": 63
+  },
+  "published_baseline_comparison": {
+    "baseline_version": "0.1.2",
+    "baseline_gitHead": "5ae203246ccffd86a3e8fb7be0e34b9559c33a46",
+    "baseline_tarball_http_status": 200,
+    "baseline_tarball_sha1": "bcd17a3af628bdf91190772abcaee41dfea6aa7a",
+    "unchanged_runtime_files": 56,
+    "changed_runtime_files": [
+      "dist/loaders/MMDLoader.js"
+    ],
+    "added_runtime_files": [
+      "dist/loaders/MMDResourcePath.d.ts",
+      "dist/loaders/MMDResourcePath.js"
+    ],
+    "removed_runtime_files": []
+  },
+  "source_sha256": {
+    "package.json": "9d5300f6719310c0f1dbbbf6d4230973c3460bc35ce77aae461d3e0c52017a21",
+    "package-lock.json": "473b87a1db2b010da484b8089c0f9bdcaf71a17ac72eba3297e9ef8839d755d0",
+    "README.md": "42cb3823ae9260735e96db91cc1976bcfb00bdca050118bcbed8a37351b45530",
+    "LICENSE": "4c40a1ef62450b857c3b2aaf294936304cd552d965fbcd9d32d4c5bcf4ba4454",
+    "THIRD_PARTY_NOTICES.md": "f05b9bf79eda30af0eb6fa2a719464fe4c63c3a7de75141bd7eb7f5fb1a88d58",
+    "scripts/build-package.ts": "1dc43cf770a7eeb26d246c02bb659a9546456a7e12cac7fcc35788e0820a8d53",
+    "src/loaders/MMDLoader.ts": "e9f1ed88eb6b5cdb002c21974eee02dbf9bd7238177b00127533127718b6a3ec",
+    "src/loaders/MMDResourcePath.ts": "fd5834cea0233c0d5577296049766b5119a8773e72def5e426cfbab62ffb2df5",
+    "tests/package.test.ts": "90294e124e8d7f50d3dc4b1c2d50f87f01b630c5c75a1ab864a1325b8eace8e2"
+  },
+  "files": [
+    {
+      "path": "LICENSE",
+      "size": 1081,
+      "sha256": "4c40a1ef62450b857c3b2aaf294936304cd552d965fbcd9d32d4c5bcf4ba4454"
+    },
+    {
+      "path": "README.md",
+      "size": 24852,
+      "sha256": "42cb3823ae9260735e96db91cc1976bcfb00bdca050118bcbed8a37351b45530"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "size": 10383,
+      "sha256": "f05b9bf79eda30af0eb6fa2a719464fe4c63c3a7de75141bd7eb7f5fb1a88d58"
+    },
+    {
+      "path": "dist/ammo.d.ts",
+      "size": 3926,
+      "sha256": "26fa55c3074035f5dc6c91eb2babdedd93322f8e4d2b0fe02d12380c2e894a93"
+    },
+    {
+      "path": "dist/ammo.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/animation/CCDIKSolver.d.ts",
+      "size": 2182,
+      "sha256": "fb661ad50aa178456f55c8da28982714901a1247e31c2947e096424e68447089"
+    },
+    {
+      "path": "dist/animation/CCDIKSolver.js",
+      "size": 24793,
+      "sha256": "5f165fb9829b688b5b615b0c026d700768f7d0299e99625be43dbe25ced092e8"
+    },
+    {
+      "path": "dist/animation/GrantSolver.d.ts",
+      "size": 1156,
+      "sha256": "6ff4375d8c9a5bd60f0516163c9eaf89ee7ea0ddbb91ffc91acbb46572584327"
+    },
+    {
+      "path": "dist/animation/GrantSolver.js",
+      "size": 9765,
+      "sha256": "e1eab39e22c7557006e4f9b636f98189a4a2d5860b455de5490d7aff11dba29b"
+    },
+    {
+      "path": "dist/animation/InitialAnimationPose.d.ts",
+      "size": 857,
+      "sha256": "ab35cc87aea3984ed2e47093ae6db3c7e5798f28d0e88cacc950e747c3f24d07"
+    },
+    {
+      "path": "dist/animation/InitialAnimationPose.js",
+      "size": 2576,
+      "sha256": "0e5ffb307e69d932bcddfca65eb37f3c57da02a43242ba92ab55ec45bb4da997"
+    },
+    {
+      "path": "dist/animation/MMDAnimationHelper.d.ts",
+      "size": 8645,
+      "sha256": "6cd925664adf2ca37a5efe05666f2837cf16fa8c8901ffa2a67a219072e56405"
+    },
+    {
+      "path": "dist/animation/MMDAnimationHelper.js",
+      "size": 43593,
+      "sha256": "74ab2eccc8adbe50b78992ca2a8fd706da09c2be8fbfd0f730635170f9bb5d6a"
+    },
+    {
+      "path": "dist/animation/MMDBoneMorphController.d.ts",
+      "size": 989,
+      "sha256": "c76d0937d8b8f6d8b6e79d703341910b66eb9eefba07fcd65a53ad340448cc33"
+    },
+    {
+      "path": "dist/animation/MMDBoneMorphController.js",
+      "size": 6972,
+      "sha256": "974554e1347e48b489187d68561f146175607f5453b1d4f01dc9d5ef11312d41"
+    },
+    {
+      "path": "dist/animation/MMDMaterialMorphController.d.ts",
+      "size": 788,
+      "sha256": "23c16135114e89611aa7a9aeb4063d249aa5f22399ecb80e1ee83e48770f40b4"
+    },
+    {
+      "path": "dist/animation/MMDMaterialMorphController.js",
+      "size": 6160,
+      "sha256": "f9db9dfb953834af4ab75d61ddbf504ea7ced289756cc60225aa8d2d388ce730"
+    },
+    {
+      "path": "dist/animation/MMDMorphWeights.d.ts",
+      "size": 195,
+      "sha256": "01ba0e4098bbaa82b01d0c917ec476cb9f63ff96c9ce93956b76719721f27d57"
+    },
+    {
+      "path": "dist/animation/MMDMorphWeights.js",
+      "size": 1093,
+      "sha256": "e75b3209cac2311e3104b365a88f1930a161817715fb9f2f2d20c13e2e7076b2"
+    },
+    {
+      "path": "dist/animation/MMDPhysics.d.ts",
+      "size": 10309,
+      "sha256": "089fa21d5fbcdc43da6c6c7b8b962674795bcd45e19a0726c8fc00bc1a92b853"
+    },
+    {
+      "path": "dist/animation/MMDPhysics.js",
+      "size": 46757,
+      "sha256": "4a47d91b4c83e76b185bea947df2b4bb338aff383597d0f0581ba932f4a29d5b"
+    },
+    {
+      "path": "dist/animation/MMDPhysicsWorker.d.ts",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/animation/MMDPhysicsWorker.js",
+      "size": 730086,
+      "sha256": "8985013d3f8e925271bcefc7be6c43aab578d7010f4351d7a9adcef6d814f8b3"
+    },
+    {
+      "path": "dist/animation/MMDUVMorphController.d.ts",
+      "size": 289,
+      "sha256": "efac4a5311a1e94480dc1fd956dee74577e91983c7c1a5fcd3f71c204bc6d224"
+    },
+    {
+      "path": "dist/animation/MMDUVMorphController.js",
+      "size": 5633,
+      "sha256": "c27c962dd546498c557b51d662d51fd86ac13d4e82826d7c78a4c346f57454d7"
+    },
+    {
+      "path": "dist/animation/PMXPoseLayers.d.ts",
+      "size": 1300,
+      "sha256": "6537f141f60c8c1f31201ce873340751c004cc6c363ea0594ae7a131d4c843d6"
+    },
+    {
+      "path": "dist/animation/PMXPoseLayers.js",
+      "size": 5272,
+      "sha256": "2580ea4a3a97f8ca617b61d184cdd89c0c08b1e72be389d83dbc9f5eb3afed05"
+    },
+    {
+      "path": "dist/animation/PhysicsWorkerProtocol.d.ts",
+      "size": 1925,
+      "sha256": "70bd17de7784d6bf4bb2903ec8dabe29d72d03c3969971fb4bb6e7e79bd1d2f0"
+    },
+    {
+      "path": "dist/animation/PhysicsWorkerProtocol.js",
+      "size": 677,
+      "sha256": "baff6607b2b2e19df625aeeb253f7e5a043082b07c49fb7d434e2c54794fc030"
+    },
+    {
+      "path": "dist/animation/PhysicsWorkerRuntime.d.ts",
+      "size": 356,
+      "sha256": "6dc0a3e98f01cd32cea03ad4525007e9f88c35387d9b4ffc69d36570b558d85b"
+    },
+    {
+      "path": "dist/animation/PhysicsWorkerRuntime.js",
+      "size": 5049,
+      "sha256": "ccd09c3ec70360ea76abae7032a1760b15d0ad72ff2a933e7fbb948cab979dd9"
+    },
+    {
+      "path": "dist/animation/WorkerPhysicsAdapter.d.ts",
+      "size": 2358,
+      "sha256": "40574bd76593ee5e07038bd962242fcf6c9c8bad1fe05a55d93c7fc213dd3aa0"
+    },
+    {
+      "path": "dist/animation/WorkerPhysicsAdapter.js",
+      "size": 17903,
+      "sha256": "26932a2aa2a7cc39a78fc7b78ef1e7e76e8c894b2c21e921d2f13c3dac52da39"
+    },
+    {
+      "path": "dist/effects/MMDOutlineEffect.d.ts",
+      "size": 460,
+      "sha256": "c60b8d5197bd0ecf9881d6fd0326f20e46c67ec91a6ee27d27691b46457940ea"
+    },
+    {
+      "path": "dist/effects/MMDOutlineEffect.js",
+      "size": 5432,
+      "sha256": "6d97f07656804602f042fc58fbf8ecf0e3cfc8772a7f2c8cf5b65b52bff55f60"
+    },
+    {
+      "path": "dist/exporters/MMDExporter.d.ts",
+      "size": 493,
+      "sha256": "159e00ff158134fc052d256f6f5f42e1f1b5b5b5e0bd3174069cf93e1a0e5b3f"
+    },
+    {
+      "path": "dist/exporters/MMDExporter.js",
+      "size": 4416,
+      "sha256": "4fcc3740218bf2f21e4060275eb70ee3c5223c54b32844f0bf67c7c65bc3d2a3"
+    },
+    {
+      "path": "dist/index.d.ts",
+      "size": 1098,
+      "sha256": "ba77e648244a496caa25aad72955c7b36dfda23165710ee042d99d8502d282e8"
+    },
+    {
+      "path": "dist/index.js",
+      "size": 565,
+      "sha256": "66499a4b8215e771168b6ffb2801539340616e8a837a2bcf2f7442be0d063315"
+    },
+    {
+      "path": "dist/loaders/MMDLoader.d.ts",
+      "size": 8563,
+      "sha256": "972cf64579afe49bcaeeb6bc10e1fde7535239261742a508783d5e64c172bbc1"
+    },
+    {
+      "path": "dist/loaders/MMDLoader.js",
+      "size": 67193,
+      "sha256": "664a92dfebb3855fd4a52fe775566d45e43238787e2258c8f4a653ef9eeba8ab"
+    },
+    {
+      "path": "dist/loaders/MMDResourcePath.d.ts",
+      "size": 196,
+      "sha256": "24118c5563b39614255afed0ac7a2b72090a74774b4ff4a9da70cb3fd762bad2"
+    },
+    {
+      "path": "dist/loaders/MMDResourcePath.js",
+      "size": 2689,
+      "sha256": "d27d91f94f57428d39bdfb7f7308b719905306221c59a89c2a3c2606c9bbc63b"
+    },
+    {
+      "path": "dist/materials/MMDToonMaterial.d.ts",
+      "size": 2565,
+      "sha256": "282b47ca44e5d56fdb780a0114d0b5e583b08f17a9c83890641e6787db9de1ae"
+    },
+    {
+      "path": "dist/materials/MMDToonMaterial.js",
+      "size": 12651,
+      "sha256": "db26ad4fb0c95071b8957952319548c47bdf00ee0ca07e711502116380e27e07"
+    },
+    {
+      "path": "dist/materials/MMDUV.d.ts",
+      "size": 205,
+      "sha256": "14c1f3a417dd1da37d4f43eb5413f2fda689cb2e15dfc3303daf57c1ebfdf126"
+    },
+    {
+      "path": "dist/materials/MMDUV.js",
+      "size": 344,
+      "sha256": "ce1c5a4d6a318970e6277246e22ad29bf451ef8aee0cd7121b3b8d5bdf34b0a5"
+    },
+    {
+      "path": "dist/skinning/MMDSdef.d.ts",
+      "size": 650,
+      "sha256": "225b819e2ac1e89d8dc9c0f397bc5efc5d72f427954bfdd726a3cefff06799fd"
+    },
+    {
+      "path": "dist/skinning/MMDSdef.js",
+      "size": 6630,
+      "sha256": "ac94fb320de7624fca3d718a4514bddc1bbc141d9b84e2974350f79655f76e26"
+    },
+    {
+      "path": "dist/types.d.ts",
+      "size": 3926,
+      "sha256": "91e944312f7d542684a9910947abeecd989a5c36ee35a54d481e0ec1b392f171"
+    },
+    {
+      "path": "dist/types.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/vendor/bullet/LICENSE.Bullet-source-notices.txt",
+      "size": 75429,
+      "sha256": "e296690c83e2a5ea8531284cf9e8d293baaf80f4df02585997c08a5fdc0f1949"
+    },
+    {
+      "path": "dist/vendor/bullet/LICENSE.Bullet.txt",
+      "size": 1022,
+      "sha256": "885cd516a8420acb7c3e0b1a7119913b686495001ae564e3229740460e8cff59"
+    },
+    {
+      "path": "dist/vendor/bullet/LICENSE.Emscripten.txt",
+      "size": 5093,
+      "sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86"
+    },
+    {
+      "path": "dist/vendor/bullet/LICENSE.compiler-rt.txt",
+      "size": 16708,
+      "sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d"
+    },
+    {
+      "path": "dist/vendor/bullet/LICENSE.dlmalloc.txt",
+      "size": 28992,
+      "sha256": "11e2e827a20a91e173bdfbf2f3504bba29e2aa285e1504d6552f13f7fc887f80"
+    },
+    {
+      "path": "dist/vendor/bullet/LICENSE.libcxx.txt",
+      "size": 16703,
+      "sha256": "539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b"
+    },
+    {
+      "path": "dist/vendor/bullet/LICENSE.libcxxabi.txt",
+      "size": 16706,
+      "sha256": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c"
+    },
+    {
+      "path": "dist/vendor/bullet/LICENSE.musl.txt",
+      "size": 6204,
+      "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af"
+    },
+    {
+      "path": "dist/vendor/bullet/ammo.js",
+      "size": 116516,
+      "sha256": "b859346ea1eb226b5f385633b66432ca542240b73aa14dde9b27e2f0f8997500"
+    },
+    {
+      "path": "dist/vendor/bullet/ammo.wasm",
+      "size": 353231,
+      "sha256": "e1bd8fe1da2c3da1e169305e753bd4def39e1127d724b80996cb2b0e98f6810f"
+    },
+    {
+      "path": "dist/vendor/bullet/manifest.json",
+      "size": 2310,
+      "sha256": "176f66cda3c5cf097521ef5e8dbca39f56da512d271491d4ad75219daf521747"
+    },
+    {
+      "path": "package.json",
+      "size": 4948,
+      "sha256": "9d5300f6719310c0f1dbbbf6d4230973c3460bc35ce77aae461d3e0c52017a21"
+    }
+  ],
+  "validation": {
+    "checked_at": "2026-11-01T08:31:45.353403+00:00",
+    "node": "26.12.1",
+    "npm": "11.20.0",
+    "chrome": "156.0.8078.74",
+    "npm_ci_exit_code": 0,
+    "typecheck_exit_code": 0,
+    "test_summaries": {
+      "test": {
+        "tests": 1203,
+        "pass": 1203,
+        "fail": 0,
+        "skipped": 0
+      },
+      "legacy": {
+        "tests": 1203,
+        "pass": 1203,
+        "fail": 0,
+        "skipped": 0
+      },
+      "browser": {
+        "tests": 55,
+        "pass": 55,
+        "fail": 0,
+        "skipped": 0
+      },
+      "source-examples": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "skipped": 0
+      },
+      "built-examples": {
+        "tests": 3,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 2
+      }
+    },
+    "final_checks": [
+      {
+        "check": "build",
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "environment": {},
+        "started_at": "2026-11-01T08:28:25.440339+00:00",
+        "duration_seconds": 0.997,
+        "exit_code": 0
+      },
+      {
+        "check": "fixture-build",
+        "command": [
+          "npm",
+          "run",
+          "build:examples"
+        ],
+        "environment": {
+          "MMD_EXAMPLE_FIXTURES": "1"
+        },
+        "started_at": "2026-11-01T08:28:26.437398+00:00",
+        "duration_seconds": 1.639,
+        "exit_code": 0
+      },
+      {
+        "check": "source-examples",
+        "command": [
+          "npm",
+          "run",
+          "test:examples"
+        ],
+        "environment": {},
+        "started_at": "2026-11-01T08:28:28.076522+00:00",
+        "duration_seconds": 117.722,
+        "exit_code": 0
+      },
+      {
+        "check": "built-examples",
+        "command": [
+          "npm",
+          "run",
+          "test:examples"
+        ],
+        "environment": {
+          "MMD_EXAMPLE_SITE": "dist/examples",
+          "MMD_EXAMPLE_FIXTURES": "1"
+        },
+        "started_at": "2026-11-01T08:30:25.799134+00:00",
+        "duration_seconds": 28.922,
+        "exit_code": 0
+      },
+      {
+        "check": "pack-dry-run",
+        "command": [
+          "npm",
+          "pack",
+          "--dry-run",
+          "--json"
+        ],
+        "environment": {},
+        "started_at": "2026-11-01T08:30:54.721726+00:00",
+        "duration_seconds": 1.287,
+        "exit_code": 0
+      },
+      {
+        "check": "publish-dry-run",
+        "command": [
+          "npm",
+          "publish",
+          "--dry-run",
+          "--access",
+          "public"
+        ],
+        "environment": {},
+        "started_at": "2026-11-01T08:30:56.008533+00:00",
+        "duration_seconds": 10.377,
+        "exit_code": 0
+      }
+    ],
+    "lifecycle_dry_run_matches_audited_tarball": true,
+    "publish_dry_run_matches_audited_sha1": true,
+    "pinned_resource_license_and_recipe_hashes_verified": true,
+    "generated_fixture_site_removed_after_validation": true,
+    "post_merge_ci": "PENDING",
+    "post_merge_pages": "PENDING",
+    "merge_sha": null,
+    "real_npm_publication": "NOT PERFORMED; maintainer-only"
+  }
+}
