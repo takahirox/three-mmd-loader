@@ -1,5 +1,10 @@
 # Gene Light gray-light trial and overbrightness — Issue #102
 
+This is the historical #102 record. Its half-ambient and Lambert-indirect
+assumptions are superseded by [the #113 derivation](material-shading.md) and
+[controlled before/after validation](material-ambient-validation.md). The
+original measurements below remain unchanged for comparison.
+
 Only `examples/scene.ts`'s two light colors change at runtime: explicit
 `mode === 'gene'` selects ambient **0x888888** and directional **0x888888**,
 intensity **1** each. All four Miku PMD pages (including Worker Physics) keep

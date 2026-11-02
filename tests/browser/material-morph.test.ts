@@ -103,7 +103,7 @@ try {
      let rgb=e.ambient.map((a,i)=>{
       const d=lit&&!mode.startsWith('ambient')?linear(e.diffuse[i])*(spec?0.05:1):0;
       const r=lit?toon[i]:1;
-      return (d+(ambient?0.5*linear(a):0))*map[i]*r;
+      return (d+(ambient?linear(a):0))*map[i]*r;
      });
      if(spec)rgb=rgb.map((v,i)=>v+linear(e.specular[i])*0.05);
      if(m.matcap)rgb=rgb.map((v,i)=>m.matcapCombine===0?v*sampleRGB(texel,e.controls.sphereTextureColor,m.matcapCombine===0?1:0)[i]:v+sampleRGB(texel,e.controls.sphereTextureColor,m.matcapCombine===0?1:0)[i]*toon[i]);

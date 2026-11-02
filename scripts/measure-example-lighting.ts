@@ -5,6 +5,8 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Parser } from 'mmd-parser';
+import { execFileSync } from 'node:child_process';
+import { transform } from 'esbuild';
 import { assetManifest } from './assets-manifest.ts';
 import { inspectGeneLight } from './inspect-gene-light.ts';
 import { createExamplesServer } from './serve-examples.ts';
@@ -17,9 +19,12 @@ const mikuBlob = createHash( 'sha1' ).update( `blob ${mikuBytes.length}\0` ).upd
 assert.equal( mikuBlob, assetManifest.files.find( file => file.path === 'miku/miku_v2.pmd' )!.sha );
 const miku = new Parser().parsePmd( mikuBytes.buffer.slice( mikuBytes.byteOffset, mikuBytes.byteOffset + mikuBytes.byteLength ), true );
 const implementation = {
+	materialSourceRef: process.env.MMD_LIGHTING_MATERIAL_REF ?? 'worktree',
 	three: JSON.parse( await readFile( new URL( '../node_modules/three/package.json', import.meta.url ), 'utf8' ) ).version as string,
 	files: Object.fromEntries( await Promise.all( [ 'examples/scene.ts', 'src/materials/MMDToonMaterial.ts', 'src/loaders/MMDLoader.ts', 'scripts/measure-example-lighting.ts' ].map( async path =>
-		[ path, createHash( 'sha256' ).update( await readFile( new URL( '../' + path, import.meta.url ) ) ).digest( 'hex' ) ] ) ) )
+		[ path, createHash( 'sha256' ).update( path === 'src/materials/MMDToonMaterial.ts' && process.env.MMD_LIGHTING_MATERIAL_REF
+			? execFileSync( 'git', [ 'show', `${process.env.MMD_LIGHTING_MATERIAL_REF}:${path}` ] )
+			: await readFile( new URL( '../' + path, import.meta.url ) ) ).digest( 'hex' ) ] ) ) )
 };
 interface Result { error?: string; models: unknown[]; userAgent: string }
 const harness = `<!doctype html><pre id="result">pending</pre><script type="module">
@@ -120,23 +125,36 @@ const server = createServer( ( request, response ) => {
 
 } );
 const temporary = await mkdtemp( join( tmpdir(), 'mmd-lighting-' ) );
+// Re-run a pinned shader on the exact same scene/assets/browser. Only replace
+// the served build module, never source, and restore it even on failure. Do not
+// run concurrently with builds or other browser checks.
+const modulePath = new URL( '../dist/materials/MMDToonMaterial.js', import.meta.url );
+const savedModule = process.env.MMD_LIGHTING_MATERIAL_REF ? await readFile( modulePath ) : null;
 try {
 
+	if ( savedModule ) {
+
+		const source = execFileSync( 'git', [ 'show', `${process.env.MMD_LIGHTING_MATERIAL_REF}:src/materials/MMDToonMaterial.ts` ], { encoding: 'utf8' } );
+		await writeFile( modulePath, ( await transform( source, { loader: 'ts', format: 'esm', target: 'es2022' } ) ).code );
+
+	}
 	await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
 	const base = `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}`;
 	const result = await runBrowser<Result>( base + '/measure', join( temporary, 'profile' ), 'light', 300000 );
 	assert.equal( result.error, undefined, result.error );
 	assert.equal( result.models.length, 2 );
-	await writeFile( new URL( '../docs/gene-light-lighting-measurements.json', import.meta.url ), JSON.stringify( {
+	const output = process.env.MMD_LIGHTING_OUTPUT ?? 'docs/gene-light-lighting-measurements.json';
+	await writeFile( new URL( '../' + output, import.meta.url ), JSON.stringify( {
 		method: 'npm run build && npm run examples:assets && node --import tsx scripts/measure-example-lighting.ts', implementation,
 		gene: { commit: gene.commit, sha256: gene.modelSha256, materials: gene.materialRecords, materialMorphs: gene.materialMorphs },
 		miku: { commit: assetManifest.commit, gitBlob: mikuBlob, materials: miku.materials, toonTextures: miku.toonTextures },
 		...result
 	}, null, 2 ) + '\n' );
-	console.log( 'Wrote docs/gene-light-lighting-measurements.json (real model materials, HDR and display measurements)' );
+	console.log( `Wrote ${output} (real model materials, HDR and display measurements)` );
 
 } finally {
 
+	if ( savedModule ) await writeFile( modulePath, savedModule );
 	server.closeAllConnections();
 	await new Promise<void>( resolve => server.close( () => resolve() ) );
 	await removeBrowserDirectory( temporary );

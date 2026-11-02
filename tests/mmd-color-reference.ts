@@ -1,6 +1,6 @@
 // CPU oracle for docs/material-shading.md, independent of TSL and renderer code.
-// Saba mmd.frag: ambient + diffuse, then base/sphere/toon, then specular.
-// babylon-mmd's material documentation supplies the MMD ambient coefficient 0.5.
+// D3D9 material slots and light semantics supply the oracle (see native-light-reference.ts).
+// This adapter retains Three linear RGB/HDR and the existing multiple-light extension.
 export const srgbToLinear = ( v: number ) => v <= 0.04045 ? v / 12.92 : ( ( v + 0.055 ) / 1.055 ) ** 2.4;
 
 export interface ColorComposition {
@@ -21,8 +21,8 @@ export function referenceMMDColor( input: ColorComposition ) {
 
 		const texture = input.texture ? input.texture[ i ] * ( input.textureFactor?.[ i ] ?? 1 ) : 1;
 		const ramp = input.lights.length ? input.lights.reduce( ( sum, l ) => sum + l.ramp[ i ], 0 ) / input.lights.length : 1;
-		const illumination = input.lights.reduce( ( sum, l ) => sum + l.irradiance[ i ] * l.ramp[ i ], input.indirect?.[ i ] ?? 0 );
-		let surface = ( input.diffuse[ i ] * illumination + 0.5 * ambient * ramp ) * texture;
+		const illumination = input.lights.reduce( ( sum, l ) => sum + l.irradiance[ i ] * l.ramp[ i ], 0 );
+		let surface = ( input.diffuse[ i ] * illumination + ( ambient + input.diffuse[ i ] * ( input.indirect?.[ i ] ?? 0 ) ) * ramp ) * texture;
 		if ( input.sphere ) surface = input.sphere.mode === 'add' ? surface + input.sphere.color[ i ] * ramp : surface * input.sphere.color[ i ];
 		return surface + ( input.specular?.[ i ] ?? 0 );
 

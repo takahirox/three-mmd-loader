@@ -27,7 +27,7 @@ const cases = angles.flatMap( angle => [ -2, 0, 0.00001, 1, 8, 32 ].flatMap( pow
 		const ambient = [ 0.04, 0.06, 0.08 ];
 		const spec = referenceDirectSpecular( angle.normal, angle.light, angle.view, power, specular, light );
 		return { ...angle, power, diffuse, specular, lightColor: light, ambient, texture,
-			expected: diffuse.map( ( d, i ) => ( d * light[ i ] + 0.5 * ambient[ i ] ) * srgbToLinear( texture[ i ] / 255 ) + spec[ i ] ) };
+			expected: diffuse.map( ( d, i ) => ( d * light[ i ] + ambient[ i ] ) * srgbToLinear( texture[ i ] / 255 ) + spec[ i ] ) };
 
 	} )
 ) ) );
