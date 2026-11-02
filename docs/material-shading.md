@@ -133,8 +133,9 @@ retained, and no redistributed shader is included in this repository.
 
 ## Implemented Three.js compatibility equation
 
-#113 deliberately changes three things together: remove the unsupported half
-coefficient; remove Three Phong's Lambert 1/pi from indirect diffuse; put scene
+#112 / PR #114 already removed the unsupported half coefficient and clarified
+the directional light mapping. #113 retains that correction, removes Three
+Phong's Lambert 1/pi from indirect diffuse, and puts scene
 ambient under the same toon stage as authored ambient and diffuse. This is a
 scoped **linear/HDR adaptation** of the native-derived composition, not an
 implementation of all native D3D9 quantization and saturation. For one direct
@@ -150,7 +151,8 @@ specular = specularRGB * L * V * (p > 0 ? max(dot(N,H),0)^p : 1)
 RGB = surface + specular + user emission
 ```
 
-`D` is diffuse RGB, `A` dedicated ambient RGB, `L` light color/intensity,
+`D` is authored diffuse RGB, `A` authored ambient RGB, and `L` is the
+directional light color/intensity mapped to native scene-light Ambient/Specular,
 `V` Three's existing shadow attenuation, and `R` the existing toon ramp.
 `E` is Three's accumulated indirect irradiance (AmbientLight color × intensity,
 HemisphereLight, light maps/probes where supplied); `AO` is Three's existing
@@ -243,7 +245,7 @@ unverified; publication and maintainer visual follow-up remain pending.
 
 ## #113 audit and validation
 
-The previous equation was `(D*L*V + 0.5*A)*T*U*R + (D*E/pi)*T*U*AO`.
+At #113 filing, the equation was `(D*L*V + 0.5*A)*T*U*R + (D*E/pi)*T*U*AO`.
 `MMDLoader.MaterialBuilder` already shares PMD and PMX color ingestion:
 diffuse → `color` (with a historical `diffuse` alias), authored ambient →
 `ambient`, specular → `specular`, power unchanged, diffuse alpha → opacity.
@@ -293,3 +295,21 @@ for actual command results, before/after measurements and remaining limitations.
 Required merge-SHA Actions/Pages and deployed Examples verification remains
 **PENDING until performed after merge**. Optional native visual comparison has
 not been performed and is not an approval gate.
+
+## Reconciliation with #112 / PR #114
+
+The [#112 evidence audit and original validation](https://github.com/takahirox/three-mmd-loader/blob/a2a6fd1a0cf94fa774e0caa2277c1d6e3cbbc6ca/docs/material-shading.md#issue-112-evidence-audit)
+remain available at the merged main commit. Its saved
+[before](issue-112-lighting-before.json) and [after](issue-112-lighting-after.json)
+measurements are historical: that implementation retained indirect irradiance/pi
+outside the toon ramp. The #113 equation above supersedes that indirect policy;
+[the #113 report](material-ambient-validation.md) describes the resulting
+measurements and limitations. Neither set of archived reports is relabeled as a
+measurement of this merge resolution.
+
+Both suites are retained: #112's literal term/HDR fixtures and no-light checks,
+and #113's independent D3D9 slot/stage oracle, PMD/PMX ingestion and combined
+indirect/toon cases. Zero-intensity and multiple-light cases share the corrected
+reference equation. The measurement script uses #114's per-request served-module
+override, with both CLI flags and #113's environment variables supported; it no
+longer temporarily rewrites the built module. Example light settings are unchanged.

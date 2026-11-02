@@ -14,10 +14,11 @@ rest pose, zero morphs, disabled animation/physics, camera, 256×256 target,
 light positions/colors/intensities, texture controls and all 16 ablations are
 identical. The baseline shader is from filing commit
 `7b604fb1d76b26a2c46bced0cbeab2b8b5781c40`; the corrected shader is the worktree
-version. The script temporarily transpiles only that pinned material source
-into the served build for the baseline and restores the current module in
-`finally`. It never changes source or commits. Run measurements sequentially,
-without concurrent builds or browser checks:
+version. The original measurement run temporarily transpiled only that pinned material
+source into the served build and restored it in `finally`. After reconciling
+PR #114, the script serves the selected transpiled material directly without
+changing the build. Both the environment variables below and the CLI flags
+`--material-ref` / `--output` are supported. Run measurements after building:
 
 ```sh
 npm ci
@@ -134,6 +135,44 @@ pretexture saturation/quantization, exact toon/shadow behavior and native
 visual/pixel comparison remain unverified. The scoped correction deliberately
 retains Three color management, HDR, optional indirect lights/AO and the
 existing multi-light/ramp policy, as documented in material-shading.md.
+
+## Reconciliation with current main (2026-11-02)
+
+The conflicts with `a2a6fd1a0cf94fa774e0caa2277c1d6e3cbbc6ca` (PR #114)
+were resolved while retaining its authored-ambient correction, literal numerical
+fixtures, HDR/no-light browser coverage and historical #112 model reports. The
+#113 indirect-light product and toon stage, independent D3D9 oracle and PMD/PMX
+loader cases remain. Both diagnostic CLI flags and environment variables work
+with the per-request material override; the script no longer rewrites `dist`.
+The earlier table records the pre-reconciliation checks; these fresh checks apply
+to the resolved tree on the same macOS/Node/Three/Chrome environment:
+
+| Check | Reconciliation result |
+| --- | --- |
+| `npm run typecheck` | PASS, including its `npm run build` prerequisite |
+| `npm test` | PASS, 1,205 tests, 0 skipped |
+| `npm run test:browser` | 54 PASS, 1 FAIL, 0 skipped; 768.70 seconds. The single failure was a gallery selection timeout with the Worker iframe still loading. All material, morph, shader, native WebGPU/WebGL2 and dedicated Worker suites passed. |
+| Isolated source Examples rerun | PASS, `node --import tsx --test tests/browser/examples.test.ts`; 1 test, 0 skipped, 62.92 seconds, without a code change after the timeout |
+| Static Examples build | PASS, `node --import tsx scripts/build-examples.ts`, using verified public assets from `npm run examples:assets` |
+| Built Examples at `/three-mmd-loader/` | PASS, same `MMD_EXAMPLE_SITE=dist/examples` command above; 3 tests, 0 skipped, 285.27 seconds; real Miku/Gene on WebGL2/native WebGPU and both Bullet variants |
+| Reconciled diagnostic script | PASS, 2 real models × 16 settings × 2 material versions; baseline selected through environment variables, current output selected through CLI |
+| `git diff --check` | PASS, including staged resolution |
+
+The combined ambient matrix checks 144 material combinations and 104 independent
+PMD/PMX D3D9-oracle cases per backend, plus user emission. The direct-light suite
+retains 272 scalar pixel cases plus #112's six literal float HDR fixtures and
+no-directional-light check per backend. The PMX morph suite retains its 330
+surface RGBA cases per backend. The full-suite gallery timeout is recorded as a
+failed run even though the focused rerun and built artifact checks passed.
+
+The fresh baseline and corrected diagnostic runs reproduce every archived
+measurement statistic exactly at the reports' recorded precision (maximum
+statistic delta 0 for both versions), including material values, model masks,
+linear means/peaks/clipping and display histograms. Scene/loader hashes and
+pinned asset identities match. Repeat deltas remain zero; maximum isolated-sum
+errors are 1.20e-7 before and 1.79e-7 after. The built material module's SHA-256
+is unchanged across both runs, confirming that the served override leaves the
+build intact. These are reproducibility checks, not native MMD comparisons.
 
 ## Required post-merge work
 

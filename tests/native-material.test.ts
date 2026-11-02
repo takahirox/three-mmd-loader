@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { mmdLightingFixtures } from './mmd-lighting-fixtures.ts';
 import { referenceDirectSpecular, referenceMMDColor, referenceSampler, srgbToLinear } from './mmd-color-reference.ts';
 
 const near = ( actual: number[], expected: number[] ) => actual.forEach( ( v, i ) => assert.ok( Math.abs( v - expected[ i ] ) < 1e-12, `${actual} != ${expected}` ) );
@@ -54,5 +55,22 @@ test( 'native material slots and D3D9 equations independently determine ambient,
 	near( fixedFunctionPrimary( material, [ 0, 0, 0 ], [ { ...light, ambient: [ 0, 0, 0 ] } ] ), material.emissive );
 	near( fixedFunctionPrimary( nativeMaterialSlots( [ 0, 0, 0 ], material.emissive ), [ 1, 1, 1 ], [ light ] ), material.emissive );
 	near( fixedFunctionPrimary( nativeMaterialSlots( [ 1, 1, 1 ], [ 0.5, 0.5, 0.5 ] ), [ 0, 0, 0 ], [ { ...light, ambient: [ 1, 1, 1 ] } ] ), [ 1, 1, 1 ] );
+
+} );
+
+test( 'reconstructed D3D9 toon input mapping matches independent numeric term fixtures', () => {
+
+	for ( const f of mmdLightingFixtures ) {
+
+		near( referenceMMDColor( { ...f, lights: [ { irradiance: f.scene, ramp: [ 1, 1, 1 ] } ] } ), f.expected );
+
+	}
+	const f = mmdLightingFixtures[ 0 ];
+	// No directional light: only authored ambient; never the unlit diffuse.
+	near( referenceMMDColor( { ...f, lights: [] } ), [ 0.1, 0.3, 0.05 ] );
+	// Host AmbientLight is an additional global ambient product, not a duplicate native scene light.
+	near( referenceMMDColor( { ...f, lights: [ { irradiance: f.scene, ramp: [ 1, 1, 1 ] } ], indirect: [ 0.1, 0.2, 0.3 ] } ), [ 0.34, 0.49, 0.49 ] );
+	// A is neither multiplied by scene color nor repeated for multiple lights.
+	near( referenceMMDColor( { ...f, diffuse: [ 0, 0, 0 ], lights: [ { irradiance: f.scene, ramp: [ 1, 1, 1 ] }, { irradiance: f.scene, ramp: [ 1, 1, 1 ] } ] } ), f.ambient );
 
 } );

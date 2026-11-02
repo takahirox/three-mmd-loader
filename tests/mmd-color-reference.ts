@@ -8,7 +8,7 @@ export interface ColorComposition {
 	diffuse: number[];
 	texture?: number[];
 	textureFactor?: number[];
-	// Direct light color/intensity, including Three's shadow attenuation (no pi).
+	// Toon scene-light Ambient (Three directional color/intensity and shadow; no pi).
 	lights: { irradiance: number[]; ramp: number[] }[];
 	indirect?: number[];
 	sphere?: { mode: 'multiply' | 'add' | 'subtexture'; color: number[] };

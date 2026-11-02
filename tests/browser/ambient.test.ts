@@ -15,11 +15,11 @@ const textures = [ null, [ 255, 255, 255 ], [ 192, 128, 64 ], [ 16, 24, 32 ], [ 
 const factor = [ 0.6, 0.8, 0.5 ];
 const sphereColor = [ 0.2, 0.3, 0.4 ];
 const rampColor = [ 0.4, 0.6, 0.8 ];
-const cases = textures.flatMap( texture => [ 'none', 'direct', 'ramp', 'indirect', 'combined', 'multiple' ].flatMap( lighting =>
+const cases = textures.flatMap( texture => [ 'none', 'direct', 'ramp', 'indirect', 'combined', 'zero', 'multiple' ].flatMap( lighting =>
 	[ 'none', 'multiply', 'add', 'subtexture' ].map( mode => {
 
 		const ramp = ( lighting === 'ramp' || lighting === 'combined' ) ? rampColor : [ 1, 1, 1 ];
-		const lights = lighting === 'none' || lighting === 'indirect' ? [] : [ { irradiance: [ 0.25, 0.25, 0.25 ], ramp } ];
+		const lights = lighting === 'none' || lighting === 'indirect' ? [] : [ { irradiance: lighting === 'zero' ? [ 0, 0, 0 ] : [ 0.25, 0.25, 0.25 ], ramp } ];
 		if ( lighting === 'multiple' ) lights.push( { irradiance: [ 0.25, 0.25, 0.25 ], ramp: [ 0.7, 0.7, 0.7 ] } );
 		const sphere = mode === 'none' ? undefined : { mode: mode as 'multiply' | 'add' | 'subtexture', color: sphereColor };
 		const expected = referenceMMDColor( {
@@ -51,7 +51,7 @@ const nativeCases = [ 0, 0.125 ].flatMap( sceneAmbient => [ false, true ].flatMa
 	)
 ) );
 
-test( 'MMD ambient/base/sphere/toon equation and separate specular match the CPU oracle on both backends', { timeout: 120000 }, async t => {
+test( 'MMD ambient/base/sphere/toon equation and separate specular match the CPU oracle on both backends', { timeout: 240000 }, async t => {
 
 	const html = `<!doctype html><script type="importmap">{"imports":{
 "three":"/node_modules/three/build/three.module.js",
@@ -96,7 +96,7 @@ try {
   let samples=0;
   for(const c of ${JSON.stringify( cases )}) {
    material.map=textures[${JSON.stringify( textures )}.findIndex(v=>JSON.stringify(v)===JSON.stringify(c.texture))];
-   light.visible=['direct','ramp','combined','multiple'].includes(c.lighting);second.visible=c.lighting==='multiple';indirect.visible=['indirect','combined'].includes(c.lighting);
+   light.visible=['direct','ramp','combined','multiple','zero'].includes(c.lighting);second.visible=c.lighting==='multiple';indirect.visible=['indirect','combined'].includes(c.lighting);light.intensity=c.lighting==='zero'?0:0.25;
    material.gradientMap=['ramp','combined'].includes(c.lighting)?ramp:null;
    material.matcap=c.mode==='none'?null:sphere;material.matcapMode=c.mode==='subtexture'?'subtexture':'sphere';material.matcapCombine=c.mode==='add'?AddOperation:MultiplyOperation;
    material.needsUpdate=true;near(await pixel(),c.expected,backend+' '+JSON.stringify(c));samples++;
@@ -172,7 +172,7 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 	try {
 
 		await new Promise<void>( resolve => server.listen( 0, '127.0.0.1', resolve ) );
-		const result = await runBrowser<{ errors: string[]; webgpu: boolean; backends: { backend: string; samples: number; nativeSamples: number }[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/`, profile, 'light', 110000 );
+		const result = await runBrowser<{ errors: string[]; webgpu: boolean; backends: { backend: string; samples: number; nativeSamples: number }[] }>( `http://127.0.0.1:${( server.address() as import( 'node:net' ).AddressInfo ).port}/`, profile, 'light', 230000 );
 		assert.deepEqual( result.errors, [] ); assert.equal( result.backends[ 0 ]?.backend, 'webgl' );
 		if ( result.webgpu ) assert.equal( result.backends[ 1 ]?.backend, 'webgpu' );
 		else t.diagnostic( 'Native WebGPU unavailable; mandatory WebGL2 passed.' );
