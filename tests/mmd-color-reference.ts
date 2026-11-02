@@ -1,6 +1,7 @@
 // CPU oracle for docs/material-shading.md, independent of TSL and renderer code.
-// Saba mmd.frag: ambient + diffuse, then base/sphere/toon, then specular.
-// babylon-mmd's material documentation supplies the MMD ambient coefficient 0.5.
+// Reconstructed D3D9 input mapping: material.Emissive=A, material.Ambient=D.
+// Standard toon EgColor = D * light.Ambient + A (not a second D * light.Diffuse).
+// Evidence, independent numeric fixtures and host adaptations: docs/material-shading.md.
 export const srgbToLinear = ( v: number ) => v <= 0.04045 ? v / 12.92 : ( ( v + 0.055 ) / 1.055 ) ** 2.4;
 
 export interface ColorComposition {
@@ -8,7 +9,7 @@ export interface ColorComposition {
 	diffuse: number[];
 	texture?: number[];
 	textureFactor?: number[];
-	// Direct light color/intensity, including Three's shadow attenuation (no pi).
+	// Toon scene-light Ambient (Three directional color/intensity and shadow; no pi).
 	lights: { irradiance: number[]; ramp: number[] }[];
 	indirect?: number[];
 	sphere?: { mode: 'multiply' | 'add' | 'subtexture'; color: number[] };
@@ -22,7 +23,7 @@ export function referenceMMDColor( input: ColorComposition ) {
 		const texture = input.texture ? input.texture[ i ] * ( input.textureFactor?.[ i ] ?? 1 ) : 1;
 		const ramp = input.lights.length ? input.lights.reduce( ( sum, l ) => sum + l.ramp[ i ], 0 ) / input.lights.length : 1;
 		const illumination = input.lights.reduce( ( sum, l ) => sum + l.irradiance[ i ] * l.ramp[ i ], input.indirect?.[ i ] ?? 0 );
-		let surface = ( input.diffuse[ i ] * illumination + 0.5 * ambient * ramp ) * texture;
+		let surface = ( input.diffuse[ i ] * illumination + ambient * ramp ) * texture;
 		if ( input.sphere ) surface = input.sphere.mode === 'add' ? surface + input.sphere.color[ i ] * ramp : surface * input.sphere.color[ i ];
 		return surface + ( input.specular?.[ i ] ?? 0 );
 

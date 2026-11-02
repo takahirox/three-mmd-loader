@@ -33,7 +33,7 @@ export interface MMDOutlineParameters {
 
 export interface MMDToonMaterialParameters extends MeshPhongNodeMaterialParameters {
 	diffuse?: Color;
-	/** MMD ambient in Three's linear working space; independent of emissive. */
+	/** Authored PMD/PMX ambient in Three's linear working space; independent of emissive. */
 	ambient?: Color;
 	gradientMap?: Texture | null;
 	matcap?: Texture | null;
@@ -71,8 +71,13 @@ class MMDLightingModel extends PhongLightingModel {
 			: mix( float( 0.7 ), float( 1 ), smoothstep( float( 0.7 ).sub( fw.x ), float( 0.7 ).add( fw.x ), coord.x ) );
 		this.ambientRamp.addAssign( gradient );
 		this.directCount ++;
-		const irradiance = gradient.mul( vec3( lightColor as Node<'vec3'> ) );
-		( reflectedLight.directDiffuse as Node<'vec3'> ).addAssign( irradiance.mul( diffuseColor.rgb ) );
+		// Standard MMD toon uses D3DLIGHT9.Ambient, not its (zero) Diffuse:
+		// EgColor = authoredDiffuse * sceneAmbient + authoredAmbient.
+		// Map Three's directional color/intensity to that sceneAmbient term.
+		// Three's shadow attenuation and shared diffuse/specular light color
+		// remain host adaptations; do not add a second native ambient light.
+		const sceneAmbient = vec3( lightColor as Node<'vec3'> );
+		( reflectedLight.directDiffuse as Node<'vec3'> ).addAssign( sceneAmbient.mul( diffuseColor.rgb ).mul( gradient ) );
 
 		// Specular is separate from the base texture, ambient and toon ramp.
 		const halfSum = direction.add( positionViewDirection );
@@ -113,7 +118,7 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 	static get type() { return 'MMDToonMaterial'; }
 
 	readonly isMMDToonMaterial = true;
-	/** Original MMD ambient, converted to the linear working space. */
+	/** Authored ambient (D3DMATERIAL9.Emissive in the reconstruction), in linear working space. */
 	ambient = new Color( 0, 0, 0 );
 	gradientMap: Texture | null = null;
 	matcap: Texture | null = null;
@@ -259,10 +264,10 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 
 	}
 
-	/** Texture-modulated MMD ambient; 0.5 follows babylon-mmd's documented MMD coefficient. */
+	/** Authored ambient in EgColor = diffuse * sceneAmbient + ambient; textured once. */
 	setupMMDAmbient(): Node<'vec3'> {
 
-		let ambient = ( materialReference( 'ambient', 'color' ) as unknown as Node<'vec3'> ).mul( 0.5 );
+		let ambient = materialReference( 'ambient', 'color' ) as unknown as Node<'vec3'>;
 		if ( this.map ) ambient = ambient.mul( samplerRGB( ( materialReference( 'map', 'texture' ) as unknown as Node<'vec4'> ).rgb, 'mmdTextureColor' ) );
 		if ( this.matcap && this.matcapMode === 'subtexture' ) ambient = ambient.mul( samplerRGB( this.subtextureSample().rgb, 'mmdSphereColor' ) );
 		return ambient;

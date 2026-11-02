@@ -61,10 +61,10 @@ test( 'reference equation modulates ambient and diffuse once, with separate spec
 
 	const base = { ambient: [ 1, 1, 1 ], diffuse: [ 0.2, 0.4, 0.6 ], lights: [ { irradiance: [ 1, 1, 1 ], ramp: [ 1, 1, 1 ] } ], specular: [ 0.1, 0.1, 0.1 ] };
 	const near = ( a: number[], b: number[] ) => a.forEach( ( v, i ) => assert.ok( Math.abs( v - b[ i ] ) < 1e-12 ) );
-	near( referenceMMDColor( base ), [ 0.8, 1, 1.2 ] );
+	near( referenceMMDColor( base ), [ 1.3, 1.5, 1.7 ] );
 	near( referenceMMDColor( { ...base, texture: [ 0, 0, 0 ] } ), [ 0.1, 0.1, 0.1 ] );
-	near( referenceMMDColor( { ...base, texture: [ 0.1, 0.2, 0.5 ] } ), [ 0.17, 0.28, 0.65 ] );
+	near( referenceMMDColor( { ...base, texture: [ 0.1, 0.2, 0.5 ] } ), [ 0.22, 0.38, 0.9 ] );
 	near( referenceMMDColor( { ...base, textureFactor: [ 0, 0, 0 ] } ), referenceMMDColor( base ) );
-	near( referenceMMDColor( { ...base, lights: [] } ), [ 0.6, 0.6, 0.6 ] );
+	near( referenceMMDColor( { ...base, lights: [] } ), [ 1.1, 1.1, 1.1 ] );
 
 } );
