@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { transform } from 'esbuild';
+import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -10,6 +13,15 @@ import { inspectGeneLight } from './inspect-gene-light.ts';
 import { createExamplesServer } from './serve-examples.ts';
 import { removeBrowserDirectory, runBrowser } from '../tests/browser/browser.ts';
 
+// Compare a committed material in the same renderer/scene without checking out
+// or running build scripts from that revision. Only this material is compiled.
+const materialRef = process.argv.find( arg => arg.startsWith( '--material-ref=' ) )?.slice( '--material-ref='.length );
+const output = resolve( process.argv.find( arg => arg.startsWith( '--output=' ) )?.slice( '--output='.length ) ?? 'docs/gene-light-lighting-measurements.json' );
+const materialSource = materialRef
+	? execFileSync( 'git', [ 'show', `${materialRef}:src/materials/MMDToonMaterial.ts` ], { encoding: 'utf8' } )
+	: await readFile( new URL( '../src/materials/MMDToonMaterial.ts', import.meta.url ), 'utf8' );
+const materialJS = ( await transform( materialSource, { loader: 'ts', format: 'esm', target: 'es2022' } ) ).code;
+
 // Read only the same public pinned assets as the Examples/capture workflow.
 const gene = await inspectGeneLight();
 const mikuBytes = await readFile( new URL( '../examples/assets/mmd/miku/miku_v2.pmd', import.meta.url ) );
@@ -17,9 +29,11 @@ const mikuBlob = createHash( 'sha1' ).update( `blob ${mikuBytes.length}\0` ).upd
 assert.equal( mikuBlob, assetManifest.files.find( file => file.path === 'miku/miku_v2.pmd' )!.sha );
 const miku = new Parser().parsePmd( mikuBytes.buffer.slice( mikuBytes.byteOffset, mikuBytes.byteOffset + mikuBytes.byteLength ), true );
 const implementation = {
+	materialRef: materialRef ?? 'working tree',
+	materialSHA256: createHash( 'sha256' ).update( materialSource ).digest( 'hex' ),
 	three: JSON.parse( await readFile( new URL( '../node_modules/three/package.json', import.meta.url ), 'utf8' ) ).version as string,
 	files: Object.fromEntries( await Promise.all( [ 'examples/scene.ts', 'src/materials/MMDToonMaterial.ts', 'src/loaders/MMDLoader.ts', 'scripts/measure-example-lighting.ts' ].map( async path =>
-		[ path, createHash( 'sha256' ).update( await readFile( new URL( '../' + path, import.meta.url ) ) ).digest( 'hex' ) ] ) ) )
+		[ path, createHash( 'sha256' ).update( path === 'src/materials/MMDToonMaterial.ts' ? materialSource : await readFile( new URL( '../' + path, import.meta.url ) ) ).digest( 'hex' ) ] ) ) )
 };
 interface Result { error?: string; models: unknown[]; userAgent: string }
 const harness = `<!doctype html><pre id="result">pending</pre><script type="module">
@@ -104,7 +118,7 @@ try {
   }
   if(repeatError>1e-5 || sumError>1e-4)throw new Error('Isolation/repeat mismatch '+sumError+' / '+repeatError);
   if(!renderer.backend.isWebGLBackend || errors.length)throw new Error('Backend/runtime error '+errors);
-  models.push({page:id,backend:'WebGL2 / SwiftShader',camera:camera.position.toArray(),target:[0,10,0],size:[256,256],pose:'rest; physics and animation disabled; all morph weights zero',toneMapping:renderer.toneMapping,outputColorSpace:renderer.outputColorSpace,materialState,measurements,ablationMaxDelta,sourceToLoadedParametersMatch:true,formerDiffuseDividedByPiCounterfactual:stats(former),maxIsolationSumError:sumError,maxRepeatError:repeatError});
+  models.push({page:id,backend:'WebGL2 / SwiftShader',camera:camera.position.toArray(),cameraQuaternion:camera.quaternion.toArray(),cameraProjection:camera.projectionMatrix.toArray(),modelMatrix:mesh.matrixWorld.toArray(),lights:{directionalPosition:direct.position.toArray(),directionalTarget:direct.target.position.toArray(),ambientIntensity:1,directionalIntensity:1},target:[0,10,0],size:[256,256],pose:'rest; physics and animation disabled; all morph weights zero',toneMapping:renderer.toneMapping,outputColorSpace:renderer.outputColorSpace,materialState,measurements,ablationMaxDelta,sourceToLoadedParametersMatch:true,formerDiffuseDividedByPiCounterfactual:stats(former),maxIsolationSumError:sumError,maxRepeatError:repeatError});
   target.dispose();frame.remove();
  }
  document.getElementById('result').textContent=encodeURIComponent(JSON.stringify({models,userAgent:navigator.userAgent}));
@@ -115,6 +129,7 @@ const handler = app.listeners( 'request' )[ 0 ];
 const server = createServer( ( request, response ) => {
 
 	if ( request.url?.startsWith( '/progress?' ) ) { console.log( new URL( request.url, 'http://localhost' ).searchParams.get( 'stage' ) ); response.end( 'ok' ); }
+	else if ( request.url === '/src/materials/MMDToonMaterial.js' ) response.writeHead( 200, { 'Content-Type': 'text/javascript' } ).end( materialJS );
 	else if ( request.url === '/measure' ) response.writeHead( 200, { 'Content-Type': 'text/html' } ).end( harness );
 	else handler( request, response );
 
@@ -127,13 +142,13 @@ try {
 	const result = await runBrowser<Result>( base + '/measure', join( temporary, 'profile' ), 'light', 300000 );
 	assert.equal( result.error, undefined, result.error );
 	assert.equal( result.models.length, 2 );
-	await writeFile( new URL( '../docs/gene-light-lighting-measurements.json', import.meta.url ), JSON.stringify( {
-		method: 'npm run build && npm run examples:assets && node --import tsx scripts/measure-example-lighting.ts', implementation,
+	await writeFile( output, JSON.stringify( {
+		method: `npm run build && npm run examples:assets && node --import tsx scripts/measure-example-lighting.ts${materialRef ? ' --material-ref=' + materialRef : ''} --output=${output.slice( process.cwd().length + 1 )}`, implementation,
 		gene: { commit: gene.commit, sha256: gene.modelSha256, materials: gene.materialRecords, materialMorphs: gene.materialMorphs },
 		miku: { commit: assetManifest.commit, gitBlob: mikuBlob, materials: miku.materials, toonTextures: miku.toonTextures },
 		...result
 	}, null, 2 ) + '\n' );
-	console.log( 'Wrote docs/gene-light-lighting-measurements.json (real model materials, HDR and display measurements)' );
+	console.log( `Wrote ${output} (real model materials, HDR and display measurements)` );
 
 } finally {
 

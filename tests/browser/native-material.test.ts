@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { referenceDirectSpecular, referenceSampler, srgbToLinear } from '../mmd-color-reference.ts';
+import { mmdLightingFixtures } from '../mmd-lighting-fixtures.ts';
 import { removeBrowserDirectory, runBrowser } from './browser.ts';
 
 const normalize = ( v: number[] ) => v.map( x => x / Math.hypot( ...v ) );
@@ -27,7 +28,7 @@ const cases = angles.flatMap( angle => [ -2, 0, 0.00001, 1, 8, 32 ].flatMap( pow
 		const ambient = [ 0.04, 0.06, 0.08 ];
 		const spec = referenceDirectSpecular( angle.normal, angle.light, angle.view, power, specular, light );
 		return { ...angle, power, diffuse, specular, lightColor: light, ambient, texture,
-			expected: diffuse.map( ( d, i ) => ( d * light[ i ] + 0.5 * ambient[ i ] ) * srgbToLinear( texture[ i ] / 255 ) + spec[ i ] ) };
+			expected: diffuse.map( ( d, i ) => ( d * light[ i ] + ambient[ i ] ) * srgbToLinear( texture[ i ] / 255 ) + spec[ i ] ) };
 
 	} )
 ) ) );
@@ -50,7 +51,7 @@ test( 'source sampler blending and unnormalized direct light match independent s
 	const html = `<!doctype html><script type="importmap">{"imports":{
 "three":"/node_modules/three/build/three.module.js","three/webgpu":"/node_modules/three/build/three.webgpu.js","three/tsl":"/node_modules/three/build/three.tsl.js"}}</script>
 <pre id="result">pending</pre><script type="module">
-import { AddOperation, Color, DataTexture, DirectionalLight, DoubleSide, LinearSRGBColorSpace, Mesh, MultiplyOperation, NoBlending, OrthographicCamera, PlaneGeometry, Scene, SRGBColorSpace } from 'three';
+import { AddOperation, Color, DataTexture, DirectionalLight, DoubleSide, FloatType, LinearSRGBColorSpace, Mesh, MultiplyOperation, NoBlending, OrthographicCamera, PlaneGeometry, Scene, SRGBColorSpace } from 'three';
 import { RenderTarget, WebGPURenderer } from 'three/webgpu';
 import { MMDToonMaterial } from '/dist/materials/MMDToonMaterial.js';
 const result={errors:[],backends:[],webgpu:false};console.error=(...a)=>result.errors.push(a.join(' '));
@@ -91,6 +92,20 @@ try{
    material[name].fromArray(c.multiply);material[name+'Add'].fromArray(c.add);material.needsUpdate=true;
    near(await pixel(),c.expected,backend+' sampler '+JSON.stringify(c));tex.dispose();samples++;
   }
+  const hdr=new RenderTarget(1,1,{type:FloatType});hdr.texture.colorSpace=LinearSRGBColorSpace;renderer.setRenderTarget(hdr);
+  material.map=material.matcap=null;material.gradientMap=ramp;material.opacity=1;material.needsUpdate=true;
+  for(const f of ${JSON.stringify( mmdLightingFixtures )}){
+   material.color.fromArray(f.diffuse);material.ambient.fromArray(f.ambient);light.color.fromArray(f.scene);
+   await new Promise(requestAnimationFrame);renderer.render(scene,camera);
+   const p=Array.from(await renderer.readRenderTargetPixelsAsync(hdr,0,0,1,1));
+   f.expected.forEach((v,i)=>check(Math.abs(p[i]-v)<0.0001,backend+' independent term '+f.name+' '+p));check(p[3]===1,'term opacity');
+  }
+  // Remove the directional light entirely; no implicit scene fill is created.
+  scene.remove(light);material.color.setRGB(0.4,0.2,0.8);material.ambient.setRGB(0.1,0.3,0.05);material.needsUpdate=true;
+  await new Promise(requestAnimationFrame);renderer.render(scene,camera);
+  const unlit=Array.from(await renderer.readRenderTargetPixelsAsync(hdr,0,0,1,1));
+  [0.1,0.3,0.05,1].forEach((v,i)=>check(Math.abs(unlit[i]-v)<0.0001,backend+' no directional '+unlit));
+  scene.add(light);light.color.setRGB(1,1,1);material.ambient.setRGB(0,0,0);renderer.setRenderTarget(target);hdr.dispose();
   // Use the renderer's output pass with async GPU readback, avoiding canvas presentation timing.
   // Keep the target's linear storage: outputColorSpace alone must encode the independently expected sRGB bytes.
   material.map=material.matcap=material.gradientMap=null;material.color.setRGB(0.2,0.1,0.05);material.opacity=1;material.needsUpdate=true;
@@ -117,7 +132,7 @@ document.getElementById('result').textContent=encodeURIComponent(JSON.stringify(
 		assert.deepEqual( result.errors, [] ); assert.equal( result.backends[ 0 ]?.backend, 'webgl' );
 		if ( result.webgpu ) assert.equal( result.backends[ 1 ]?.backend, 'webgpu' );
 		else t.diagnostic( 'Native WebGPU unavailable; mandatory WebGL2 passed.' );
-		for ( const b of result.backends ) { assert.equal( b.samples, cases.length + samplerCases.length ); t.diagnostic( `${b.backend}: ${b.samples} scalar pixel assertions plus output color conversion` ); }
+		for ( const b of result.backends ) { assert.equal( b.samples, cases.length + samplerCases.length ); t.diagnostic( `${b.backend}: ${b.samples} scalar pixel assertions plus independent float HDR/no-light fixtures and output color conversion` ); }
 
 	} finally { await new Promise( resolve => server.close( resolve ) ); await removeBrowserDirectory( profile ); }
 
