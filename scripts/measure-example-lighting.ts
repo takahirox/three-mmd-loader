@@ -15,8 +15,8 @@ import { removeBrowserDirectory, runBrowser } from '../tests/browser/browser.ts'
 
 // Compare a committed material in the same renderer/scene without checking out
 // or running build scripts from that revision. Only this material is compiled.
-const materialRef = process.argv.find( arg => arg.startsWith( '--material-ref=' ) )?.slice( '--material-ref='.length );
-const output = resolve( process.argv.find( arg => arg.startsWith( '--output=' ) )?.slice( '--output='.length ) ?? 'docs/gene-light-lighting-measurements.json' );
+const materialRef = process.argv.find( arg => arg.startsWith( '--material-ref=' ) )?.slice( '--material-ref='.length ) ?? process.env.MMD_LIGHTING_MATERIAL_REF;
+const output = resolve( process.argv.find( arg => arg.startsWith( '--output=' ) )?.slice( '--output='.length ) ?? process.env.MMD_LIGHTING_OUTPUT ?? 'docs/gene-light-lighting-measurements.json' );
 const materialSource = materialRef
 	? execFileSync( 'git', [ 'show', `${materialRef}:src/materials/MMDToonMaterial.ts` ], { encoding: 'utf8' } )
 	: await readFile( new URL( '../src/materials/MMDToonMaterial.ts', import.meta.url ), 'utf8' );

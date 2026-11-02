@@ -43,7 +43,7 @@ export interface MMDToonMaterialParameters extends MeshPhongNodeMaterialParamete
 }
 
 // Adapted from r186 ToonLightingModel and PhongLightingModel. Keep Three's
-// indirect lighting, shadows, light maps and AO. Ambient and sphere composition
+// indirect light inputs, shadows, light maps and AO. Ambient and sphere composition
 // are MMD-specific; see docs/material-shading.md for the reference and extensions.
 // Casts below supply the vector types omitted by some r186 TSL declarations;
 // the underlying values are Three's nodes, with no custom shader source.
@@ -104,9 +104,24 @@ class MMDLightingModel extends PhongLightingModel {
 		// multiple-light extension so ambient is added exactly once.
 		const ramp = this.directCount ? this.ambientRamp.div( this.directCount ) : vec3( 1 );
 		const specular = vec3( reflectedLight.directSpecular as Node<'vec3'> ).add( vec3( reflectedLight.indirectSpecular as Node<'vec3'> ) );
-		const surface = outgoingLight.sub( specular ).add( material.setupMMDAmbient().mul( ramp ) );
+		// D3D material Ambient is authored diffuse; Emissive is authored ambient.
+		// Both scene ambient and authored ambient precede the toon texture stage.
+		const indirect = vec3( reflectedLight.indirectDiffuse as Node<'vec3'> );
+		const surface = outgoingLight.sub( specular ).sub( indirect ).add( indirect.add( material.setupMMDAmbient() ).mul( ramp ) );
 		outgoingLight.assign( material.setupMMDSphere( surface, ramp ).add( specular ) );
 		super.finish( builder );
+
+	}
+
+	indirect( builder: NodeBuilder ) {
+
+		const { irradiance, reflectedLight, ambientOcclusion } = builder.context as {
+			irradiance: Node<'vec3'>; reflectedLight: LightingModelReflectedLight; ambientOcclusion: Node<'float'>;
+		};
+		// MMD material/light colors are ordinary products, including scene ambient.
+		// Three's Phong path applies a Lambert 1/pi here; D3D9 does not.
+		( reflectedLight.indirectDiffuse as Node<'vec3'> ).addAssign( vec3( irradiance ).mul( diffuseColor.rgb ) );
+		( reflectedLight.indirectDiffuse as Node<'vec3'> ).mulAssign( ambientOcclusion );
 
 	}
 
@@ -264,7 +279,7 @@ class MMDToonMaterial extends MeshPhongNodeMaterial {
 
 	}
 
-	/** Authored ambient in EgColor = diffuse * sceneAmbient + ambient; textured once. */
+	/** Authored D3D material Emissive, before the toon stage; independent of lights. */
 	setupMMDAmbient(): Node<'vec3'> {
 
 		let ambient = materialReference( 'ambient', 'color' ) as unknown as Node<'vec3'>;

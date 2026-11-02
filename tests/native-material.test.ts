@@ -39,6 +39,25 @@ test( 'scalar direct diffuse has no pi and textures cannot tint separate specula
 
 } );
 
+test( 'native material slots and D3D9 equations independently determine ambient, light and texture order', async () => {
+
+	const { fixedFunctionPrimary, modulateStages, nativeMaterialSlots } = await import( './native-light-reference.ts' );
+	const material = nativeMaterialSlots( [ 0.25, 0.5, 0.75 ], [ 0.125, 0.0625, 0.03125 ] );
+	const light = { ambient: [ 0.5, 0.25, 0.125 ], diffuse: [ 0, 0, 0 ], ndotl: 1 };
+	const primary = fixedFunctionPrimary( material, [ 0.125, 0.125, 0.125 ], [ light ] );
+	// Hand-computed dyadic values, independent of Three/TSL and referenceMMDColor.
+	near( primary, [ 0.28125, 0.25, 0.21875 ] );
+	const stages = [ [ 0.5, 0.25, 1 ], [ 0.5, 1, 0.25 ] ];
+	near( modulateStages( primary, stages ), [ 0.0703125, 0.0625, 0.0546875 ] );
+	near( referenceMMDColor( { diffuse: material.diffuse, ambient: material.emissive,
+		lights: [ { irradiance: light.ambient, ramp: stages[ 0 ] } ], indirect: [ 0.125, 0.125, 0.125 ], texture: stages[ 1 ] } ), modulateStages( primary, stages ) );
+	near( fixedFunctionPrimary( material, [ 0, 0, 0 ], [] ), material.emissive );
+	near( fixedFunctionPrimary( material, [ 0, 0, 0 ], [ { ...light, ambient: [ 0, 0, 0 ] } ] ), material.emissive );
+	near( fixedFunctionPrimary( nativeMaterialSlots( [ 0, 0, 0 ], material.emissive ), [ 1, 1, 1 ], [ light ] ), material.emissive );
+	near( fixedFunctionPrimary( nativeMaterialSlots( [ 1, 1, 1 ], [ 0.5, 0.5, 0.5 ] ), [ 0, 0, 0 ], [ { ...light, ambient: [ 1, 1, 1 ] } ] ), [ 1, 1, 1 ] );
+
+} );
+
 test( 'reconstructed D3D9 toon input mapping matches independent numeric term fixtures', () => {
 
 	for ( const f of mmdLightingFixtures ) {
@@ -49,7 +68,7 @@ test( 'reconstructed D3D9 toon input mapping matches independent numeric term fi
 	const f = mmdLightingFixtures[ 0 ];
 	// No directional light: only authored ambient; never the unlit diffuse.
 	near( referenceMMDColor( { ...f, lights: [] } ), [ 0.1, 0.3, 0.05 ] );
-	// Host AmbientLight is additional irradiance/pi, not native scene ambient.
+	// Host AmbientLight is an additional global ambient product, not a duplicate native scene light.
 	near( referenceMMDColor( { ...f, lights: [ { irradiance: f.scene, ramp: [ 1, 1, 1 ] } ], indirect: [ 0.1, 0.2, 0.3 ] } ), [ 0.34, 0.49, 0.49 ] );
 	// A is neither multiplied by scene color nor repeated for multiple lights.
 	near( referenceMMDColor( { ...f, diffuse: [ 0, 0, 0 ], lights: [ { irradiance: f.scene, ramp: [ 1, 1, 1 ] }, { irradiance: f.scene, ramp: [ 1, 1, 1 ] } ] } ), f.ambient );

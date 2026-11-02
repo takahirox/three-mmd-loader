@@ -1,5 +1,5 @@
 // Independent hand-calculated D3D9/standard-toon term fixtures, not samples of
-// the TSL implementation. See docs/material-shading.md#issue-112-evidence-audit.
+// the TSL implementation. See docs/material-shading.md#native-derived-ambient-evidence-issue-113.
 // Inputs here are numeric working-space terms; these do not assert native gamma
 // or raster parity. E = material.Ambient * light.Ambient + material.Emissive,
 // with material.Ambient=D and material.Emissive=A. No light.Diffuse term in toon.
