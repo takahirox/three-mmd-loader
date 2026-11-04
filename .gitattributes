@@ -1,2 +1,0 @@
-# Preserve verbatim upstream license notices, including their original whitespace.
-examples/vendor/bullet/LICENSE.*.txt -whitespace
