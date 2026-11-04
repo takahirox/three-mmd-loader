@@ -16,14 +16,15 @@ Install the package alongside the supported Three.js version:
 npm install @takahirox/three-mmd three@~0.186.0
 ```
 
-Release candidate **0.1.3** updates the registry-confirmed published 0.1.2
-with canonical PMD/PMX texture-resource paths before loading and caching,
-including Windows separators, safe dot segments and encoded filenames. Unsafe
-relative paths are rejected before handler lookup or fetching. It retains the
-optional pinned Bullet WASM and classic Worker physics. Rare severe PMD
-physics instability remains **under investigation**; native MMD rendering
+Release candidate **0.1.4** updates the registry-confirmed published 0.1.3
+with full authored PMD/PMX ambient and corrected scene-ambient/toon composition.
+These changes can increase brightness and HDR clipping with existing lights;
+see [material shading](docs/material-shading.md) for the compatibility equation.
+Public imports and dependencies are unchanged. Texture-resource normalization,
+optional pinned Bullet WASM and classic Worker physics are retained. Rare severe
+PMD physics instability remains **under investigation**; native MMD rendering
 parity and Android image-decoding fixes are unverified. See the
-[release record](docs/releases/0.1.3.md) for source, registry and validation
+[release record](docs/releases/0.1.4.md) for source, registry and validation
 evidence. This candidate has not been published by this task.
 
 Use native ES module imports, either from the package root or from addon-style
@@ -237,8 +238,8 @@ and the browser/example commands build the package first; `npm pack` builds it
 through `prepack`. Manual `npm publish` also runs strict type checks and the
 offline Node/package regression tests before uploading. See the
 [release guide](docs/releases.md) for maintainer prerequisites and dry-runs.
-Validate the 0.1.3 candidate before publication by installing the local
-`takahirox-three-mmd-0.1.3.tgz` produced by `npm pack`. TypeScript consumers
+Validate the 0.1.4 candidate before publication by installing the local
+`takahirox-three-mmd-0.1.4.tgz` produced by `npm pack`. TypeScript consumers
 should install matching Three.js types
 with `npm install --save-dev @types/three@~0.186.0`. Root and documented `.js`
 subpath imports resolve to the same API in both JavaScript and TypeScript.

@@ -1,0 +1,128 @@
+[
+  {
+    "checked_at": "2026-11-04T11:55:27.222469+00:00",
+    "url": "https://registry.npmjs.org/@takahirox%2fthree-mmd?release_check=1793793326601374000",
+    "request_headers": {
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache"
+    },
+    "status": 200,
+    "response_headers": {
+      "Date": "Wed, 04 Nov 2026 11:55:27 GMT",
+      "CF-Cache-Status": "MISS",
+      "Cache-Control": "public, max-age=300",
+      "ETag": "\"f2060c5b73f672882e881fc450145025\""
+    },
+    "metadata": {
+      "name": "@takahirox/three-mmd",
+      "dist-tags": {
+        "latest": "0.1.3"
+      },
+      "versions": [
+        "0.0.0-stage",
+        "0.1.0",
+        "0.1.1",
+        "0.1.2",
+        "0.1.3"
+      ],
+      "published_baseline_at": "2026-11-01T10:16:05.714Z"
+    }
+  },
+  {
+    "checked_at": "2026-11-04T11:55:27.687865+00:00",
+    "url": "https://registry.npmjs.org/@takahirox%2fthree-mmd/0.1.3?release_check=1793793327222605000",
+    "request_headers": {
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache"
+    },
+    "status": 200,
+    "response_headers": {
+      "Date": "Wed, 04 Nov 2026 11:55:27 GMT",
+      "CF-Cache-Status": "DYNAMIC"
+    },
+    "metadata": {
+      "name": "@takahirox/three-mmd",
+      "version": "0.1.3",
+      "gitHead": "7b604fb1d76b26a2c46bced0cbeab2b8b5781c40",
+      "dist": {
+        "shasum": "d354f0d9d2f29bfaf4801589f10e61937d264886",
+        "tarball": "https://registry.npmjs.org/@takahirox/three-mmd/-/three-mmd-0.1.3.tgz",
+        "fileCount": 63,
+        "integrity": "sha512-/7WB/Wq8ME6QYrY5PEYXkXPvkGZj/wNfCfCruHPLdvOqLzj3Sfrq7C5jcao+bD1FVWq++glE2zSytFNJW60vcQ==",
+        "signatures": [
+          {
+            "sig": "MEQCIBBoy5VFidxeg5gT5/39j3kOrPyudwovFJX/eJrq6ak3AiAo3DahYUleGrxxVCiD4XYqcekrGwiZQkYVF+3uTktGGA==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEYCIQDAyWkwo7hAAnoXFbA6JJ4do6NzCwJoVcR4FqbglLh6qwIhALH+gZPkZe8HATq56i5nmq+GxyfJ2qI8LtknJDNpEIwq",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 1739891
+      }
+    }
+  },
+  {
+    "checked_at": "2026-11-04T11:55:28.150300+00:00",
+    "url": "https://registry.npmjs.org/@takahirox%2fthree-mmd/0.1.4?release_check=1793793327687940000",
+    "request_headers": {
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache"
+    },
+    "status": 404,
+    "response_headers": {
+      "Date": "Wed, 04 Nov 2026 11:55:28 GMT"
+    },
+    "metadata": {
+      "body": "version not found: 0.1.4"
+    }
+  },
+  {
+    "phase": "after publish dry-run",
+    "checked_at": "2026-11-04T12:08:45.735205+00:00",
+    "url": "https://registry.npmjs.org/@takahirox%2fthree-mmd?release_check=1793794124869425000",
+    "request_headers": {
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache"
+    },
+    "status": 200,
+    "response_headers": {
+      "Date": "Wed, 04 Nov 2026 12:08:45 GMT",
+      "CF-Cache-Status": "MISS",
+      "Cache-Control": "public, max-age=300",
+      "ETag": "\"f2060c5b73f672882e881fc450145025\""
+    },
+    "metadata": {
+      "name": "@takahirox/three-mmd",
+      "versions": [
+        "0.0.0-stage",
+        "0.1.0",
+        "0.1.1",
+        "0.1.2",
+        "0.1.3"
+      ],
+      "dist-tags": {
+        "latest": "0.1.3"
+      },
+      "published_baseline_at": "2026-11-01T10:16:05.714Z",
+      "baseline_gitHead": "7b604fb1d76b26a2c46bced0cbeab2b8b5781c40"
+    }
+  },
+  {
+    "phase": "after publish dry-run",
+    "checked_at": "2026-11-04T12:08:46.314948+00:00",
+    "url": "https://registry.npmjs.org/@takahirox%2fthree-mmd/0.1.4?release_check=1793794125735229000",
+    "request_headers": {
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache"
+    },
+    "status": 404,
+    "response_headers": {
+      "Date": "Wed, 04 Nov 2026 12:08:46 GMT"
+    },
+    "metadata": {
+      "body": "version not found: 0.1.4"
+    }
+  }
+]

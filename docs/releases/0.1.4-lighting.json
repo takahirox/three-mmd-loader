@@ -1,0 +1,430 @@
+{
+  "method": "Controlled real-model WebGL2 before/after; 2 models x 16 settings x 2 material revisions; rest pose, zero morphs, disabled animation/physics; fixed camera, lights, textures and 256x256 targets. current means AAA/white for both models; gray means 888/888.",
+  "before_implementation": {
+    "materialRef": "7b604fb1d76b26a2c46bced0cbeab2b8b5781c40",
+    "materialSHA256": "8d7895685f0383d450346940f2fbc3162779495a67ae55ecb782dd11b49499d9",
+    "three": "0.186.1",
+    "files": {
+      "examples/scene.ts": "86563f714cd6577f56681dbb72a4cca8052fdfa3fb7d2932a3c86264a9b86115",
+      "src/materials/MMDToonMaterial.ts": "8d7895685f0383d450346940f2fbc3162779495a67ae55ecb782dd11b49499d9",
+      "src/loaders/MMDLoader.ts": "e9f1ed88eb6b5cdb002c21974eee02dbf9bd7238177b00127533127718b6a3ec",
+      "scripts/measure-example-lighting.ts": "c26a0edea52cff6efe39355fb7fdcd07571042adaa9acbb2567cdac65cfa6ad7"
+    }
+  },
+  "after_implementation": {
+    "materialRef": "working tree",
+    "materialSHA256": "e9572110acc3e0172a654526d14b36948d2b06d96c1c954a57dc41505c158278",
+    "three": "0.186.1",
+    "files": {
+      "examples/scene.ts": "86563f714cd6577f56681dbb72a4cca8052fdfa3fb7d2932a3c86264a9b86115",
+      "src/materials/MMDToonMaterial.ts": "e9572110acc3e0172a654526d14b36948d2b06d96c1c954a57dc41505c158278",
+      "src/loaders/MMDLoader.ts": "e9f1ed88eb6b5cdb002c21974eee02dbf9bd7238177b00127533127718b6a3ec",
+      "scripts/measure-example-lighting.ts": "c26a0edea52cff6efe39355fb7fdcd07571042adaa9acbb2567cdac65cfa6ad7"
+    }
+  },
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+  "gene_asset": {
+    "commit": "c7eace43dffaccff6ad0597433ef85fa57c91e03",
+    "sha256": "7ce1902e0c834a79db7070c50dcb6444d73d734f6725cad35ea25aa2dbeca4b3"
+  },
+  "miku_asset": {
+    "commit": "2898f5b1ba10b1e94174c0a62d072f5f7b80442c",
+    "gitBlob": "5c88504144bd180083a7c5dce0b67d0fdb2f1a61"
+  },
+  "validation": [
+    {
+      "stage": "lighting-before",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/measure-example-lighting.ts",
+        "--material-ref=7b604fb1d76b26a2c46bced0cbeab2b8b5781c40",
+        "--output=REPORT.json"
+      ],
+      "started_at": "2026-11-04T12:08:26.772338+00:00",
+      "elapsed_seconds": 28.691,
+      "exit_code": 0
+    },
+    {
+      "stage": "lighting-after",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/measure-example-lighting.ts",
+        "--output=REPORT.json"
+      ],
+      "started_at": "2026-11-04T12:08:55.464222+00:00",
+      "elapsed_seconds": 29.039,
+      "exit_code": 0
+    }
+  ],
+  "max_measurement_statistic_delta_from_archived_reports": 0,
+  "archived_reports": [
+    "docs/material-ambient-before.json",
+    "docs/material-ambient-after.json"
+  ],
+  "controls": [
+    {
+      "page": "webgl_loader_mmd_pmx_gene",
+      "backend": "WebGL2 / SwiftShader",
+      "camera": [
+        0,
+        11.999999999999996,
+        35
+      ],
+      "cameraQuaternion": [
+        -0.028536516746296803,
+        0,
+        0,
+        0.9995927506799899
+      ],
+      "cameraProjection": [
+        2.4142135623730954,
+        0,
+        0,
+        0,
+        0,
+        2.4142135623730954,
+        0,
+        0,
+        0,
+        0,
+        -1.00010000500025,
+        -1,
+        0,
+        0,
+        -0.200010000500025,
+        0
+      ],
+      "modelMatrix": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "lights": {
+        "directionalPosition": [
+          -1,
+          2,
+          1
+        ],
+        "directionalTarget": [
+          0,
+          0,
+          0
+        ],
+        "ambientIntensity": 1,
+        "directionalIntensity": 1
+      },
+      "target": [
+        0,
+        10,
+        0
+      ],
+      "size": [
+        256,
+        256
+      ],
+      "pose": "rest; physics and animation disabled; all morph weights zero",
+      "toneMapping": 0,
+      "outputColorSpace": "srgb",
+      "material_state_unchanged": true,
+      "source_to_loaded_parameters_match": true,
+      "max_repeat_error_before": 0,
+      "max_repeat_error_after": 0,
+      "max_isolated_sum_error_before": 1.1920928955078125e-07,
+      "max_isolated_sum_error_after": 1.7881393432617188e-07
+    },
+    {
+      "page": "webgl_loader_mmd_pose",
+      "backend": "WebGL2 / SwiftShader",
+      "camera": [
+        0,
+        11.999999999999996,
+        35
+      ],
+      "cameraQuaternion": [
+        -0.028536516746296803,
+        0,
+        0,
+        0.9995927506799899
+      ],
+      "cameraProjection": [
+        2.4142135623730954,
+        0,
+        0,
+        0,
+        0,
+        2.4142135623730954,
+        0,
+        0,
+        0,
+        0,
+        -1.00010000500025,
+        -1,
+        0,
+        0,
+        -0.200010000500025,
+        0
+      ],
+      "modelMatrix": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "lights": {
+        "directionalPosition": [
+          -1,
+          2,
+          1
+        ],
+        "directionalTarget": [
+          0,
+          0,
+          0
+        ],
+        "ambientIntensity": 1,
+        "directionalIntensity": 1
+      },
+      "target": [
+        0,
+        10,
+        0
+      ],
+      "size": [
+        256,
+        256
+      ],
+      "pose": "rest; physics and animation disabled; all morph weights zero",
+      "toneMapping": 0,
+      "outputColorSpace": "srgb",
+      "material_state_unchanged": true,
+      "source_to_loaded_parameters_match": true,
+      "max_repeat_error_before": 0,
+      "max_repeat_error_after": 0,
+      "max_isolated_sum_error_before": 6.274785846471786e-08,
+      "max_isolated_sum_error_after": 1.487787812948227e-07
+    }
+  ],
+  "representative_measurements": [
+    {
+      "model": "webgl_loader_mmd_pmx_gene",
+      "case": "white",
+      "settings": {
+        "name": "white",
+        "colors": [
+          16777215,
+          16777215
+        ]
+      },
+      "silhouette_pixels": 5319,
+      "before": {
+        "mean_linear_RGB": [
+          0.730102,
+          0.735836,
+          0.728264
+        ],
+        "peak_linear": 1.581913,
+        "HDR_over_1_percent": 50.141004,
+        "display_255_percent": 49.614589
+      },
+      "after": {
+        "mean_linear_RGB": [
+          1.166375,
+          1.175536,
+          1.16344
+        ],
+        "peak_linear": 2.527206,
+        "HDR_over_1_percent": 55.235947,
+        "display_255_percent": 55.217146
+      }
+    },
+    {
+      "model": "webgl_loader_mmd_pmx_gene",
+      "case": "current",
+      "settings": {
+        "name": "current",
+        "colors": [
+          11184810,
+          16777215
+        ]
+      },
+      "silhouette_pixels": 5319,
+      "before": {
+        "mean_linear_RGB": [
+          0.642244,
+          0.647288,
+          0.640628
+        ],
+        "peak_linear": 1.391557,
+        "HDR_over_1_percent": 44.670051,
+        "display_255_percent": 43.974431
+      },
+      "after": {
+        "mean_linear_RGB": [
+          0.890362,
+          0.897355,
+          0.888121
+        ],
+        "peak_linear": 1.929184,
+        "HDR_over_1_percent": 53.901109,
+        "display_255_percent": 53.374694
+      }
+    },
+    {
+      "model": "webgl_loader_mmd_pmx_gene",
+      "case": "gray",
+      "settings": {
+        "name": "gray",
+        "colors": [
+          8947848,
+          8947848
+        ]
+      },
+      "silhouette_pixels": 5319,
+      "before": {
+        "mean_linear_RGB": [
+          0.271447,
+          0.273579,
+          0.270764
+        ],
+        "peak_linear": 0.588173,
+        "HDR_over_1_percent": 0,
+        "display_255_percent": 0
+      },
+      "after": {
+        "mean_linear_RGB": [
+          0.470553,
+          0.474249,
+          0.469369
+        ],
+        "peak_linear": 1.019609,
+        "HDR_over_1_percent": 4.606129,
+        "display_255_percent": 4.060914
+      }
+    },
+    {
+      "model": "webgl_loader_mmd_pose",
+      "case": "white",
+      "settings": {
+        "name": "white",
+        "colors": [
+          16777215,
+          16777215
+        ]
+      },
+      "silhouette_pixels": 10303,
+      "before": {
+        "mean_linear_RGB": [
+          0.10866,
+          0.337295,
+          0.330583
+        ],
+        "peak_linear": 0.922007,
+        "HDR_over_1_percent": 0,
+        "display_255_percent": 0
+      },
+      "after": {
+        "mean_linear_RGB": [
+          0.165755,
+          0.51811,
+          0.507461
+        ],
+        "peak_linear": 1.440651,
+        "HDR_over_1_percent": 10.686208,
+        "display_255_percent": 9.405028
+      }
+    },
+    {
+      "model": "webgl_loader_mmd_pose",
+      "case": "current",
+      "settings": {
+        "name": "current",
+        "colors": [
+          11184810,
+          16777215
+        ]
+      },
+      "silhouette_pixels": 10303,
+      "before": {
+        "mean_linear_RGB": [
+          0.095365,
+          0.292629,
+          0.286747
+        ],
+        "peak_linear": 0.807065,
+        "HDR_over_1_percent": 0,
+        "display_255_percent": 0
+      },
+      "after": {
+        "mean_linear_RGB": [
+          0.125649,
+          0.388549,
+          0.380453
+        ],
+        "peak_linear": 1.079548,
+        "HDR_over_1_percent": 5.716782,
+        "display_255_percent": 4.484131
+      }
+    },
+    {
+      "model": "webgl_loader_mmd_pose",
+      "case": "gray",
+      "settings": {
+        "name": "gray",
+        "colors": [
+          8947848,
+          8947848
+        ]
+      },
+      "silhouette_pixels": 10303,
+      "before": {
+        "mean_linear_RGB": [
+          0.035997,
+          0.112332,
+          0.109884
+        ],
+        "peak_linear": 0.307671,
+        "HDR_over_1_percent": 0,
+        "display_255_percent": 0
+      },
+      "after": {
+        "mean_linear_RGB": [
+          0.059298,
+          0.186138,
+          0.181925
+        ],
+        "peak_linear": 0.516034,
+        "HDR_over_1_percent": 0,
+        "display_255_percent": 0
+      }
+    }
+  ]
+}
