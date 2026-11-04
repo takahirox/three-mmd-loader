@@ -1,11 +1,14 @@
 # Manual npm releases
 
-The next release candidate is **`@takahirox/three-mmd@0.1.3`**, updating the
-registry-confirmed published 0.1.2. See the
-[0.1.3 release record](releases/0.1.3.md) for exact source, registry evidence,
-changes, local validation and pending post-merge
-checks. The GitHub repository remains `takahirox/three-mmd-loader`; examples
-remain at https://takahirox.github.io/three-mmd-loader/.
+The next release candidate is **`@takahirox/three-mmd@0.1.4`**, updating the
+registry-confirmed published 0.1.3. See the
+[0.1.4 release record](releases/0.1.4.md) for the published baseline, exact
+source changes, package audit, local validation and pending post-merge checks.
+The [0.1.3 release record](releases/0.1.3.md) and earlier records remain
+historical preparation evidence; their version-availability observations do
+not describe the current registry. The GitHub repository remains
+`takahirox/three-mmd-loader`; examples remain at
+https://takahirox.github.io/three-mmd-loader/.
 
 ## Package contract
 
@@ -136,15 +139,15 @@ ownership or publication permission. A 401/403 is an authorization error;
 DNS, connection and timeout errors leave status unknown. Retry inconsistent
 cached metadata with a fresh temporary npm cache. The historical Issue #45
 404 and older candidates' availability evidence are superseded by the
-fresh 0.1.2 publication and 0.1.3 availability evidence in the current record.
+fresh 0.1.3 publication and 0.1.4 availability evidence in the current record.
 If publication is delayed, recheck version availability before publishing.
 
-Users can already install published 0.1.2 with `npm install
+Users can already install published 0.1.3 with `npm install
 @takahirox/three-mmd three@~0.186.0`. To validate this candidate before it is
-published, run `npm pack` and install local `takahirox-three-mmd-0.1.3.tgz` in
+published, run `npm pack` and install local `takahirox-three-mmd-0.1.4.tgz` in
 a consumer alongside the supported Three.js peer.
 
 **Optional after the maintainer publishes:** query `npm view
-@takahirox/three-mmd@0.1.3 version --registry=https://registry.npmjs.org/
+@takahirox/three-mmd@0.1.4 version --registry=https://registry.npmjs.org/
 --prefer-online` to confirm the new registry version. This post-publication
 check and any release tag are outside this task's completion requirements.
