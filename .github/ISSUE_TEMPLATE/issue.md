@@ -24,9 +24,9 @@ For a merge-triggered deployment, require validation of the code and configurati
 
 ### Required post-merge verification
 
-Record required checks possible only after merge separately, including how to verify them. For a merge-triggered deployment, verify successful publication and the newly published site after merge. Report these checks as pending until performed, then record the results and evidence. If none are required, state that explicitly.
+Record only checks the actual change requires after merge, including how to verify them. For a merge-triggered deployment, verify successful publication and the newly published site after merge. Report unperformed or environment-blocked checks honestly as pending, then record the results and evidence. If none are required (as for documentation-only edits), state that explicitly.
 
-This separation preserves all implementation requirements and applicable pre-merge tests. Report validation accurately; pending checks are not passing checks. See the [review guidelines](https://github.com/takahirox/three-mmd-loader/blob/main/docs/review-guidelines.md#check-acceptance-and-verification).
+Complete implementation and mandatory pre-merge acceptance, merge and close this Issue, then perform required post-merge verification. Pending post-merge-only checks do not make the implementation partial, and closure does not claim they passed. Follow the [development flow for evidence and new linked defect Issues](https://github.com/takahirox/three-mmd-loader/blob/main/docs/development-flow.md#6-perform-required-post-merge-verification) and the [review guidelines](https://github.com/takahirox/three-mmd-loader/blob/main/docs/review-guidelines.md#check-acceptance-and-verification).
 
 ## Context
 

@@ -20,7 +20,7 @@ Verify that the Pull Request addresses all parts of the Issue that it claims to 
 
 Do not approve a Pull Request as closing an Issue when important requirements remain unimplemented.
 
-If the change is intentionally partial, the Pull Request should say so and the Issue should remain open.
+If the change is intentionally partial, the Pull Request should state the remaining scope, use a non-closing Issue link and leave the parent Issue open. Pending post-merge-only verification does not make an otherwise complete implementation partial.
 
 ## Check Acceptance and Verification
 
@@ -28,9 +28,13 @@ Mandatory pre-merge acceptance criteria must be achievable and verifiable before
 
 Checks possible only after merge must not be prerequisites for pre-merge Pull Request approval. Require these checks to be recorded separately, with instructions for verification, and reported as pending until performed. Pending post-merge verification does not excuse missing implementation or insufficient pre-merge validation, and must not be reported as passed or as proof that the overall outcome is verified.
 
+For a fully implemented Issue with all applicable mandatory pre-merge checks satisfied, preserve `Closes #N`. Do not request removing it, keeping the source Issue open or withholding approval solely because post-merge-only verification is pending. ProjectWeave publication adds this closing reference and its merge/close stages close the source Issue; contrary review requests cause repeated Review -> Fix -> Publish -> Review loops.
+
+Missing implementation, mandatory pre-merge tests, required protections and genuinely necessary pre-merge human acceptance remain blockers. Require post-merge checks only when the actual change needs them, following the change-specific validation guidance below; documentation edits do not create routine manual, physical-device, heavyweight model download or deployment gates.
+
 For a merge-triggered deployment, review the code and configuration, local build results, and applicable automated test results before merge. Verify successful publication and the newly published site after merge, then record the results and evidence.
 
-Follow the [development flow](development-flow.md#pre-merge-acceptance-and-post-merge-verification) and the [Issue template](../.github/ISSUE_TEMPLATE/issue.md) to keep the two stages explicit.
+Follow the [development flow](development-flow.md#pre-merge-acceptance-and-post-merge-verification) and the [Issue template](../.github/ISSUE_TEMPLATE/issue.md) to keep the two stages explicit. After successful merge, close the original Issue, then follow the [post-merge evidence and defect follow-up guidance](development-flow.md#6-perform-required-post-merge-verification). Actual defects belong in new linked Issues after checking for equivalents; do not reopen the original solely for follow-up. Report pending or environment-blocked checks accurately; closure does not claim they passed, and an unavailable environment alone does not establish a defect.
 
 Apply the [testing and CI principles](development-flow.md#testing-and-ci-principles). For new or expanded checks, assess additional defect coverage, duplication of existing assurance, and execution/maintenance cost together. Ask:
 

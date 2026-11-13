@@ -22,7 +22,7 @@ When human work is required, state why it is necessary and what result is expect
 
 Mandatory pre-merge acceptance criteria must be achievable and verifiable before merge. Checks possible only after merge must not be prerequisites for pre-merge Pull Request approval.
 
-Record required post-merge verification separately in the Issue, including how to perform each check. This separation preserves all implementation requirements and applicable pre-merge tests; it changes when verification is performed, not what must be delivered.
+Record required post-merge verification separately in the Issue, including how to perform each check. Require it only when the actual change needs it; otherwise state that none is required. This separation preserves all implementation requirements and applicable pre-merge tests; it changes when verification is performed, not what must be delivered.
 
 For example, when deployment is triggered by merge, validate the code and configuration, local builds, and applicable automated tests before merge. After merge, verify successful publication and the newly published site. Report required post-merge checks as pending until performed, then record results and evidence. Do not report pending checks as passed or the overall outcome as verified.
 
@@ -45,7 +45,7 @@ Use these checks according to the affected behavior:
 
 | Change | Relevant validation |
 | --- | --- |
-| Documentation only | Check Markdown structure, links/anchors, consistency and `git diff --check`; application builds and browser suites are not needed solely for prose. |
+| Documentation only | Check Markdown structure, links/anchors, consistency and `git diff --check`; application builds and browser suites are not needed solely for prose. Do not add routine human approval, physical-device checks, heavyweight model downloads or deployment gates solely for documentation edits. |
 | Example UI | Relevant Node checks and Chrome example checks (`npm run test:examples`); validate the built site under the project path when affected. |
 | Core/runtime | `npm run typecheck`, `npm test`, and applicable legacy Ammo (`npm run test:legacy`), browser/rendering (`npm run test:browser`), Worker and package regressions. |
 | CI/build/release | Validate changed configuration, builds, artifact contents and applicable suites; use packaging/publication dry-runs as described in the [release guide](releases.md#automated-checks-before-merge). |
@@ -64,9 +64,9 @@ The Pull Request should explain:
 - which required post-merge checks remain pending and how to perform them
 - which Issue it addresses
 
-A Pull Request should only claim to close an Issue when it implements all requirements and satisfies all pre-merge acceptance criteria. A closing reference does not establish that required post-merge verification has passed; report it separately as pending until performed.
+A Pull Request should only claim to close an Issue when it implements all requirements and satisfies all pre-merge acceptance criteria. In that case, preserve the normal `Closes #N` reference even when required post-merge-only verification is pending. A closing reference does not establish that required post-merge verification has passed; report it separately as pending until performed.
 
-If the Pull Request intentionally implements only part of the Issue, it should state that clearly and should not present the Issue as fully resolved.
+If the Pull Request intentionally implements only part of the Issue, state the remaining scope and use a non-closing Issue link so the parent Issue remains open. Pending post-merge-only verification does not make an otherwise complete implementation partial.
 
 ## 3. Review Before Merge
 
@@ -89,13 +89,19 @@ If review finds missing requirements, unnecessary scope, correctness problems, o
 
 The Pull Request should be merged only when the reviewed change is an appropriate and complete response to the Issue.
 
+Missing implementation, mandatory pre-merge tests, required repository protections and genuinely necessary pre-merge human acceptance remain blockers. Do not bypass required checks or reviews.
+
 ## 5. Merge
 
-After review passes, merge the Pull Request.
+After review passes and all required pre-merge gates are satisfied, merge the Pull Request and close the original Issue that it fully implements. Required post-merge-only verification follows closure; do not keep the Issue open solely for those checks.
 
 ## 6. Perform Required Post-Merge Verification
 
-Perform the separately recorded post-merge checks and update their status with results and evidence. Until they are performed, keep them pending. If a check fails, report the failure and follow up; do not claim the expected outcome is fully verified until all required checks pass.
+Perform the separately recorded post-merge checks, if any, and record results and evidence in the merged Pull Request, closed Issue or a linked validation report. Include the affected merge/deployed revision, check commands or steps, environment, date, outcomes and relevant workflow/deployment links. Keep unperformed checks pending and identify environment blockers honestly. Issue closure does not claim these checks passed; do not claim the expected outcome is fully verified until all required checks pass.
+
+If verification reveals an actual defect, first check for an existing equivalent Issue. Link that Issue or create a new one with reproduction steps, affected revision, expected and actual behavior, and links to the original Issue and Pull Request. Do not reopen the original Issue solely for post-merge follow-up. An unavailable test environment alone is not evidence of a product defect; record the blocker and pending verification instead.
+
+This lifecycle supersedes older instructions to keep an implemented Issue open solely until post-merge verification finishes. Preserve historical test outcomes and evidence, including recorded pending or blocked checks; do not rewrite them as passing results.
 
 The normal flow is therefore:
 
@@ -110,7 +116,7 @@ Review
   ↓
 Revision if needed
   ↓
-Merge
+Merge and close original Issue
   ↓
 Required post-merge verification
 ```
